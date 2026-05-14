@@ -1,26 +1,145 @@
 @import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 @theme inline {
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-raised: var(--bg-surface-raised);
+  --color-bg-hover: var(--bg-hover);
+  --color-bg-active: var(--bg-active);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+  --color-border-subtle: var(--border-subtle);
+
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-primary-hover: var(--accent-primary-hover);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --font-sans: 'Geist Sans', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', monospace;
+
+  --bg-base: #F5F5F4;
+  --bg-surface: #FFFFFF;
+  --bg-surface-raised: #FAFAF9;
+  --bg-hover: #F0EFED;
+  --bg-active: #E8E7E4;
+
+  --text-primary: #111110;
+  --text-secondary: #6B6B68;
+  --text-muted: #9C9C99;
+  --text-inverse: #FFFFFF;
+
+  --border-default: #E2E1DD;
+  --border-strong: #C8C7C3;
+  --border-subtle: #EEEEDD;
+
+  --accent-primary: #111110;
+  --accent-primary-hover: #2C2C2A;
+  --accent-primary-muted: #444441;
+
+  --interactive-default: #888780;
+  --interactive-hover: #5F5E5A;
+  --interactive-active: #2C2C2A;
+
+  --state-success-bg: #EAF3DE;
+  --state-success-text: #27500A;
+  --state-success-border: #639922;
+
+  --state-warning-bg: #FAEEDA;
+  --state-warning-text: #633806;
+  --state-warning-border: #BA7517;
+
+  --state-error-bg: #FCEBEB;
+  --state-error-text: #791F1F;
+  --state-error-border: #A32D2D;
+
+  --state-info-bg: #E6F1FB;
+  --state-info-text: #0C447C;
+  --state-info-border: #185FA5;
+
+  --chart-cash: #111110;
+  --chart-upi: #378ADD;
+  --chart-card: #1D9E75;
+  --chart-other: #888780;
+  --chart-gst: #BA7517;
+  --chart-grid: #E2E1DD;
+
+  /* shadcn/ui mappings */
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+  
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-primary);
+  
+  --popover: var(--bg-surface);
+  --popover-foreground: var(--text-primary);
+  
+  --primary: var(--accent-primary);
+  --primary-foreground: var(--text-inverse);
+  
+  --secondary: var(--bg-surface-raised);
+  --secondary-foreground: var(--text-secondary);
+  
+  --muted: var(--bg-surface-raised);
+  --muted-foreground: var(--text-muted);
+  
+  --accent: var(--bg-hover);
+  --accent-foreground: var(--text-primary);
+  
+  --destructive: var(--state-error-bg);
+  --destructive-foreground: var(--state-error-text);
+
+  --border: var(--border-default);
+  --input: var(--border-default);
+  --ring: var(--interactive-default);
+
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }
