@@ -124,15 +124,15 @@ Clerk tells the system **who** the user is. The `users` table tells the system *
 
 ### Role Permissions Matrix
 
-| Permission                       | cashier         | manager     | admin                         |
-| -------------------------------- | --------------- | ----------- | ----------------------------- |
-| Create / complete / cancel bills | Own outlet only | ✗           | ✗                             |
-| View bill history                | Own outlet only | All outlets | All outlets                   |
-| View dashboard                   | ✗               | ✓           | ✓                             |
-| CRUD menu items + categories     | ✗               | Per outlet  | Per outlet                    |
-| Create / manage users            | ✗               | ✗           | ✓                             |
-| Create / manage outlets          | ✗               | ✗           | ✓                             |
-| Create second admin              | ✗               | ✗           | ✗ (UI blocked + API enforced) |
+| Permission                       | cashier         | manager          | admin                         |
+| -------------------------------- | --------------- | ---------------- | ----------------------------- |
+| Create / complete / cancel bills | Own outlet only | can cancel bills | can cancel bills              |
+| View bill history                | Own outlet only | All outlets      | All outlets                   |
+| View dashboard                   | Own outlet only | All outlets      | All outlets                   |
+| CRUD menu items + categories     | ✗               | Per outlet       | Per outlet                    |
+| Create / manage users            | ✗               | ✗                | ✓                             |
+| Create / manage outlets          | ✗               | ✗                | ✓                             |
+| Create second admin              | ✗               | ✗                | ✗ (UI blocked + API enforced) |
 
 ### Outlet Scoping
 

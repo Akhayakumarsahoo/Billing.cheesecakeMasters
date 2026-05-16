@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum UserRole {
+  cashier
+  manager
+  admin
+}
+
+enum BillStatus {
+  draft
+  printed
+  cancelled
+}
+
+enum PaymentMode {
+  cash
+  upi
+  card
+  other
+}
+
+// ─────────────────────────────────────────
+// OUTLETS
+// ─────────────────────────────────────────
+
+model Outlet {
+  id         String   @id @default(uuid())
+  name       String
+  address    String?
+  stateCode  String   @db.Char(2)   // e.g. "OD" for Odisha
+  gstin      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  // Relations
+  users          User[]
+  menuCategories MenuCategory[]
+  menuItems      MenuItem[]
+  bills          Bill[]
+  billSequence   BillSequence?
+
+  @@map("outlets")
+}
+
+// ─────────────────────────────────────────
+// USERS
+// Clerk owns auth. We store clerk_user_id
+// and add role + outlet assignment on top.
+// ─────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  clerkUserId  String   @unique          // Clerk's user.id — set after Clerk user is created
+  name         String
+  email        String   @unique
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  // Outlet assignment
+  // NULL for admin and manager (cross-outlet access)
+  // REQUIRED for cashier (scoped to one outlet)
+  outletId     String?
+  outlet       Outlet?  @relation(fields: [outletId], references: [id])
+
+  // Relations
+  bills        Bill[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────
+// GST SLABS
+// Static lookup — seeded once, never changed.
+// Slabs: 0, 5, 18, 28 (12% excluded per business decision)
+// ─────────────────────────────────────────
+
+model GstSlab {
+  id    Int     @id                   // 0, 5, 18, 28
+  rate  Decimal @db.Decimal(5, 2)     // e.g. 18.00
+  label String                        // e.g. "18%"
+
+  // Relations
+  menuItems MenuItem[]
+
+  @@map("gst_slabs")
+}
+
+// ─────────────────────────────────────────
+// MENU CATEGORIES
+// Each category belongs to one outlet.
+// Completely independent per outlet.
+// ─────────────────────────────────────────
+
+model MenuCategory {
+  id        String   @id @default(uuid())
+  name      String
+  sortOrder Int      @default(0)        // controls display order in POS
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  // Outlet relation
+  outletId  String
+  outlet    Outlet   @relation(fields: [outletId], references: [id])
+
+  // Relations
+  menuItems MenuItem[]
+
+  @@unique([outletId, name])            // no duplicate category names per outlet
+  @@map("menu_categories")
+}
+
+// ─────────────────────────────────────────
+// MENU ITEMS
+// Each item belongs to one outlet and one category.
+// Base price is EXCLUSIVE of GST.
+// Items are never deleted — only deactivated.
+// ─────────────────────────────────────────
+
+model MenuItem {
+  id         String   @id @default(uuid())
+  name       String
+  sku        String?
+  basePrice  Decimal  @db.Decimal(12, 2)
+  unit       String   @default("pcs")   // pcs, kg, litre, plate, etc.
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  // Outlet relation
+  outletId   String
+  outlet     Outlet   @relation(fields: [outletId], references: [id])
+
+  // Category relation
+  categoryId String
+  category   MenuCategory @relation(fields: [categoryId], references: [id])
+
+  // GST slab relation
+  gstSlabId  Int
+  gstSlab    GstSlab  @relation(fields: [gstSlabId], references: [id])
+
+  // Relations
+  billLineItems BillLineItem[]
+
+  @@unique([outletId, sku])             // SKU unique per outlet
+  @@map("menu_items")
+}
+
+// ─────────────────────────────────────────
+// BILL NUMBER SEQUENCES
+// Per-outlet counter for sequential bill numbers.
+// Reset lastSeq to 0 at start of each new year.
+// Use SELECT FOR UPDATE in application logic
+// to prevent race conditions.
+// ─────────────────────────────────────────
+
+model BillSequence {
+  outletId  String   @id
+  outlet    Outlet   @relation(fields: [outletId], references: [id])
+  year      Int
+  lastSeq   Int      @default(0)
+
+  @@map("bill_sequences")
+}
+
+// ─────────────────────────────────────────
+// BILLS
+// One row per transaction.
+// Status lifecycle: draft → printed → cancelled
+// Printed bills are immutable — no field changes
+// except status → cancelled and setting cancelledAt.
+// Totals are always computed server-side from
+// line items. Never trust client-submitted totals.
+// ─────────────────────────────────────────
+
+model Bill {
+  id           String     @id @default(uuid())
+  billNumber   String                           // e.g. OTL1-2025-00042
+  status       BillStatus @default(draft)
+
+  // Optional customer details
+  customerName  String?
+  customerPhone String?
+
+  // Snapshotted totals — computed via lib/gst.ts at completion
+  subtotal     Decimal    @default(0) @db.Decimal(12, 2)
+  totalCgst    Decimal    @default(0) @db.Decimal(12, 2)
+  totalSgst    Decimal    @default(0) @db.Decimal(12, 2)
+  totalGst     Decimal    @default(0) @db.Decimal(12, 2)
+  grandTotal   Decimal    @default(0) @db.Decimal(12, 2)
+
+  notes        String?
+  completedAt  DateTime?                        // set when status → printed
+  cancelledAt  DateTime?                        // set when status → cancelled
+  createdAt    DateTime   @default(now())
+
+  // Outlet relation
+  outletId     String
+  outlet       Outlet     @relation(fields: [outletId], references: [id])
+
+  // Cashier who created the bill
+  createdById  String
+  createdBy    User       @relation(fields: [createdById], references: [id])
+
+  // Relations
+  lineItems    BillLineItem[]
+  payments     BillPayment[]
+
+  @@unique([outletId, billNumber])              // bill number unique per outlet
+  @@map("bills")
+}
+
+// ─────────────────────────────────────────
+// BILL LINE ITEMS
+// All values are SNAPSHOTTED at billing time.
+// Never recompute from menu_items after creation.
+// No JOIN to MenuItem for prices — ever.
+// ─────────────────────────────────────────
+
+model BillLineItem {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+
+  // Bill relation
+  billId        String
+  bill          Bill     @relation(fields: [billId], references: [id])
+
+  // Menu item reference (for audit only — never used for price lookup)
+  menuItemId    String
+  menuItem      MenuItem @relation(fields: [menuItemId], references: [id])
+
+  // Snapshotted values at time of billing
+  itemName      String
+  sku           String?
+  unit          String
+  quantity      Decimal  @db.Decimal(10, 3)
+  basePrice     Decimal  @db.Decimal(12, 2)   // per unit, excl. GST
+  gstRate       Decimal  @db.Decimal(5, 2)    // e.g. 18.00
+
+  // Computed line totals — all via lib/gst.ts
+  lineBaseTotal Decimal  @db.Decimal(12, 2)   // basePrice × quantity
+  lineGstAmount Decimal  @db.Decimal(12, 2)   // lineBaseTotal × gstRate / 100
+  lineCgst      Decimal  @db.Decimal(12, 2)   // lineGstAmount / 2
+  lineSgst      Decimal  @db.Decimal(12, 2)   // lineGstAmount / 2
+  lineTotal     Decimal  @db.Decimal(12, 2)   // lineBaseTotal + lineGstAmount
+
+  @@map("bill_line_items")
+}
+
+// ─────────────────────────────────────────
+// BILL PAYMENTS
+// Multiple rows per bill for split payment.
+// SUM(amount) must equal bills.grandTotal
+// before bill status can change to printed.
+// Validated server-side — never trust client.
+// ─────────────────────────────────────────
+
+model BillPayment {
+  id      String      @id @default(uuid())
+  mode    PaymentMode
+  amount  Decimal     @db.Decimal(12, 2)
+  paidAt  DateTime    @default(now())
+
+  // Bill relation
+  billId  String
+  bill    Bill        @relation(fields: [billId], references: [id])
+
+  @@map("bill_payments")
+}

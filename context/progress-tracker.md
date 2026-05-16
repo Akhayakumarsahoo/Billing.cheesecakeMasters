@@ -9,7 +9,7 @@ change.
 
 ## Current Goal
 
-- Implement Auth (02-auth.md)
+- Prisma Setup (04-prisma-setup.md)
 
 ## Completed
 
@@ -18,6 +18,12 @@ change.
   - Added @clerk/ui
   - Hid sign up option on SignIn page
   - Enforced light theme in ClerkProvider
+- Implement Dashboard UI (03-dashboardDesign.md)
+  - Created static Dashboard UI for admin-manager
+- Prisma Setup (04-prisma-setup.md)
+  - Created Prisma schema with all models
+  - Ran initial migration
+  - Seeded database with GST slabs and admin user
 
 ## In Progress
 
