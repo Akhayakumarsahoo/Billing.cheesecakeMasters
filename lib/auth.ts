@@ -1,8 +1,19 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "./db";
-import type { User } from "@prisma/client";
+import type { User, Outlet } from "@prisma/client";
 
 export type CurrentUser = User;
+
+export async function getCurrentOutlet(): Promise<Outlet | null> {
+  const { userId } = await auth();
+  if (!userId) return null;
+
+  const outlet = await prisma.outlet.findUnique({
+    where: { clerkUserId: userId },
+  });
+
+  return outlet;
+}
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const { userId } = await auth();
@@ -14,6 +25,12 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   // Temporary auto-creation for development
   if (!user) {
+    // Before auto-creating an admin, ensure this clerk user isn't an outlet
+    const outlet = await prisma.outlet.findUnique({
+      where: { clerkUserId: userId },
+    });
+    if (outlet) return null; // It's an outlet, not a user
+
     const { currentUser } = await import("@clerk/nextjs/server");
     const clerkUser = await currentUser();
     if (clerkUser) {

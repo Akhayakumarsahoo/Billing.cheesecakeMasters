@@ -67,9 +67,9 @@ This application is a centralized, web-based billing system for a single retail 
 - Each outlet has an independent bill number sequence (format: `OTL{N}-{YYYY}-{SEQ}`)
 - Outlets can be deactivated but never deleted
 
-### Menu Management (Admin + Manager)
+### Menu Management (Admin only)
 
-- Menu is managed per outlet — admin or manager navigates to a specific outlet first, then manages that outlet's menu
+- Menu is managed per outlet — admin navigates to a specific outlet first, then manages that outlet's menu
 - Menu items belong to one category within an outlet
 - Categories are created per outlet (e.g. "Beverages", "Snacks", "Main Course")
 - Each menu item stores: name, SKU, base price (excl. GST), GST slab (0%, 5%, 18%, 28%), unit, category, and active status
@@ -119,7 +119,7 @@ This application is a centralized, web-based billing system for a single retail 
 - Admin-managed user creation (managers only)
 - Admin-managed outlet creation
 - Multi-outlet setup (2–5 outlets) with per-outlet menus
-- Per-outlet menu categories and items managed by admin or manager
+- Per-outlet menu categories and items managed by admin
 - Role-based access: `manager`, `admin`, plus authenticated `Outlet` entities
 - Walk-in retail billing (Outlet only) with real-time GST computation
 - Optional customer name and phone number capture per bill

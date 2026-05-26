@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -15,11 +15,22 @@ interface OutletSelectorProps {
 
 export function OutletSelector({ outlets }: OutletSelectorProps) {
   const router = useRouter();
-  const params = useParams();
-  
-  // If we are on /outlets/[id], params.id will be defined.
+  const pathname = usePathname();
+
+  // Extract outlet ID from /outlets/[id] or its sub-routes.
   // We use "all" for the "All Outlets" value.
-  const currentOutletId = (params?.id as string) || "all";
+  let currentOutletId = "all";
+  if (pathname?.startsWith("/outlets/")) {
+    const parts = pathname.split("/");
+    if (parts.length > 2) {
+      currentOutletId = parts[2];
+    }
+  }
+
+  const selectedOutletName =
+    currentOutletId === "all"
+      ? "All Outlets"
+      : outlets.find((o) => o.id === currentOutletId)?.name || "All Outlets";
 
   const handleChange = (val: string) => {
     if (val === "all") {
@@ -32,7 +43,9 @@ export function OutletSelector({ outlets }: OutletSelectorProps) {
   return (
     <Select value={currentOutletId} onValueChange={handleChange}>
       <SelectTrigger className="w-[200px] h-9">
-        <SelectValue placeholder="All Outlets" />
+        <SelectValue placeholder="All Outlets">
+          {selectedOutletName}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">All Outlets</SelectItem>

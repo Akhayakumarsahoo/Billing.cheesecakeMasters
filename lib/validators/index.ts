@@ -29,6 +29,7 @@ export const UpdateUserSchema = z.object({
 export const CreateCategorySchema = z.object({
   name: z.string().min(1).max(100),
   sortOrder: z.number().int().min(0).optional(),
+  outletId: z.string().uuid(),
 });
 
 export const UpdateCategorySchema = CreateCategorySchema.partial().extend({
@@ -45,6 +46,7 @@ export const CreateMenuItemSchema = z.object({
   }),
   unit: z.string().max(20).optional(),
   categoryId: z.string().uuid(),
+  outletId: z.string().uuid(),
 });
 
 export const UpdateMenuItemSchema = CreateMenuItemSchema.partial().extend({

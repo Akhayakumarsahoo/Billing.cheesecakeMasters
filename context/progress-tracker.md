@@ -32,6 +32,12 @@ change.
   - Updated API validation schemas (`lib/validators/index.ts`) for user and outlet creation.
   - Pushed updated schema to live database (`npx prisma db push --accept-data-loss`).
 
+- **Menu Management**
+  - Implemented outlet-specific menu management accessible only to admins.
+  - Added full CRUD functionality for categories and items with UI matching shadcn standards.
+  - Updated context documentation to restrict role permissions strictly to admins.
+  - Added new category, item, and confirmation dialogs.
+
 ## In Progress
 
 - None yet.

@@ -129,7 +129,7 @@ Clerk tells the system **who** the entity is. The `users` and `outlets` tables t
 | Create / complete / cancel bills | Own outlet only | can cancel bills | can cancel bills              |
 | View bill history                | Own outlet only | All outlets      | All outlets                   |
 | View dashboard                   | Own outlet only | All outlets      | All outlets                   |
-| CRUD menu items + categories     | ✗               | Per outlet       | Per outlet                    |
+| CRUD menu items + categories     | ✗               | ✗                | Per outlet                    |
 | Create / manage users            | ✗               | ✗                | ✓                             |
 | Create / manage outlets          | ✗               | ✗                | ✓                             |
 | Create second admin              | ✗               | ✗                | ✗ (UI blocked + API enforced) |

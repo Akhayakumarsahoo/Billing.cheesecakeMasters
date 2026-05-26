@@ -1,58 +1,7 @@
-import { getCurrentUser, getCurrentOutlet, requireAuth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { UpdateMenuItemSchema } from "@/lib/validators";
 import { NextResponse } from "next/server";
-
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const user = await getCurrentUser();
-    const outlet = await getCurrentOutlet();
-    if (!user && !outlet) return new Response(JSON.stringify({ error: { code: "UNAUTHORIZED", message: "Not authenticated" } }), { status: 401 });
-
-    const item = await prisma.menuItem.findUnique({
-      where: { id },
-      include: {
-        category: { select: { id: true, name: true, sortOrder: true } },
-        gstSlab: { select: { id: true, rate: true, label: true } },
-      },
-    });
-
-    if (!item) {
-      return NextResponse.json(
-        { error: { code: "NOT_FOUND", message: "Menu item not found" } },
-        { status: 404 }
-      );
-    }
-
-    if (outlet && outlet.id !== item.outletId) {
-      return NextResponse.json(
-        { error: { code: "FORBIDDEN", message: "Cannot access this item" } },
-        { status: 403 }
-      );
-    }
-
-    return NextResponse.json({
-      data: {
-        ...item,
-        basePrice: item.basePrice.toString(),
-        gstSlab: {
-          ...item.gstSlab,
-          rate: item.gstSlab.rate.toString(),
-        },
-      }
-    }, { status: 200 });
-  } catch (error: any) {
-    if (error instanceof Response) return error;
-    return NextResponse.json(
-      { error: { code: "INTERNAL_ERROR", message: "Failed to fetch menu item" } },
-      { status: 500 }
-    );
-  }
-}
 
 export async function PATCH(
   req: Request,
@@ -61,11 +10,10 @@ export async function PATCH(
   try {
     const { id } = await params;
     const user = await getCurrentUser();
-    const outlet = await getCurrentOutlet();
-    if (!user && !outlet) return new Response(JSON.stringify({ error: { code: "UNAUTHORIZED", message: "Not authenticated" } }), { status: 401 });
-    if (outlet) {
+    // Only Admin can update items
+    if (!user || user.role !== "admin") {
       return NextResponse.json(
-        { error: { code: "FORBIDDEN", message: "Not authorized" } },
+        { error: { code: "FORBIDDEN", message: "Not authorized. Admin only." } },
         { status: 403 }
       );
     }
@@ -82,31 +30,18 @@ export async function PATCH(
     const item = await prisma.menuItem.findUnique({ where: { id } });
     if (!item) {
       return NextResponse.json(
-        { error: { code: "NOT_FOUND", message: "Menu item not found" } },
+        { error: { code: "NOT_FOUND", message: "Item not found" } },
         { status: 404 }
       );
     }
 
-    const { categoryId, sku } = result.data;
-
-    if (categoryId && categoryId !== item.categoryId) {
-      const category = await prisma.menuCategory.findUnique({ where: { id: categoryId } });
+    // if categoryId changed, ensure it belongs to the same outlet
+    if (result.data.categoryId) {
+      const category = await prisma.menuCategory.findUnique({ where: { id: result.data.categoryId } });
       if (!category || category.outletId !== item.outletId) {
         return NextResponse.json(
-          { error: { code: "INVALID_CATEGORY", message: "Category must belong to outlet" } },
+          { error: { code: "INVALID_CATEGORY", message: "Category must belong to same outlet" } },
           { status: 400 }
-        );
-      }
-    }
-
-    if (sku && sku !== item.sku) {
-      const existing = await prisma.menuItem.findUnique({
-        where: { outletId_sku: { outletId: item.outletId, sku } },
-      });
-      if (existing) {
-        return NextResponse.json(
-          { error: { code: "DUPLICATE_SKU", message: "SKU must be unique per outlet" } },
-          { status: 409 }
         );
       }
     }
@@ -125,7 +60,51 @@ export async function PATCH(
   } catch (error: any) {
     if (error instanceof Response) return error;
     return NextResponse.json(
-      { error: { code: "INTERNAL_ERROR", message: "Failed to update menu item" } },
+      { error: { code: "INTERNAL_ERROR", message: "Failed to update item" } },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const user = await getCurrentUser();
+    // Only Admin can delete (deactivate) items
+    if (!user || user.role !== "admin") {
+      return NextResponse.json(
+        { error: { code: "FORBIDDEN", message: "Not authorized. Admin only." } },
+        { status: 403 }
+      );
+    }
+
+    const item = await prisma.menuItem.findUnique({ where: { id } });
+    if (!item) {
+      return NextResponse.json(
+        { error: { code: "NOT_FOUND", message: "Item not found" } },
+        { status: 404 }
+      );
+    }
+
+    // Soft delete
+    const deleted = await prisma.menuItem.update({
+      where: { id },
+      data: { isActive: false },
+    });
+
+    return NextResponse.json({
+      data: {
+        ...deleted,
+        basePrice: deleted.basePrice.toString(),
+      }
+    }, { status: 200 });
+  } catch (error: any) {
+    if (error instanceof Response) return error;
+    return NextResponse.json(
+      { error: { code: "INTERNAL_ERROR", message: "Failed to delete item" } },
       { status: 500 }
     );
   }

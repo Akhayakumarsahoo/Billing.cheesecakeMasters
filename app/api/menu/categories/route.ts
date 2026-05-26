@@ -1,4 +1,4 @@
-import { getCurrentUser, getCurrentOutlet, requireAuth } from "@/lib/auth";
+import { getCurrentUser, getCurrentOutlet } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { CreateCategorySchema } from "@/lib/validators";
 import { NextResponse } from "next/server";
@@ -6,8 +6,9 @@ import { NextResponse } from "next/server";
 export async function GET(req: Request) {
   try {
     const user = await getCurrentUser();
-    const outlet = await getCurrentOutlet();
-    if (!user && !outlet) return new Response(JSON.stringify({ error: { code: "UNAUTHORIZED", message: "Not authenticated" } }), { status: 401 });
+    const posOutlet = await getCurrentOutlet();
+    if (!user && !posOutlet) return new Response(JSON.stringify({ error: { code: "UNAUTHORIZED", message: "Not authenticated" } }), { status: 401 });
+    
     const { searchParams } = new URL(req.url);
     const outletId = searchParams.get("outletId");
 
@@ -18,7 +19,8 @@ export async function GET(req: Request) {
       );
     }
 
-    if (outlet && outlet.id !== outletId) {
+    // POS can only see its own categories. Admin can see any.
+    if (posOutlet && posOutlet.id !== outletId) {
       return NextResponse.json(
         { error: { code: "FORBIDDEN", message: "Cannot access other outlet categories" } },
         { status: 403 }
@@ -48,22 +50,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
-    const outlet = await getCurrentOutlet();
-    if (!user && !outlet) return new Response(JSON.stringify({ error: { code: "UNAUTHORIZED", message: "Not authenticated" } }), { status: 401 });
-    if (outlet) {
+    // Only Admin can create categories
+    if (!user || user.role !== "admin") {
       return NextResponse.json(
-        { error: { code: "FORBIDDEN", message: "Not authorized" } },
+        { error: { code: "FORBIDDEN", message: "Not authorized. Admin only." } },
         { status: 403 }
-      );
-    }
-
-    const { searchParams } = new URL(req.url);
-    const outletId = searchParams.get("outletId");
-
-    if (!outletId) {
-      return NextResponse.json(
-        { error: { code: "MISSING_PARAM", message: "outletId is required" } },
-        { status: 400 }
       );
     }
 
@@ -76,18 +67,33 @@ export async function POST(req: Request) {
       );
     }
 
-    const outlet = await prisma.outlet.findUnique({ where: { id: outletId } });
-    if (!outlet || !outlet.isActive) {
+    const { name, sortOrder, outletId } = result.data;
+
+    const dbOutlet = await prisma.outlet.findUnique({ where: { id: outletId } });
+    if (!dbOutlet || !dbOutlet.isActive) {
       return NextResponse.json(
         { error: { code: "INVALID_OUTLET", message: "Outlet not found or inactive" } },
         { status: 400 }
       );
     }
+    
+    // Ensure unique name per outlet
+    const existing = await prisma.menuCategory.findFirst({
+      where: { outletId, name }
+    });
+    if (existing) {
+      return NextResponse.json(
+        { error: { code: "CONFLICT", message: "Category with this name already exists in this outlet" } },
+        { status: 409 }
+      );
+    }
 
     const category = await prisma.menuCategory.create({
       data: {
-        ...result.data,
+        name,
+        sortOrder: sortOrder || 0,
         outletId,
+        isActive: true,
       },
     });
 

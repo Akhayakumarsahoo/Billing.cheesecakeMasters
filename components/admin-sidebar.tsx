@@ -19,9 +19,18 @@ interface AdminSidebarProps {
 export function AdminSidebar({ role }: AdminSidebarProps) {
   const pathname = usePathname();
 
-  const isSpecificOutlet = pathname?.startsWith("/outlets/");
+  const isSpecificOutlet = pathname?.startsWith("/outlets/") && pathname !== "/outlets";
+  
+  let outletId = null;
+  if (isSpecificOutlet) {
+    const parts = pathname?.split("/") || [];
+    outletId = parts[2];
+  }
+
   const isOutletsActive = pathname === "/outlets";
-  const isDashboardActive = pathname === "/" || isSpecificOutlet;
+  const isMenuActive = isSpecificOutlet && pathname?.endsWith("/menu");
+  const isBillsActive = isSpecificOutlet && pathname?.endsWith("/bills");
+  const isDashboardActive = pathname === "/" || (isSpecificOutlet && !isMenuActive && !isBillsActive);
 
   return (
     <aside className="w-[240px] bg-bg-surface border-r border-border-default flex flex-col justify-between py-4 shrink-0">
@@ -39,16 +48,34 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
           </div>
         </Link>
         
-        {isSpecificOutlet && (
+        {isSpecificOutlet && outletId && (
           <>
-            <div className="h-10 px-3 rounded-lg flex items-center gap-3 text-sm cursor-pointer mx-2 text-[#6B6B68] hover:bg-[#F0EFED]">
-              <UtensilsCrossed className="h-4 w-4" strokeWidth={1.5} />
-              Menu
-            </div>
-            <div className="h-10 px-3 rounded-lg flex items-center gap-3 text-sm cursor-pointer mx-2 text-[#6B6B68] hover:bg-[#F0EFED]">
-              <Receipt className="h-4 w-4" strokeWidth={1.5} />
-              Bills
-            </div>
+            {role === "admin" && (
+              <Link href={`/outlets/${outletId}/menu`}>
+                <div
+                  className={`h-10 px-3 rounded-lg flex items-center gap-3 text-sm cursor-pointer mx-2 ${
+                    isMenuActive
+                      ? "bg-[#E8E7E4] text-[#111110] font-medium"
+                      : "text-[#6B6B68] hover:bg-[#F0EFED]"
+                  }`}
+                >
+                  <UtensilsCrossed className="h-4 w-4" strokeWidth={1.5} />
+                  Menu
+                </div>
+              </Link>
+            )}
+            <Link href={`/outlets/${outletId}/bills`}>
+              <div
+                className={`h-10 px-3 rounded-lg flex items-center gap-3 text-sm cursor-pointer mx-2 ${
+                  isBillsActive
+                    ? "bg-[#E8E7E4] text-[#111110] font-medium"
+                    : "text-[#6B6B68] hover:bg-[#F0EFED]"
+                }`}
+              >
+                <Receipt className="h-4 w-4" strokeWidth={1.5} />
+                Bills
+              </div>
+            </Link>
           </>
         )}
 
