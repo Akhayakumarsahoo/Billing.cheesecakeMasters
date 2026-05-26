@@ -2,9 +2,9 @@
 
 ## Theme
 
-Light mode only. The design language is clean, minimal, and professional — built for daily operational use by cashiers, managers, and admins. The palette is anchored in black and grey with warm off-white surfaces. No decorative color. Accent colors are used sparingly — only for interactive elements, status indicators, and data visualization. The UI should feel fast and uncluttered: high information density without visual noise.
+Light mode only. The design language is clean, minimal, and professional — built for daily operational use by Outlet POS users, managers, and admins. The palette is anchored in black and grey with warm off-white surfaces. No decorative color. Accent colors are used sparingly — only for interactive elements, status indicators, and data visualization. The UI should feel fast and uncluttered: high information density without visual noise.
 
-**Responsive strategy:** Cashier views are mobile-first — they must work on phones (390px) and tablets (768px+). Admin and manager views are desktop-first (1024px+) with tablet support — no mobile optimization required for those roles.
+**Responsive strategy:** Outlet POS views are mobile-first — they must work on phones (390px) and tablets (768px+). Admin and manager views are desktop-first (1024px+) with tablet support — no mobile optimization required for those roles.
 
 ---
 
@@ -161,11 +161,11 @@ npx shadcn-ui@latest add [component-name]
 
 | Name    | Width            | Target            |
 | ------- | ---------------- | ----------------- |
-| Mobile  | `< 640px`        | Cashier on phone  |
-| Tablet  | `640px – 1023px` | Cashier on tablet |
+| Mobile  | `< 640px`        | Outlet POS on phone  |
+| Tablet  | `640px – 1023px` | Outlet POS on tablet |
 | Desktop | `≥ 1024px`       | Admin, manager    |
 
-Cashier views are **mobile-first**: base styles target 390px, tablet and desktop styles layer on top with `sm:` and `lg:` prefixes. Admin and manager views are **desktop-first**: base styles target 1024px+, with `sm:` adjustments for tablet only.
+Outlet POS views are **mobile-first**: base styles target 390px, tablet and desktop styles layer on top with `sm:` and `lg:` prefixes. Admin and manager views are **desktop-first**: base styles target 1024px+, with `sm:` adjustments for tablet only.
 
 ---
 
@@ -179,7 +179,7 @@ Cashier views are **mobile-first**: base styles target 390px, tablet and desktop
 - Top nav bar, 56px tall, `--bg-surface` background, `--border-default` bottom border
 - Main content area fills remaining viewport, `max-width: 1280px`, centered, `padding: 2rem`
 
-**Mobile (< 640px) — Cashier only:**
+**Mobile (< 640px) — Outlet POS only:**
 
 - Sidebar is hidden entirely
 - Top nav bar reduced to 48px — shows outlet name (left) and user avatar (right) only
@@ -205,9 +205,9 @@ Cashier views are **mobile-first**: base styles target 390px, tablet and desktop
 
 ### Top Nav
 
-- Contains outlet badge (cashier) or outlet `Select` dropdown (admin/manager) on the left
+- Contains outlet badge (Outlet POS) or outlet `Select` dropdown (admin/manager) on the left
 - User avatar + dropdown menu on the right
-- On mobile: outlet name as plain text badge — no selector dropdown for cashiers
+- On mobile: outlet name as plain text badge — no selector dropdown for Outlets
 - Outlet selector (admin/manager): `Select` component, default "All Outlets", scopes all data when changed
 
 ### POS Bill Builder
@@ -248,7 +248,7 @@ Cashier views are **mobile-first**: base styles target 390px, tablet and desktop
 - Tablet: 2-column metric grid → full-width chart → full-width bill table
 - No mobile layout for dashboard — redirect mobile users to a "Dashboard is available on larger screens" message
 
-### Bill History (Cashier)
+### Bill History (Outlet POS)
 
 **Desktop / Tablet:** Standard `Table` component with all columns visible.
 

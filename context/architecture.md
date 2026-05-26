@@ -26,20 +26,20 @@ Every folder owns exactly one concern. No folder reaches into another folder's d
 /
 ├── app/                          # Next.js App Router — pages and layouts only
 │   ├── (auth)/                   # Login page only — no signup exists
-│   ├── (cashier)/                # Cashier pages: new bill, bill history, daily summary
+│   ├── (pos)/                    # Outlet POS pages: new bill, bill history, daily summary
 │   ├── (admin-manager)/          # Shared pages: dashboard, outlet detail, menu CRUD
 │   └── (admin-only)/             # Admin-only pages: user management, outlet management
 │
 ├── app/api/                      # Route Handlers — all server-side business logic
-│   ├── auth/                     # Clerk webhook sync → upsert users table
+│   ├── auth/                     # Clerk webhook sync → upsert users/outlets table
 │   ├── outlets/                  # CRUD for outlets (admin only)
 │   ├── users/                    # CRUD for users (admin only)
 │   ├── menu/
 │   │   ├── categories/           # CRUD for menu categories per outlet
 │   │   └── items/                # CRUD for menu items per outlet
-│   ├── bills/                    # Create, add items, complete, cancel bills (cashier only)
+│   ├── bills/                    # Create, add items, complete, cancel bills (Outlet POS only)
 │   ├── payments/                 # Add payment rows to a draft bill
-│   └── dashboard/                # Aggregate queries for dashboard and cashier summary
+│   └── dashboard/                # Aggregate queries for dashboard and POS summary
 │
 ├── lib/
 │   ├── db.ts                     # Prisma client singleton
@@ -74,12 +74,12 @@ Every folder owns exactly one concern. No folder reaches into another folder's d
 
 | Table             | What it stores                                                                            |
 | ----------------- | ----------------------------------------------------------------------------------------- |
-| `outlets`         | Name, address, state code, GSTIN, active status                                           |
-| `users`           | Clerk user ID, name, email, role, assigned outlet (cashiers only)                         |
+| `outlets`         | Clerk user ID, Name, address, state code, GSTIN, active status                            |
+| `users`           | Clerk user ID, name, email, role (admin/manager)                                          |
 | `gst_slabs`       | Static lookup: 0%, 5%, 18%, 28%                                                           |
 | `menu_categories` | Category name, outlet ID, active status                                                   |
 | `menu_items`      | Name, SKU, base price, GST slab, unit, category, outlet, active status                    |
-| `bills`           | Bill number, outlet, cashier, customer name/phone, status, snapshotted totals, timestamps |
+| `bills`           | Bill number, outlet, customer name/phone, status, snapshotted totals, timestamps          |
 | `bill_line_items` | Snapshotted item name/price/GST, quantity, computed line totals (CGST, SGST)              |
 | `bill_payments`   | Payment mode, amount — multiple rows per bill for split payment                           |
 
@@ -107,7 +107,7 @@ Dashboard aggregates served from PostgreSQL views at read time. At 2–5 outlets
 
 Clerk owns identity entirely: login, session tokens, password reset, JWT issuance. No signup flow exists — the login page is the only auth entry point. The application never stores passwords.
 
-On first login, Clerk fires a webhook to `/api/auth/sync`. This endpoint upserts a row in `users` using `clerk_user_id` as the stable identifier.
+On first login, Clerk fires a webhook to `/api/auth/sync`. This endpoint creates/upserts a row in `users` (for managers/admins) or `outlets` (for POS accounts) using `clerk_user_id` as the stable identifier.
 
 ### Per-Request Authorization — application layer
 
@@ -115,16 +115,16 @@ Every API route resolves identity and enforces access before touching the databa
 
 ```
 Request → Clerk session verified → clerk_user_id extracted
-       → users table lookup → role + outlet_id resolved
-       → access check: does this role + outlet_id permit this operation?
+       → lookup in `users` or `outlets` table → entity type resolved (Admin/Manager/Outlet)
+       → access check: does this entity permit this operation?
        → proceed or return 403
 ```
 
-Clerk tells the system **who** the user is. The `users` table tells the system **what they can do**.
+Clerk tells the system **who** the entity is. The `users` and `outlets` tables tell the system **what they can do**.
 
 ### Role Permissions Matrix
 
-| Permission                       | cashier         | manager          | admin                         |
+| Permission                       | Outlet POS      | manager          | admin                         |
 | -------------------------------- | --------------- | ---------------- | ----------------------------- |
 | Create / complete / cancel bills | Own outlet only | can cancel bills | can cancel bills              |
 | View bill history                | Own outlet only | All outlets      | All outlets                   |
@@ -134,9 +134,9 @@ Clerk tells the system **who** the user is. The `users` table tells the system *
 | Create / manage outlets          | ✗               | ✗                | ✓                             |
 | Create second admin              | ✗               | ✗                | ✗ (UI blocked + API enforced) |
 
-### Outlet Scoping
+### Outlet Identity Scoping
 
-`outlet_id` is read from `users.outlet_id` using the authenticated `clerk_user_id`. No API route uses an `outlet_id` from the request body, query param, or URL to determine a cashier's outlet. A cashier cannot bill to a different outlet by crafting a request.
+`outlet_id` is derived strictly from the authenticated `clerk_user_id` checking the `outlets` table. No API route uses an `outlet_id` from the request body, query param, or URL to determine the POS outlet. An Outlet POS cannot bill to a different outlet by crafting a request.
 
 ### Admin Uniqueness
 
@@ -163,13 +163,13 @@ Dashboard aggregates are computed from PostgreSQL views at read time. If outlet 
 Rules the codebase must never violate. These are hard constraints enforced at the API layer and schema level — not guidelines.
 
 **1. No signup — ever.**
-There is no signup endpoint, no signup page, and no code path that creates a user outside of the admin user-creation flow or the seed script. The Clerk dashboard must also be configured to disable public signups.
+There is no signup endpoint, no signup page, and no code path that creates a user/outlet outside of the admin creation flow or the seed script. The Clerk dashboard must also be configured to disable public signups.
 
 **2. Exactly one admin exists.**
 The user creation API rejects any request where `role === 'admin'`. The seed script is the only mechanism that creates the admin account, and it is idempotent. No existing user's role may be elevated to `admin` via the API.
 
-**3. Only cashiers can create and complete bills.**
-The `POST /api/bills` and `POST /api/bills/[id]/complete` routes return 403 for any role other than `cashier`. This is enforced server-side regardless of what the UI shows.
+**3. Only Outlets can create and complete bills.**
+The `POST /api/bills` and `POST /api/bills/[id]/complete` routes return 403 for any entity other than an authenticated `Outlet`. This is enforced server-side regardless of what the UI shows.
 
 **4. Completed bills are immutable.**
 Once a bill's status is `printed`, no field on `bills`, `bill_line_items`, or `bill_payments` may be updated. Cancellation sets `status = 'cancelled'` and `cancelled_at` — nothing else changes. The API rejects any mutation on a non-draft bill with a 409 error.
@@ -186,8 +186,8 @@ Once a bill's status is `printed`, no field on `bills`, `bill_line_items`, or `b
 **8. Bills, line items, and payments are never hard-deleted.**
 No `DELETE` on `bills`, `bill_line_items`, or `bill_payments` — not even by admin. Cancellation is the only supported terminal state. This preserves the GST audit trail.
 
-**9. A user's outlet scope comes from the database — never from the request.**
-No API route reads `outlet_id` from a request body, query param, or URL segment to determine which outlet a cashier belongs to. It is always resolved from `users.outlet_id` via the authenticated `clerk_user_id`.
+**9. An Outlet's identity comes from the database — never from the request.**
+No API route reads `outlet_id` from a request body, query param, or URL segment to determine which outlet is billing. It is always resolved from `outlets.id` via the authenticated `clerk_user_id`.
 
 **10. GST computation lives in exactly one place.**
 All GST calculations (slab lookup, CGST/SGST split, line total derivation) are performed exclusively in `lib/gst.ts`. No component, route, or query may inline GST arithmetic.

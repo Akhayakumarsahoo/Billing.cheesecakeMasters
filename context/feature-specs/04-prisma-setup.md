@@ -72,7 +72,7 @@ datasource db {
 // ─────────────────────────────────────────
 
 enum UserRole {
-  cashier
+  Outlet
   manager
   admin
 }
@@ -130,7 +130,7 @@ model User {
 
   // Outlet assignment
   // NULL for admin and manager (cross-outlet access)
-  // REQUIRED for cashier (scoped to one outlet)
+  // REQUIRED for Outlet (scoped to one outlet)
   outletId     String?
   outlet       Outlet?  @relation(fields: [outletId], references: [id])
 
@@ -268,7 +268,7 @@ model Bill {
   outletId     String
   outlet       Outlet     @relation(fields: [outletId], references: [id])
 
-  // Cashier who created the bill
+  // Outlet POS who created the bill
   createdById  String
   createdBy    User       @relation(fields: [createdById], references: [id])
 

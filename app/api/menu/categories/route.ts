@@ -1,0 +1,102 @@
+import { getCurrentUser, getCurrentOutlet, requireAuth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { CreateCategorySchema } from "@/lib/validators";
+import { NextResponse } from "next/server";
+
+export async function GET(req: Request) {
+  try {
+    const user = await getCurrentUser();
+    const outlet = await getCurrentOutlet();
+    if (!user && !outlet) return new Response(JSON.stringify({ error: { code: "UNAUTHORIZED", message: "Not authenticated" } }), { status: 401 });
+    const { searchParams } = new URL(req.url);
+    const outletId = searchParams.get("outletId");
+
+    if (!outletId) {
+      return NextResponse.json(
+        { error: { code: "MISSING_PARAM", message: "outletId is required" } },
+        { status: 400 }
+      );
+    }
+
+    if (outlet && outlet.id !== outletId) {
+      return NextResponse.json(
+        { error: { code: "FORBIDDEN", message: "Cannot access other outlet categories" } },
+        { status: 403 }
+      );
+    }
+
+    const categories = await prisma.menuCategory.findMany({
+      where: { outletId, isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    });
+
+    const serialized = categories.map((c) => ({
+      ...c,
+      createdAt: c.createdAt.toISOString(),
+    }));
+
+    return NextResponse.json({ data: serialized }, { status: 200 });
+  } catch (error: any) {
+    if (error instanceof Response) return error;
+    return NextResponse.json(
+      { error: { code: "INTERNAL_ERROR", message: "Failed to fetch categories" } },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const user = await getCurrentUser();
+    const outlet = await getCurrentOutlet();
+    if (!user && !outlet) return new Response(JSON.stringify({ error: { code: "UNAUTHORIZED", message: "Not authenticated" } }), { status: 401 });
+    if (outlet) {
+      return NextResponse.json(
+        { error: { code: "FORBIDDEN", message: "Not authorized" } },
+        { status: 403 }
+      );
+    }
+
+    const { searchParams } = new URL(req.url);
+    const outletId = searchParams.get("outletId");
+
+    if (!outletId) {
+      return NextResponse.json(
+        { error: { code: "MISSING_PARAM", message: "outletId is required" } },
+        { status: 400 }
+      );
+    }
+
+    const body = await req.json();
+    const result = CreateCategorySchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: { code: "VALIDATION_ERROR", message: "Invalid input" } },
+        { status: 400 }
+      );
+    }
+
+    const outlet = await prisma.outlet.findUnique({ where: { id: outletId } });
+    if (!outlet || !outlet.isActive) {
+      return NextResponse.json(
+        { error: { code: "INVALID_OUTLET", message: "Outlet not found or inactive" } },
+        { status: 400 }
+      );
+    }
+
+    const category = await prisma.menuCategory.create({
+      data: {
+        ...result.data,
+        outletId,
+      },
+    });
+
+    return NextResponse.json({ data: category }, { status: 201 });
+  } catch (error: any) {
+    if (error instanceof Response) return error;
+    return NextResponse.json(
+      { error: { code: "INTERNAL_ERROR", message: "Failed to create category" } },
+      { status: 500 }
+    );
+  }
+}

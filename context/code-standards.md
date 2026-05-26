@@ -36,7 +36,7 @@ When in doubt, follow the pattern already established in the codebase — do not
 - **Add `'use client'` only when required.** Valid reasons: onClick handlers, controlled inputs, client-side state, browser APIs. Fetching data is not a reason — use Server Components or Route Handlers for that.
 - **Pages contain no logic.** Files inside `app/` import components and pass props. They do not contain `if` statements, data transformations, or business rules.
 - **Data fetching in Server Components uses `fetch` or Prisma directly — not client-side hooks.** Client-side fetching (SWR / React Query) is reserved for data that must update without a page reload (e.g. live bill builder state).
-- **Route groups enforce access.** `(cashier)/`, `(admin-manager)/`, and `(admin-only)/` each have a layout that checks the role server-side and redirects on mismatch. Role checks are never done only in the UI.
+- **Route groups enforce access.** `(Outlet)/`, `(admin-manager)/`, and `(admin-only)/` each have a layout that checks the role server-side and redirects on mismatch. Role checks are never done only in the UI.
 - **Keep route handlers small.** A route handler does four things in order: parse + validate input, resolve auth, call a `lib/` function, return a response. If the handler is longer than ~40 lines, the logic belongs in `lib/`.
 - **Never call Prisma directly from a component.** All DB access goes through `app/api/` route handlers or Server Actions — never imported directly into a component file.
 - **Loading and error states are explicit.** Every page that fetches data has a `loading.tsx` and an `error.tsx` sibling. Do not leave these implicit.
@@ -97,7 +97,7 @@ When in doubt, follow the pattern already established in the codebase — do not
 
 - **No business logic in route handlers.** Calculations, GST computation, bill number generation, and total validation live in `lib/`. Route handlers call `lib/` functions — they do not inline logic.
 
-- **Outlet ID is never read from the request for scoping.** For cashier routes, `outlet_id` is always resolved from `users.outlet_id` via the authenticated session. Reading it from `req.body` or query params for access control purposes is forbidden.
+- **Outlet ID is never read from the request for scoping.** For Outlet routes, `outlet_id` is always resolved from `users.outlet_id` via the authenticated session. Reading it from `req.body` or query params for access control purposes is forbidden.
 
 - **All monetary values sent to the client are serialized as strings.** Prisma `Decimal` → `.toString()` before inclusion in any response.
 
@@ -118,7 +118,7 @@ When in doubt, follow the pattern already established in the codebase — do not
 ## File Organization
 
 - `app/(auth)/` — Login page only. No signup. No registration flow.
-- `app/(cashier)/` — All cashier-facing pages: new bill, bill history, daily summary. Scoped to one outlet.
+- `app/(Outlet)/` — All Outlet-facing pages: new bill, bill history, daily summary. Scoped to one outlet.
 - `app/(admin-manager)/` — Pages shared by admin and manager: dashboard, outlet detail view, menu CRUD.
 - `app/(admin-only)/` — Admin-exclusive pages: user management, outlet creation. Middleware redirects non-admins.
 - `app/api/` — All Route Handlers. One folder per resource (`bills/`, `menu/`, `users/`, `outlets/`, `dashboard/`). No business logic — delegates to `lib/`.
