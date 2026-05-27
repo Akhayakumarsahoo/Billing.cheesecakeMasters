@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth";
+import { getCurrentUser, getCurrentOutlet } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { BillHistoryQuerySchema, CreateBillSchema } from "@/lib/validators";
 import { generateBillNumber } from "@/lib/bill-number";
@@ -6,7 +6,16 @@ import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
   try {
-    const user = await requireAuth();
+    const user = await getCurrentUser();
+    const outlet = await getCurrentOutlet();
+
+    if (!user && !outlet) {
+      return NextResponse.json(
+        { error: { code: "UNAUTHORIZED", message: "Not authenticated" } },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const paramsObj = Object.fromEntries(searchParams.entries());
     const result = BillHistoryQuerySchema.safeParse(paramsObj);
@@ -23,9 +32,9 @@ export async function GET(req: Request) {
 
     const where: any = {};
 
-    if (user.role === "cashier") {
-      where.outletId = user.outletId;
-    } else if (paramsObj.outletId) {
+    if (outlet) {
+      where.outletId = outlet.id;
+    } else if (user && paramsObj.outletId) {
       where.outletId = paramsObj.outletId;
     }
 
@@ -51,7 +60,6 @@ export async function GET(req: Request) {
         take: limit,
         include: {
           outlet: { select: { id: true, name: true } },
-          createdBy: { select: { id: true, name: true } },
           payments: { select: { mode: true, amount: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -91,10 +99,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const user = await requireAuth();
-    if (user.role !== "cashier" || !user.outletId) {
+    const outletAuth = await getCurrentOutlet();
+    if (!outletAuth) {
       return NextResponse.json(
-        { error: { code: "FORBIDDEN", message: "Only cashiers can create bills" } },
+        { error: { code: "FORBIDDEN", message: "Only outlets can create bills" } },
         { status: 403 }
       );
     }
@@ -108,7 +116,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const outlet = await prisma.outlet.findUnique({ where: { id: user.outletId } });
+    const outlet = await prisma.outlet.findUnique({ where: { id: outletAuth.id } });
     if (!outlet || !outlet.isActive) {
       return NextResponse.json(
         { error: { code: "INVALID_OUTLET", message: "Outlet not found or inactive" } },
@@ -116,14 +124,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const billNumber = await generateBillNumber(user.outletId);
+    const billNumber = await generateBillNumber(outlet.id);
 
     const bill = await prisma.bill.create({
       data: {
         ...result.data,
         billNumber,
-        outletId: user.outletId,
-        createdById: user.id,
+        outletId: outlet.id,
         status: "draft",
       },
     });

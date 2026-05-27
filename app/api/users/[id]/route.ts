@@ -20,7 +20,6 @@ export async function GET(
 
     const dbUser = await prisma.user.findUnique({
       where: { id },
-      include: { outlet: { select: { id: true, name: true } } },
     });
 
     if (!dbUser) {
@@ -73,12 +72,11 @@ export async function PATCH(
     }
 
     // Do not allow updating role or email - filter them out if present in body
-    const { name, isActive, outletId } = result.data;
+    const { name, isActive } = result.data;
 
     const dataToUpdate: any = {};
     if (name !== undefined) dataToUpdate.name = name;
     if (isActive !== undefined) dataToUpdate.isActive = isActive;
-    if (outletId !== undefined) dataToUpdate.outletId = outletId;
 
     if (isActive === false && dbUser.isActive !== false) {
       // Also disable in Clerk

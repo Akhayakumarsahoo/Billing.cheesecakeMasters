@@ -47,7 +47,7 @@ export default function SalesDashboard() {
       </div>
 
       {/* Section 2 — Metric Cards */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <Card className="bg-white rounded-lg border border-[#E2E1DD] shadow-none">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-2">
@@ -215,7 +215,7 @@ export default function SalesDashboard() {
         <h2 className="text-lg font-medium text-[#111110] mb-4">
           Payment Breakdown
         </h2>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card className="bg-white rounded-lg border border-[#E2E1DD] shadow-none">
             <CardContent className="p-6">
               <div className="flex items-center gap-2 mb-2">

@@ -49,12 +49,20 @@ export async function PATCH(
     const updated = await prisma.menuItem.update({
       where: { id },
       data: result.data,
+      include: {
+        category: { select: { id: true, name: true, sortOrder: true } },
+        gstSlab: { select: { id: true, rate: true, label: true } },
+      }
     });
 
     return NextResponse.json({
       data: {
         ...updated,
         basePrice: updated.basePrice.toString(),
+        gstSlab: {
+          ...updated.gstSlab,
+          rate: updated.gstSlab.rate.toString(),
+        }
       }
     }, { status: 200 });
   } catch (error: any) {

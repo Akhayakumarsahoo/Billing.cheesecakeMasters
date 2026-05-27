@@ -122,12 +122,20 @@ export async function POST(req: Request) {
 
     const item = await prisma.menuItem.create({
       data: result.data,
+      include: {
+        category: { select: { id: true, name: true, sortOrder: true } },
+        gstSlab: { select: { id: true, rate: true, label: true } },
+      }
     });
 
     return NextResponse.json({
       data: {
         ...item,
         basePrice: item.basePrice.toString(),
+        gstSlab: {
+          ...item.gstSlab,
+          rate: item.gstSlab.rate.toString(),
+        }
       }
     }, { status: 201 });
   } catch (error: any) {

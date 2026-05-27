@@ -3,6 +3,21 @@ import { prisma } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import { MenuManagementClient } from "@/components/menu/menu-management-client";
 
+export interface SerializedMenuItem {
+  id: string;
+  name: string;
+  sku: string | null;
+  basePrice: string;
+  unit: string;
+  categoryId: string;
+  gstSlabId: number;
+  outletId: string;
+  isActive: boolean;
+  createdAt: string;
+  category: { id: string; name: string; sortOrder: number };
+  gstSlab: { id: number; rate: string; label: string };
+}
+
 export default async function OutletMenuPage({
   params,
 }: {
@@ -47,7 +62,7 @@ export default async function OutletMenuPage({
   });
 
   // Serialize decimals/dates for client component
-  const serializedItems = items.map((item) => ({
+  const serializedItems: SerializedMenuItem[] = items.map((item) => ({
     ...item,
     basePrice: item.basePrice.toString(),
     createdAt: item.createdAt.toISOString(),
@@ -71,7 +86,7 @@ export default async function OutletMenuPage({
       <MenuManagementClient
         outletId={id}
         initialCategories={serializedCategories}
-        initialItems={serializedItems as any}
+        initialItems={serializedItems}
         gstSlabs={gstSlabs.map(g => ({ id: g.id, label: g.label }))}
       />
     </div>

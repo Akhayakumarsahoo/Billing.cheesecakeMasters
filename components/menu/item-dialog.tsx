@@ -162,7 +162,7 @@ export function ItemDialog({
 
             <div className="space-y-2">
               <Label>Category</Label>
-              <Select value={categoryId} onValueChange={setCategoryId} required>
+              <Select value={categoryId} onValueChange={(val) => val && setCategoryId(val)} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a category">
                     {categoryId ? categories.find((c) => c.id === categoryId)?.name : null}
@@ -180,7 +180,7 @@ export function ItemDialog({
 
             <div className="space-y-2">
               <Label>GST Slab</Label>
-              <Select value={gstSlabId} onValueChange={setGstSlabId} required>
+              <Select value={gstSlabId} onValueChange={(val) => val && setGstSlabId(val)} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a GST slab">
                     {gstSlabId ? gstSlabs.find((g) => g.id.toString() === gstSlabId)?.label : null}

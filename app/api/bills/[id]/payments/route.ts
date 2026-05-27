@@ -23,7 +23,7 @@ export async function GET(
       );
     }
 
-    if (user.role === "cashier" && outlet.id !== bill.outletId) {
+    if (outlet.id !== bill.outletId) {
       return NextResponse.json(
         { error: { code: "FORBIDDEN", message: "Cannot access this bill" } },
         { status: 403 }

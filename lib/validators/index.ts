@@ -61,9 +61,15 @@ export const CreateBillSchema = z.object({
 });
 
 export const AddLineItemSchema = z.object({
-  menuItemId: z.string().uuid(),
+  menuItemId: z.string().uuid().optional(),
+  itemName: z.string().min(1).max(150).optional(),
+  basePrice: z.number().nonnegative().optional(),
+  gstRate: z.number().refine((v) => [0, 5, 18, 28].includes(v)).optional(),
   quantity: z.number().positive(),
-});
+}).refine(data => {
+  if (data.menuItemId) return true;
+  return data.itemName !== undefined && data.basePrice !== undefined && data.gstRate !== undefined;
+}, { message: "Must provide either menuItemId or (itemName, basePrice, gstRate) for custom items." });
 
 export const UpdateLineItemSchema = z.object({
   quantity: z.number().positive(),

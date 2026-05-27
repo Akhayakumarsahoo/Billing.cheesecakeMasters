@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -10,7 +11,17 @@ import {
   Users,
   Settings,
 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 
 interface AdminSidebarProps {
   role?: string;
@@ -18,13 +29,29 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ role }: AdminSidebarProps) {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+  const [persistedOutletId, setPersistedOutletId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    const handleStorageChange = () => {
+      setPersistedOutletId(localStorage.getItem("selectedOutletId"));
+    };
+    handleStorageChange();
+    
+    // Custom event to listen for changes from OutletSelector in the same tab
+    window.addEventListener("local-storage", handleStorageChange);
+    return () => window.removeEventListener("local-storage", handleStorageChange);
+  }, [pathname]);
 
   const isSpecificOutlet = pathname?.startsWith("/outlets/") && pathname !== "/outlets";
   
-  let outletId = null;
+  let currentOutletId = null;
   if (isSpecificOutlet) {
     const parts = pathname?.split("/") || [];
-    outletId = parts[2];
+    currentOutletId = parts[2];
+  } else if (mounted) {
+    currentOutletId = persistedOutletId;
   }
 
   const isOutletsActive = pathname === "/outlets";
@@ -33,90 +60,75 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
   const isDashboardActive = pathname === "/" || (isSpecificOutlet && !isMenuActive && !isBillsActive);
 
   return (
-    <aside className="w-[240px] bg-bg-surface border-r border-border-default flex flex-col justify-between py-4 shrink-0">
-      <nav className="flex flex-col gap-1">
-        <Link href="/">
-          <div
-            className={`h-10 px-3 rounded-lg flex items-center gap-3 text-sm cursor-pointer mx-2 ${
-              isDashboardActive
-                ? "bg-[#E8E7E4] text-[#111110] font-medium"
-                : "text-[#6B6B68] hover:bg-[#F0EFED]"
-            }`}
-          >
-            <LayoutDashboard className="h-4 w-4" strokeWidth={1.5} />
-            Dashboard
-          </div>
-        </Link>
-        
-        {isSpecificOutlet && outletId && (
-          <>
-            {role === "admin" && (
-              <Link href={`/outlets/${outletId}/menu`}>
-                <div
-                  className={`h-10 px-3 rounded-lg flex items-center gap-3 text-sm cursor-pointer mx-2 ${
-                    isMenuActive
-                      ? "bg-[#E8E7E4] text-[#111110] font-medium"
-                      : "text-[#6B6B68] hover:bg-[#F0EFED]"
-                  }`}
-                >
-                  <UtensilsCrossed className="h-4 w-4" strokeWidth={1.5} />
-                  Menu
-                </div>
-              </Link>
-            )}
-            <Link href={`/outlets/${outletId}/bills`}>
-              <div
-                className={`h-10 px-3 rounded-lg flex items-center gap-3 text-sm cursor-pointer mx-2 ${
-                  isBillsActive
-                    ? "bg-[#E8E7E4] text-[#111110] font-medium"
-                    : "text-[#6B6B68] hover:bg-[#F0EFED]"
-                }`}
-              >
-                <Receipt className="h-4 w-4" strokeWidth={1.5} />
-                Bills
-              </div>
-            </Link>
-          </>
-        )}
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <div className="flex items-center gap-2 px-2 py-2 mt-2">
+          <div className="h-6 w-6 bg-accent-primary shrink-0" />
+          <span className="font-mono font-semibold text-lg text-text-primary group-data-[collapsible=icon]:hidden truncate">
+            BillFlow
+          </span>
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton render={<Link href="/" />} isActive={isDashboardActive} tooltip="Dashboard">
+                  <LayoutDashboard />
+                  <span>Dashboard</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              {currentOutletId && currentOutletId !== "all" && (
+                <>
+                  {role === "admin" && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton render={<Link href={`/outlets/${currentOutletId}/menu`} />} isActive={isMenuActive} tooltip="Menu">
+                        <UtensilsCrossed />
+                        <span>Menu</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton render={<Link href={`/outlets/${currentOutletId}/bills`} />} isActive={isBillsActive} tooltip="Bills">
+                      <Receipt />
+                      <span>Bills</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
+              )}
 
-        {role === "admin" && (
-          <>
-            <Link href="/outlets">
-              <div
-                className={`h-10 px-3 rounded-lg flex items-center gap-3 text-sm cursor-pointer mx-2 ${
-                  isOutletsActive
-                    ? "bg-[#E8E7E4] text-[#111110] font-medium"
-                    : "text-[#6B6B68] hover:bg-[#F0EFED]"
-                }`}
-              >
-                <Store className="h-4 w-4" strokeWidth={1.5} />
-                Outlet Management
-              </div>
-            </Link>
-            <Link href="/users">
-              <div
-                className={`h-10 px-3 rounded-lg flex items-center gap-3 text-sm cursor-pointer mx-2 ${
-                  pathname?.startsWith("/users")
-                    ? "bg-[#E8E7E4] text-[#111110] font-medium"
-                    : "text-[#6B6B68] hover:bg-[#F0EFED]"
-                }`}
-              >
-                <Users className="h-4 w-4" strokeWidth={1.5} />
-                User Management
-              </div>
-            </Link>
-          </>
-        )}
-      </nav>
-      <div className="flex flex-col gap-1">
-        <div className="px-4 mb-2">
-          <Separator />
-        </div>
-        <div className="h-10 px-3 rounded-lg flex items-center gap-3 text-sm cursor-pointer mx-2 text-[#6B6B68] hover:bg-[#F0EFED]">
-          <Settings className="h-4 w-4" strokeWidth={1.5} />
-          Settings
-        </div>
-      </div>
-    </aside>
+              {role === "admin" && (
+                <>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton render={<Link href="/outlets" />} isActive={isOutletsActive} tooltip="Outlet Management">
+                      <Store />
+                      <span>Outlet Management</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton render={<Link href="/users" />} isActive={pathname?.startsWith("/users")} tooltip="User Management">
+                      <Users />
+                      <span>User Management</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Settings">
+              <Settings />
+              <span>Settings</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }

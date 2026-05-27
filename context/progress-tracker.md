@@ -9,9 +9,11 @@ change.
 
 ## Current Goal
 
-- Prisma Setup (04-prisma-setup.md)
+- Testing and Verification
 
 ## Completed
+
+- POS Setup (09-POS-setup.md)
 
 - Implement Design System (01-design-system.md)
 - Implement Auth (02-auth.md)
@@ -37,6 +39,22 @@ change.
   - Added full CRUD functionality for categories and items with UI matching shadcn standards.
   - Updated context documentation to restrict role permissions strictly to admins.
   - Added new category, item, and confirmation dialogs.
+
+- **Outlet POS Implementation**
+  - Created root dispatcher (`app/page.tsx`) to handle role-based redirection to `/pos` or `/dashboard`.
+  - Built mobile-first POS Layout with responsive Sidebar and Bottom Nav.
+  - Implemented client-side `BillBuilder` for cart management and dynamic GST calculations.
+  - Added POS pages: New Bill, Order History, Sales Summary, and Daily Settlement.
+  - Fixed `app/api/bills/*` endpoints to correctly validate Outlet identity (`getCurrentOutlet()`) and removed legacy `cashier` checks.
+
+- **POS UI Refinements & Part Payment**
+  - Updated breakpoints to push sidebar to bottom-nav on tablet (`lg`).
+  - Implemented visually grouped menu items by category in the POS builder.
+  - Replaced persistent cart sidebar with a Shadcn `Drawer` triggered by a bottom-right FAB on tablet/mobile screens.
+  - Added "Part Payment" mode with split inputs for Cash, UPI, Card, and API integration for multiple payments per bill.
+  - Added "Open Item" feature allowing custom line items to be added to the cart on-the-fly, backed by schema update making `menuItemId` optional.
+  - Implemented Order History "Edit" and "Cancel" workflows restricted to same-day transactions. Edit now uses an in-place replacement strategy, retaining the original bill number.
+  - Added Date Range filtering (capped at 2 months) and a detailed Payment Method breakdown card to the Sales Summary page.
 
 ## In Progress
 

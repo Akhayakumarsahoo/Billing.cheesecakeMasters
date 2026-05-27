@@ -222,8 +222,8 @@ model BillLineItem {
   bill   Bill   @relation(fields: [billId], references: [id])
 
   // Menu item reference (for audit only — never used for price lookup)
-  menuItemId String
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItemId String?
+  menuItem   MenuItem? @relation(fields: [menuItemId], references: [id])
 
   // Snapshotted values at time of billing
   itemName  String

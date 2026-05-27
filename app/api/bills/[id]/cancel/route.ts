@@ -1,43 +1,56 @@
-import { getCurrentUser, getCurrentOutlet, requireAuth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getCurrentOutlet } from "@/lib/auth";
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const user = await getCurrentUser();
     const outlet = await getCurrentOutlet();
-    if (!user && !outlet) return new Response(JSON.stringify({ error: { code: "UNAUTHORIZED", message: "Not authenticated" } }), { status: 401 });
+    if (!outlet) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const bill = await prisma.bill.findUnique({
       where: { id },
+      include: {
+        lineItems: {
+          include: {
+            menuItem: {
+              include: { gstSlab: true }
+            }
+          }
+        }
+      }
     });
 
     if (!bill) {
+      return NextResponse.json({ error: { code: "NOT_FOUND", message: "Bill not found" } }, { status: 404 });
+    }
+
+    if (bill.outletId !== outlet.id) {
+      return NextResponse.json({ error: { code: "FORBIDDEN", message: "Forbidden" } }, { status: 403 });
+    }
+
+    const billDate = new Date(bill.createdAt);
+    const today = new Date();
+    
+    const isSameDay = billDate.getFullYear() === today.getFullYear() &&
+                      billDate.getMonth() === today.getMonth() &&
+                      billDate.getDate() === today.getDate();
+                      
+    if (!isSameDay) {
       return NextResponse.json(
-        { error: { code: "NOT_FOUND", message: "Bill not found" } },
-        { status: 404 }
+        { error: { code: "BAD_REQUEST", message: "Cannot cancel bills from previous days" } }, 
+        { status: 400 }
       );
     }
 
-    if (outlet && outlet.id !== bill.outletId) {
+    if (bill.status === "cancelled") {
       return NextResponse.json(
-        { error: { code: "FORBIDDEN", message: "Cannot access this bill" } },
-        { status: 403 }
+        { error: { code: "BAD_REQUEST", message: "Bill is already cancelled" } }, 
+        { status: 400 }
       );
     }
 
-    if (bill.status !== "printed") {
-      return NextResponse.json(
-        { error: { code: "INVALID_STATUS", message: "Can only cancel printed bills" } },
-        { status: 409 }
-      );
-    }
-
-    const updated = await prisma.bill.update({
+    const updatedBill = await prisma.bill.update({
       where: { id },
       data: {
         status: "cancelled",
@@ -45,21 +58,8 @@ export async function POST(
       },
     });
 
-    return NextResponse.json({
-      data: {
-        ...updated,
-        grandTotal: updated.grandTotal.toString(),
-        subtotal: updated.subtotal.toString(),
-        totalCgst: updated.totalCgst.toString(),
-        totalSgst: updated.totalSgst.toString(),
-        totalGst: updated.totalGst.toString(),
-      }
-    }, { status: 200 });
+    return NextResponse.json({ data: updatedBill });
   } catch (error: any) {
-    if (error instanceof Response) return error;
-    return NextResponse.json(
-      { error: { code: "INTERNAL_ERROR", message: "Failed to cancel bill" } },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: error.message } }, { status: 500 });
   }
 }

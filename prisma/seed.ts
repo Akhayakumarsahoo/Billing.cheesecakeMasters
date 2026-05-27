@@ -47,7 +47,6 @@ async function main() {
       name: adminName,
       email: adminEmail,
       role: UserRole.admin,
-      outletId: null,
       isActive: true,
     },
   });

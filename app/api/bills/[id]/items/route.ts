@@ -30,7 +30,7 @@ export async function POST(
       );
     }
 
-    const { menuItemId, quantity } = result.data;
+    const { menuItemId, quantity, itemName, basePrice, gstRate } = result.data;
 
     const bill = await prisma.bill.findUnique({ where: { id } });
     if (!bill) {
@@ -54,42 +54,62 @@ export async function POST(
       );
     }
 
-    const menuItem = await prisma.menuItem.findUnique({
-      where: { id: menuItemId },
-      include: { gstSlab: true },
-    });
-
-    if (!menuItem || !menuItem.isActive) {
-      return NextResponse.json(
-        { error: { code: "NOT_FOUND", message: "Menu item not found or inactive" } },
-        { status: 404 }
-      );
-    }
-
-    if (outlet.id !== menuItem.outletId) {
-      return NextResponse.json(
-        { error: { code: "FORBIDDEN", message: "Menu item does not belong to this outlet" } },
-        { status: 403 }
-      );
-    }
-
     const qtyDecimal = new Decimal(quantity);
+    let finalItemName = "";
+    let finalSku: string | null = null;
+    let finalUnit = "custom";
+    let finalBasePrice = new Decimal(0);
+    let finalGstRate = new Decimal(0);
+    let finalMenuItemId: string | undefined = undefined;
+
+    if (menuItemId) {
+      const menuItem = await prisma.menuItem.findUnique({
+        where: { id: menuItemId },
+        include: { gstSlab: true },
+      });
+
+      if (!menuItem || !menuItem.isActive) {
+        return NextResponse.json(
+          { error: { code: "NOT_FOUND", message: "Menu item not found or inactive" } },
+          { status: 404 }
+        );
+      }
+
+      if (outlet.id !== menuItem.outletId) {
+        return NextResponse.json(
+          { error: { code: "FORBIDDEN", message: "Menu item does not belong to this outlet" } },
+          { status: 403 }
+        );
+      }
+
+      finalItemName = menuItem.name;
+      finalSku = menuItem.sku;
+      finalUnit = menuItem.unit;
+      finalBasePrice = menuItem.basePrice;
+      finalGstRate = menuItem.gstSlab.rate;
+      finalMenuItemId = menuItem.id;
+    } else {
+      finalItemName = itemName!;
+      finalBasePrice = new Decimal(basePrice!);
+      finalGstRate = new Decimal(gstRate!);
+    }
+
     const totals = computeLineItem({
-      basePrice: menuItem.basePrice,
+      basePrice: finalBasePrice,
       quantity: qtyDecimal,
-      gstRate: menuItem.gstSlab.rate,
+      gstRate: finalGstRate,
     });
 
     const lineItem = await prisma.billLineItem.create({
       data: {
         billId: id,
-        menuItemId: menuItem.id,
-        itemName: menuItem.name,
-        sku: menuItem.sku,
-        unit: menuItem.unit,
+        menuItemId: finalMenuItemId,
+        itemName: finalItemName,
+        sku: finalSku,
+        unit: finalUnit,
         quantity: qtyDecimal,
-        basePrice: menuItem.basePrice,
-        gstRate: menuItem.gstSlab.rate,
+        basePrice: finalBasePrice,
+        gstRate: finalGstRate,
         lineBaseTotal: totals.lineBaseTotal,
         lineGstAmount: totals.lineGstAmount,
         lineCgst: totals.lineCgst,

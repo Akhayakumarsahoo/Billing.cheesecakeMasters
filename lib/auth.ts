@@ -61,3 +61,16 @@ export async function requireAuth(): Promise<CurrentUser> {
   }
   return user;
 }
+
+export async function requireOutlet(): Promise<Outlet> {
+  const outlet = await getCurrentOutlet();
+  if (!outlet) {
+    throw new Response(
+      JSON.stringify({
+        error: { code: "UNAUTHORIZED", message: "Not authenticated as outlet" },
+      }),
+      { status: 401 },
+    );
+  }
+  return outlet;
+}

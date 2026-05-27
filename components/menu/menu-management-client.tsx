@@ -165,13 +165,17 @@ export function MenuManagementClient({
         const error = await res.json();
         throw new Error(error.error?.message || "Failed to save item");
       }
+      const responseData = await res.json();
+      
+      if (editingItem) {
+        setItems((prev) => prev.map((i) => (i.id === responseData.data.id ? responseData.data : i)));
+      } else {
+        setItems((prev) => [...prev, responseData.data]);
+      }
       
       toast.success(`Item ${editingItem ? "updated" : "created"} successfully`);
       setIsItemDialogOpen(false);
-      // Let server fetch handle the new state to ensure relations are populated
-      setTimeout(() => {
-        window.location.reload(); 
-      }, 500);
+      refreshData();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -216,14 +220,14 @@ export function MenuManagementClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold">Menu Management</h2>
           <p className="text-sm text-text-muted">
             Manage categories and items for this outlet.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => handleOpenCategoryDialog()}>
             <Plus className="w-4 h-4 mr-2" />
             New Category
@@ -241,7 +245,7 @@ export function MenuManagementClient({
             No categories found. Create a category to get started.
           </div>
         ) : (
-          <Accordion type="multiple" className="w-full">
+          <Accordion className="w-full">
             {categories.map((category) => {
               const categoryItems = items.filter((item) => item.categoryId === category.id);
               return (

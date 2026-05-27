@@ -25,7 +25,7 @@ export async function POST() {
         clerkUserId: userId,
         name,
         email,
-        role: "cashier",
+        role: "manager",
         isActive: true,
       },
     });

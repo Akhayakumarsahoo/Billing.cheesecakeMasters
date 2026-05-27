@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     const result = CreateOutletSchema.safeParse(body);
     if (!result.success) {
       return NextResponse.json(
-        { error: { code: "VALIDATION_ERROR", message: "Invalid input", details: result.error.errors } },
+        { error: { code: "VALIDATION_ERROR", message: "Invalid input", details: result.error.issues } },
         { status: 400 }
       );
     }

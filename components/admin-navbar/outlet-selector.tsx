@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -17,28 +18,64 @@ export function OutletSelector({ outlets }: OutletSelectorProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Extract outlet ID from /outlets/[id] or its sub-routes.
-  // We use "all" for the "All Outlets" value.
-  let currentOutletId = "all";
-  if (pathname?.startsWith("/outlets/")) {
-    const parts = pathname.split("/");
-    if (parts.length > 2) {
-      currentOutletId = parts[2];
+  const [currentOutletId, setCurrentOutletId] = useState<string>("all");
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    // Sync with URL if we are in an outlet specific page
+    if (pathname?.startsWith("/outlets/") && pathname !== "/outlets") {
+      const parts = pathname.split("/");
+      if (parts.length > 2) {
+        setCurrentOutletId(parts[2]);
+        localStorage.setItem("selectedOutletId", parts[2]);
+      }
+    } else {
+      // Restore from local storage if available
+      const stored = localStorage.getItem("selectedOutletId");
+      if (stored && outlets.find((o) => o.id === stored)) {
+        setCurrentOutletId(stored);
+      } else {
+        setCurrentOutletId("all");
+      }
     }
-  }
+  }, [pathname, outlets]);
 
   const selectedOutletName =
     currentOutletId === "all"
       ? "All Outlets"
       : outlets.find((o) => o.id === currentOutletId)?.name || "All Outlets";
 
-  const handleChange = (val: string) => {
+  const handleChange = (val: string | null) => {
+    if (!val) return;
+    setCurrentOutletId(val);
     if (val === "all") {
-      router.push("/");
+      localStorage.removeItem("selectedOutletId");
+      window.dispatchEvent(new Event("local-storage"));
+      if (pathname?.startsWith("/outlets/") && pathname !== "/outlets") {
+        router.push("/");
+      }
     } else {
-      router.push(`/outlets/${val}`);
+      localStorage.setItem("selectedOutletId", val);
+      window.dispatchEvent(new Event("local-storage"));
+      if (pathname?.startsWith("/outlets/") && pathname !== "/outlets") {
+        const parts = pathname.split("/");
+        parts[2] = val;
+        router.push(parts.join("/"));
+      }
     }
   };
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!isMounted) {
+    return (
+      <Select value="all">
+        <SelectTrigger className="w-[200px] h-9">
+          <SelectValue placeholder="All Outlets" />
+        </SelectTrigger>
+      </Select>
+    );
+  }
 
   return (
     <Select value={currentOutletId} onValueChange={handleChange}>
