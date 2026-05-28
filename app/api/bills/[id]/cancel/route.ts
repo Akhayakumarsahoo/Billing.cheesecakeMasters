@@ -6,7 +6,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   try {
     const { id } = await params;
     const outlet = await getCurrentOutlet();
-    if (!outlet) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!outlet) return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Unauthorized" } }, { status: 401 });
 
     const bill = await prisma.bill.findUnique({
       where: { id },

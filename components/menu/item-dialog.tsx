@@ -98,7 +98,7 @@ export function ItemDialog({
     });
   };
 
-  const isFormValid = name.trim() !== "" && basePrice !== "" && categoryId !== "" && gstSlabId !== "";
+  const isFormValid = name.trim() !== "" && unit.trim() !== "" && basePrice !== "" && categoryId !== "" && gstSlabId !== "";
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>

@@ -83,7 +83,9 @@ function SidebarProvider({
       }
 
       // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}; SameSite=Lax${
+        typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : ''
+      }`
     },
     [setOpenProp, open]
   )
@@ -167,6 +169,7 @@ function Sidebar({
   if (collapsible === "none") {
     return (
       <div
+        dir={dir}
         data-slot="sidebar"
         className={cn(
           "flex h-full w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground",
@@ -207,6 +210,7 @@ function Sidebar({
 
   return (
     <div
+      dir={dir}
       className="group peer hidden text-sidebar-foreground md:block"
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}

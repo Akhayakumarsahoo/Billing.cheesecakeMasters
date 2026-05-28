@@ -1,6 +1,6 @@
 import { getCurrentOutlet } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { BillBuilder } from "@/components/billing/bill-builder";
+import { BillBuilder, SerializedMenuItem } from "@/components/billing/bill-builder";
 
 export default async function PosPage() {
   const outlet = await getCurrentOutlet();
@@ -17,18 +17,21 @@ export default async function PosPage() {
   });
 
   // Serialize Decimal to string for client component
-  const serializedItems = menuItems.map(item => ({
-    ...item,
+  const serializedItems: SerializedMenuItem[] = menuItems.map(item => ({
+    id: item.id,
+    name: item.name,
+    sku: item.sku,
     basePrice: item.basePrice.toString(),
+    unit: item.unit,
+    categoryId: item.categoryId,
     gstSlab: {
-      ...item.gstSlab,
       rate: item.gstSlab.rate.toString()
     }
   }));
 
   return (
     <div className="flex h-full flex-col">
-      <BillBuilder categories={categories} menuItems={serializedItems as any} />
+      <BillBuilder categories={categories} menuItems={serializedItems} />
     </div>
   );
 }

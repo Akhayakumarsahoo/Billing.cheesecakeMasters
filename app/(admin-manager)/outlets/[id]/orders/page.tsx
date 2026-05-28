@@ -1,10 +1,28 @@
-import { getCurrentOutlet } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { OrdersClient } from "./orders-client";
+import { notFound, redirect } from "next/navigation";
+import { AdminOrdersClient } from "./admin-orders-client";
 
-export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ from?: string, to?: string }> }) {
-  const outlet = await getCurrentOutlet();
-  if (!outlet) return null;
+export default async function OutletOrdersPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string, to?: string }>;
+}) {
+  const { id } = await params;
+  const user = await getCurrentUser();
+  if (!user || (user.role !== "admin" && user.role !== "manager")) {
+    redirect("/");
+  }
+
+  const outlet = await prisma.outlet.findUnique({
+    where: { id },
+  });
+
+  if (!outlet) {
+    notFound();
+  }
 
   const resolvedParams = await searchParams;
 
@@ -30,7 +48,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
 
   const bills = await prisma.bill.findMany({
     where: { 
-      outletId: outlet.id,
+      outletId: id,
       createdAt: {
         gte: start,
         lte: end,
@@ -47,7 +65,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
       },
     },
     orderBy: { createdAt: "desc" },
-    take: 100, // Slightly increase limit for range
+    take: 100,
   });
 
   const serializedBills = bills.map(b => ({
@@ -79,5 +97,13 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     }))
   }));
 
-  return <OrdersClient initialBills={serializedBills} outletName={outlet.name} />;
+  return (
+    <div className="max-w-6xl mx-auto flex flex-col gap-6">
+      <AdminOrdersClient 
+        initialBills={serializedBills} 
+        outletName={outlet.name} 
+        role={user.role} 
+      />
+    </div>
+  );
 }

@@ -85,7 +85,7 @@ export function CategoryDialog({
                 placeholder="0"
                 min="0"
               />
-              <p className="text-xs text-text-muted">
+              <p className="text-xs text-muted-foreground">
                 Categories with lower numbers appear first.
               </p>
             </div>

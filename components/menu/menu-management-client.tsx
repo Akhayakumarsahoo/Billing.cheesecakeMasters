@@ -223,7 +223,7 @@ export function MenuManagementClient({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold">Menu Management</h2>
-          <p className="text-sm text-text-muted">
+          <p className="text-sm text-muted-foreground">
             Manage categories and items for this outlet.
           </p>
         </div>
@@ -241,7 +241,7 @@ export function MenuManagementClient({
 
       <div className="bg-bg-surface border border-border-default rounded-lg">
         {categories.length === 0 ? (
-          <div className="p-8 text-center text-text-muted">
+          <div className="p-8 text-center text-muted-foreground">
             No categories found. Create a category to get started.
           </div>
         ) : (
@@ -257,7 +257,7 @@ export function MenuManagementClient({
                           <span className="font-medium text-text-primary">
                             {category.name}
                           </span>
-                          <div className="flex items-center gap-4 text-sm text-text-muted font-normal">
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground font-normal">
                             <span>{categoryItems.length} items</span>
                           </div>
                         </div>
@@ -291,7 +291,7 @@ export function MenuManagementClient({
                   </div>
                   <AccordionContent className="pb-4">
                     {categoryItems.length === 0 ? (
-                      <div className="text-sm text-text-muted italic py-2">
+                      <div className="text-sm text-muted-foreground italic py-2">
                         No items in this category.
                       </div>
                     ) : (
@@ -303,7 +303,7 @@ export function MenuManagementClient({
                           >
                             <div className="flex flex-col">
                               <span className="font-medium">{item.name}</span>
-                              <span className="text-xs text-text-muted">
+                              <span className="text-xs text-muted-foreground">
                                 ₹{item.basePrice} /{item.unit} • {item.gstSlab.label} GST
                                 {item.sku && ` • SKU: ${item.sku}`}
                               </span>

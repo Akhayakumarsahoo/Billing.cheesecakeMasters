@@ -10,6 +10,7 @@ import {
   Store,
   Users,
   Settings,
+  ListOrdered,
 } from "lucide-react";
 import {
   Sidebar,
@@ -56,8 +57,12 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
 
   const isOutletsActive = pathname === "/outlets";
   const isMenuActive = isSpecificOutlet && pathname?.endsWith("/menu");
-  const isBillsActive = isSpecificOutlet && pathname?.endsWith("/bills");
-  const isDashboardActive = pathname === "/" || (isSpecificOutlet && !isMenuActive && !isBillsActive);
+  const isOrdersActive = isSpecificOutlet && pathname?.endsWith("/orders");
+  const isDashboardActive = pathname === "/" || (isSpecificOutlet && !isMenuActive && !isOrdersActive);
+
+  const dashboardHref = currentOutletId && currentOutletId !== "all" 
+    ? `/outlets/${currentOutletId}` 
+    : "/dashboard";
 
   return (
     <Sidebar collapsible="icon">
@@ -74,11 +79,20 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton render={<Link href="/" />} isActive={isDashboardActive} tooltip="Dashboard">
+                <SidebarMenuButton render={<Link href={dashboardHref} />} isActive={isDashboardActive} tooltip="Dashboard">
                   <LayoutDashboard />
                   <span>Dashboard</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              {currentOutletId && currentOutletId !== "all" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton render={<Link href={`/outlets/${currentOutletId}/orders`} />} isActive={isOrdersActive} tooltip="All orders">
+                    <ListOrdered />
+                    <span>All orders</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               
               {currentOutletId && currentOutletId !== "all" && (
                 <>
@@ -90,12 +104,6 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton render={<Link href={`/outlets/${currentOutletId}/bills`} />} isActive={isBillsActive} tooltip="Bills">
-                      <Receipt />
-                      <span>Bills</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
                 </>
               )}
 

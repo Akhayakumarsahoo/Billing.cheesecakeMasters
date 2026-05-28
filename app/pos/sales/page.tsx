@@ -34,8 +34,13 @@ export default async function SalesPage({
   const fromStr = resolvedParams.from || todayStr;
   const toStr = resolvedParams.to || todayStr;
 
-  const start = new Date(`${fromStr}T00:00:00.000`);
-  const end = new Date(`${toStr}T23:59:59.999`);
+  let start = new Date(`${fromStr}T00:00:00.000`);
+  let end = new Date(`${toStr}T23:59:59.999`);
+
+  if (!isFinite(start.getTime()) || !isFinite(end.getTime())) {
+    start = new Date(`${todayStr}T00:00:00.000`);
+    end = new Date(`${todayStr}T23:59:59.999`);
+  }
 
   const bills = await prisma.bill.findMany({
     where: {

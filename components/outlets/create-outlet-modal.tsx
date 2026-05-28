@@ -139,7 +139,7 @@ export function CreateOutletModal() {
             </>
           ) : (
             <>
-              <p className="text-sm text-text-muted">
+              <p className="text-sm text-muted-foreground">
                 These credentials will be used to log into the POS terminal for this specific outlet.
               </p>
               <div className="grid gap-2">

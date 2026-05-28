@@ -8,15 +8,13 @@ export default async function Home() {
     redirect("/sign-in");
   }
 
+  // Check if this Clerk user is a POS outlet account
   const outlet = await getCurrentOutlet();
   if (outlet) {
     redirect("/pos");
   }
 
-  const user = await getCurrentUser();
-  if (user) {
-    redirect("/dashboard");
-  }
-
-  redirect("/sign-in");
+  // Otherwise treat as admin/manager — this also auto-creates the user record on first login
+  redirect("/dashboard");
 }
+

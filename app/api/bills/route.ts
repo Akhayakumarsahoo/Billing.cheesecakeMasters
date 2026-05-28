@@ -34,7 +34,19 @@ export async function GET(req: Request) {
 
     if (outlet) {
       where.outletId = outlet.id;
-    } else if (user && paramsObj.outletId) {
+    } else if (user) {
+      if (!paramsObj.outletId) {
+        return NextResponse.json(
+          { error: { code: "MISSING_PARAM", message: "outletId is required" } },
+          { status: 400 }
+        );
+      }
+      if (user.role !== "admin" && user.role !== "manager") {
+        return NextResponse.json(
+          { error: { code: "FORBIDDEN", message: "Not authorized" } },
+          { status: 403 }
+        );
+      }
       where.outletId = paramsObj.outletId;
     }
 

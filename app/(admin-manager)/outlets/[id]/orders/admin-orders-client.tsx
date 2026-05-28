@@ -1,24 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Receipt, Edit2, XCircle } from "lucide-react";
+import { Search, Receipt, Edit2, XCircle, CreditCard, Save } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DateRangeFilter } from "@/components/date-range-filter";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-
-type SerializedMenuItem = {
-  id: string;
-  name: string;
-  sku: string | null;
-  basePrice: string;
-  unit: string;
-  categoryId: string;
-  gstSlab: { rate: string };
-  isCustom?: boolean;
-};
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type SerializedPayment = {
   mode: string;
@@ -32,15 +21,6 @@ type SerializedLineItem = {
   unit: string;
   basePrice: string;
   gstRate: string;
-  menuItem?: {
-    id: string;
-    name: string;
-    sku: string | null;
-    basePrice: string;
-    unit: string;
-    categoryId: string;
-    gstSlab: { rate: string };
-  };
 };
 
 type SerializedBill = {
@@ -53,18 +33,24 @@ type SerializedBill = {
   lineItems: SerializedLineItem[];
 };
 
-export function OrdersClient({
+export function AdminOrdersClient({
   initialBills,
   outletName,
+  role,
 }: {
   initialBills: SerializedBill[];
   outletName: string;
+  role: string;
 }) {
   const router = useRouter();
   const [bills, setBills] = useState(initialBills);
   const [search, setSearch] = useState("");
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [selectedBill, setSelectedBill] = useState<SerializedBill | null>(null);
+
+  // Edit Payment State
+  const [isEditingPayment, setIsEditingPayment] = useState(false);
+  const [paymentBreakdown, setPaymentBreakdown] = useState<{mode: string, amount: string}[]>([]);
 
   const filteredBills = bills.filter(bill => 
     bill.billNumber.toLowerCase().includes(search.toLowerCase())
@@ -92,75 +78,77 @@ export function OrdersClient({
     }
   };
 
-  const handleEdit = async (bill: SerializedBill) => {
-    if (!confirm("Editing this bill will replace its current contents but keep the same bill number. Proceed?")) return;
-    
-    setIsProcessing(bill.id);
-    try {
-      // 1. Serialize items for the cart
-      const cartItems = bill.lineItems.map(li => {
-        let menuItem: SerializedMenuItem;
-        
-        if (li.menuItem) {
-          menuItem = {
-            id: li.menuItem.id,
-            name: li.menuItem.name,
-            sku: li.menuItem.sku,
-            basePrice: li.menuItem.basePrice,
-            unit: li.menuItem.unit,
-            categoryId: li.menuItem.categoryId,
-            gstSlab: { rate: li.menuItem.gstSlab.rate },
-            isCustom: false
-          };
-        } else {
-          // Custom item from the "Open Item" feature
-          menuItem = {
-            id: `custom-${li.id}`,
-            name: li.itemName,
-            sku: null,
-            basePrice: li.basePrice,
-            unit: li.unit || "custom",
-            categoryId: "custom",
-            gstSlab: { rate: li.gstRate },
-            isCustom: true
-          };
-        }
+  const startEditPayment = (bill: SerializedBill) => {
+    setIsEditingPayment(true);
+    // Initialize payment breakdown from bill
+    // We provide standard modes if not present
+    const modes = ["cash", "upi", "card", "other"];
+    const breakdown = modes.map(mode => {
+      const existing = bill.payments.find(p => p.mode.toLowerCase() === mode);
+      return {
+        mode,
+        amount: existing ? existing.amount : "0"
+      };
+    });
+    setPaymentBreakdown(breakdown);
+  };
 
-        return {
-          menuItem,
-          quantity: parseFloat(li.quantity)
-        };
+  const updatePaymentAmount = (mode: string, val: string) => {
+    // Only allow numbers and one decimal
+    if (val && !/^\d*\.?\d{0,2}$/.test(val)) return;
+    setPaymentBreakdown(prev => prev.map(p => p.mode === mode ? { ...p, amount: val || "0" } : p));
+  };
+
+  const savePaymentModes = async () => {
+    if (!selectedBill) return;
+
+    const total = paymentBreakdown.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
+    const grandTotal = parseFloat(selectedBill.grandTotal);
+
+    if (Math.abs(total - grandTotal) > 0.01) {
+      toast.error(`Total payments (₹${total.toFixed(2)}) must equal Grand Total (₹${grandTotal.toFixed(2)})`);
+      return;
+    }
+
+    setIsProcessing(selectedBill.id);
+    try {
+      // Filter out zero amounts
+      const payload = paymentBreakdown
+        .map(p => ({ mode: p.mode, amount: parseFloat(p.amount) }))
+        .filter(p => p.amount > 0);
+
+      const res = await fetch(`/api/bills/${selectedBill.id}/payment`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payments: payload })
       });
 
-      // 2. Save to localStorage
-      localStorage.setItem("pos-edit-cart", JSON.stringify(cartItems));
-      localStorage.setItem("pos-edit-bill-id", bill.id);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to edit payments");
+      }
 
-      // 3. Redirect to POS
-      toast.success("Loading bill into POS...");
-      router.push("/pos");
+      toast.success("Payments updated successfully");
       
+      const newPaymentsStr = payload.map(p => ({ mode: p.mode, amount: p.amount.toString() }));
+
+      setBills(prev => prev.map(b => b.id === selectedBill.id ? { ...b, payments: newPaymentsStr } : b));
+      setSelectedBill(prev => prev?.id === selectedBill.id ? { ...prev, payments: newPaymentsStr } : prev);
+      setIsEditingPayment(false);
+      router.refresh();
     } catch (err: any) {
-      toast.error(err.message || "Failed to edit bill");
+      toast.error(err.message || "Failed to edit payments");
     } finally {
       setIsProcessing(null);
     }
-  };
-
-  const isSameDay = (dateStr: string) => {
-    const billDate = new Date(dateStr);
-    const today = new Date();
-    return billDate.getUTCFullYear() === today.getUTCFullYear() &&
-           billDate.getUTCMonth() === today.getUTCMonth() &&
-           billDate.getUTCDate() === today.getUTCDate();
   };
 
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-medium text-[var(--text-primary)]">Order History</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">Recent bills for {outletName}</p>
+          <h1 className="text-xl font-medium text-[var(--text-primary)]">All Orders</h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">Order history for {outletName}</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
@@ -178,9 +166,6 @@ export function OrdersClient({
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredBills.map((bill) => {
-          const isEditable = bill.status !== "cancelled" && isSameDay(bill.createdAt);
-          const isProcessingThis = isProcessing === bill.id;
-
           return (
             <div 
               key={bill.id} 
@@ -237,7 +222,12 @@ export function OrdersClient({
       </div>
 
       {selectedBill && (
-        <Dialog open={!!selectedBill} onOpenChange={(open) => !open && setSelectedBill(null)}>
+        <Dialog open={!!selectedBill} onOpenChange={(open) => {
+          if (!open) {
+            setSelectedBill(null);
+            setIsEditingPayment(false);
+          }
+        }}>
           <DialogContent className="max-w-md bg-[var(--bg-surface)] p-0 gap-0 overflow-hidden rounded-xl border-[var(--border-default)]">
             <DialogHeader className="p-4 border-b border-[var(--border-default)]">
               <div className="flex justify-between items-center pr-6">
@@ -255,47 +245,83 @@ export function OrdersClient({
               </div>
             </DialogHeader>
             
-            <div className="p-4 overflow-y-auto max-h-[50vh] space-y-4 bg-[var(--bg-base)]">
-              <div>
-                <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-2 uppercase tracking-wide">Items</h3>
-                <div className="bg-[var(--bg-surface)] rounded-lg border border-[var(--border-default)] overflow-hidden">
-                  {selectedBill.lineItems.map(item => (
-                    <div key={item.id} className="p-3 border-b border-[var(--border-subtle)] last:border-0 flex justify-between">
-                      <div>
-                        <div className="text-sm font-medium text-[var(--text-primary)]">{item.itemName}</div>
-                        <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-                          {item.quantity} {item.unit} × ₹{item.basePrice}
+            {isEditingPayment ? (
+              <div className="p-4 space-y-4 bg-[var(--bg-base)]">
+                <h3 className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">Edit Payment Modes</h3>
+                <div className="bg-[var(--bg-surface)] rounded-lg border border-[var(--border-default)] p-4 space-y-4">
+                  {paymentBreakdown.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between gap-4">
+                      <span className="text-sm font-medium capitalize text-[var(--text-primary)] w-20">{p.mode}</span>
+                      <Input 
+                        type="number" 
+                        min="0"
+                        step="0.01"
+                        value={p.amount} 
+                        onChange={(e) => updatePaymentAmount(p.mode, e.target.value)}
+                        className="text-right font-mono"
+                      />
+                    </div>
+                  ))}
+                  
+                  <div className="pt-4 border-t border-[var(--border-subtle)] flex justify-between items-center text-sm">
+                    <span className="font-medium text-[var(--text-secondary)]">Allocated:</span>
+                    <span className="font-mono font-medium text-[var(--text-primary)]">
+                      ₹{paymentBreakdown.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-medium text-[var(--text-secondary)]">Grand Total:</span>
+                    <span className="font-mono font-medium text-[var(--text-primary)]">
+                      ₹{parseFloat(selectedBill.grandTotal).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 overflow-y-auto max-h-[50vh] space-y-4 bg-[var(--bg-base)]">
+                <div>
+                  <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-2 uppercase tracking-wide">Items</h3>
+                  <div className="bg-[var(--bg-surface)] rounded-lg border border-[var(--border-default)] overflow-hidden">
+                    {selectedBill.lineItems.map(item => (
+                      <div key={item.id} className="p-3 border-b border-[var(--border-subtle)] last:border-0 flex justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-[var(--text-primary)]">{item.itemName}</div>
+                          <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+                            {item.quantity} {item.unit} × ₹{item.basePrice}
+                          </div>
+                        </div>
+                        <div className="text-sm font-mono text-[var(--text-primary)]">
+                          ₹{(parseFloat(item.basePrice) * parseFloat(item.quantity)).toFixed(2)}
                         </div>
                       </div>
-                      <div className="text-sm font-mono text-[var(--text-primary)]">
-                        ₹{(parseFloat(item.basePrice) * parseFloat(item.quantity)).toFixed(2)}
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-2 uppercase tracking-wide">Payments</h3>
+                  <div className="bg-[var(--bg-surface)] rounded-lg border border-[var(--border-default)] overflow-hidden">
+                    {selectedBill.payments.map((p, i) => (
+                      <div key={i} className="p-3 border-b border-[var(--border-subtle)] last:border-0 flex justify-between">
+                        <div className="text-sm text-[var(--text-primary)] capitalize">{p.mode}</div>
+                        <div className="text-sm font-mono text-[var(--text-primary)]">₹{p.amount}</div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-2 uppercase tracking-wide">Payments</h3>
-                <div className="bg-[var(--bg-surface)] rounded-lg border border-[var(--border-default)] overflow-hidden">
-                  {selectedBill.payments.map((p, i) => (
-                    <div key={i} className="p-3 border-b border-[var(--border-subtle)] last:border-0 flex justify-between">
-                      <div className="text-sm text-[var(--text-primary)] capitalize">{p.mode}</div>
-                      <div className="text-sm font-mono text-[var(--text-primary)]">₹{p.amount}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            )}
             
             <div className="p-4 border-t border-[var(--border-default)] bg-[var(--bg-surface)] flex flex-col gap-4">
-              <div className="flex justify-between items-center text-lg font-medium">
-                <span className="text-[var(--text-primary)]">Grand Total</span>
-                <span className="font-mono">₹{selectedBill.grandTotal}</span>
-              </div>
+              {!isEditingPayment && (
+                <div className="flex justify-between items-center text-lg font-medium">
+                  <span className="text-[var(--text-primary)]">Grand Total</span>
+                  <span className="font-mono">₹{selectedBill.grandTotal}</span>
+                </div>
+              )}
               
               <div className="flex flex-wrap gap-2 justify-end pt-2 border-t border-[var(--border-subtle)]">
-                {selectedBill.status !== "cancelled" && isSameDay(selectedBill.createdAt) && (
+                {role === "admin" && selectedBill.status === "printed" && !isEditingPayment && (
                   <>
                     <Button 
                       variant="outline" 
@@ -309,21 +335,49 @@ export function OrdersClient({
                     <Button 
                       variant="outline" 
                       className="text-[var(--accent-primary)] hover:text-[var(--accent-primary-hover)] border-[var(--accent-primary)] hover:bg-[var(--bg-surface-raised)]"
-                      onClick={() => handleEdit(selectedBill)}
+                      onClick={() => startEditPayment(selectedBill)}
                       disabled={isProcessing !== null}
                     >
-                      <Edit2 className="w-4 h-4 mr-2" />
-                      Edit Bill
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Edit Payment
                     </Button>
                   </>
                 )}
-                <Button 
-                  variant="default" 
-                  className="bg-[var(--text-primary)] text-[var(--bg-surface)] hover:bg-[var(--text-secondary)] ml-auto"
-                  onClick={() => setSelectedBill(null)}
-                >
-                  Okay
-                </Button>
+
+                {isEditingPayment && (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsEditingPayment(false)}
+                      disabled={isProcessing !== null}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="default" 
+                      className="bg-[var(--text-primary)] text-[var(--bg-surface)] hover:bg-[var(--text-secondary)]"
+                      onClick={savePaymentModes}
+                      disabled={isProcessing !== null}
+                    >
+                      {isProcessing === selectedBill.id ? "Saving..." : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          Save Payment
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
+
+                {!isEditingPayment && (
+                  <Button 
+                    variant="default" 
+                    className="bg-[var(--text-primary)] text-[var(--bg-surface)] hover:bg-[var(--text-secondary)] ml-auto"
+                    onClick={() => setSelectedBill(null)}
+                  >
+                    Okay
+                  </Button>
+                )}
               </div>
             </div>
           </DialogContent>

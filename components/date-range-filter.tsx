@@ -29,8 +29,8 @@ export function DateRangeFilter() {
   const handleDateChange = (type: "from" | "to", value: string) => {
     if (!value) return; // Ignore empty
 
-    let newFrom = type === "from" ? value : from;
-    let newTo = type === "to" ? value : to;
+    const newFrom = type === "from" ? value : from;
+    const newTo = type === "to" ? value : to;
 
     const fromDate = new Date(newFrom);
     const toDate = new Date(newTo);
@@ -44,7 +44,7 @@ export function DateRangeFilter() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays > 62) {
-      toast.error("Date range cannot exceed 2 months");
+      toast.error("Date range cannot exceed 62 days");
       return;
     }
 

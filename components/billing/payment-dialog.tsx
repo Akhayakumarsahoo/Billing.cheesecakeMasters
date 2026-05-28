@@ -59,6 +59,8 @@ export function PaymentDialog({
 
   const handleConfirm = () => {
     if (selectedMode === "part_payment") {
+      if (splitTotal !== grandTotal) return;
+      
       const payments: { mode: string; amount: number }[] = [];
       let remainingToAllocate = grandTotal;
 
@@ -68,8 +70,6 @@ export function PaymentDialog({
       for (const mode of nonCashModes) {
         const val = parseFloat(splitAmounts[mode]) || 0;
         if (val > 0) {
-          // You can't overpay with non-cash in a split payment easily, but if they do, we cap it at remaining.
-          // Wait, if they accidentally type 500 card for a 400 bill, we cap.
           const allocated = Math.min(val, remainingToAllocate);
           if (allocated > 0) {
             payments.push({ mode, amount: allocated });
@@ -86,8 +86,6 @@ export function PaymentDialog({
         remainingToAllocate -= allocated;
       }
 
-      // If they somehow managed to click confirm when remainingToAllocate > 0, we shouldn't allow it, 
-      // but button should be disabled anyway.
       onConfirm(payments);
 
     } else {
@@ -100,7 +98,7 @@ export function PaymentDialog({
   
   // Validation for button
   const isValid = isPartPayment 
-    ? splitTotal >= grandTotal 
+    ? splitTotal === grandTotal 
     : true;
 
   const Content = (

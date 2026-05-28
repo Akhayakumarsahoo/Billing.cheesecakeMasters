@@ -64,7 +64,7 @@ export function OpenItemDialog({
 
           <div className="space-y-2">
             <Label>GST Slab</Label>
-            <Select value={gstRate} onValueChange={setGstRate}>
+            <Select value={gstRate} onValueChange={(val) => { if (val) setGstRate(val); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Select GST" />
               </SelectTrigger>

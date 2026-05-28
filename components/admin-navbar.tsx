@@ -25,7 +25,7 @@ export async function AdminNavbar() {
         <OutletSelector outlets={outlets} />
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-sm text-text-muted">{user?.name || "User"}</span>
+        <span className="text-sm text-muted-foreground">{user?.name || "User"}</span>
         <UserButton />
       </div>
     </header>

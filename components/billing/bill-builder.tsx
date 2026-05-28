@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Drawer, DrawerTrigger, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
-type SerializedMenuItem = {
+export type SerializedMenuItem = {
   id: string;
   name: string;
   sku: string | null;
@@ -168,8 +168,8 @@ export function BillBuilder({
     if (cart.length === 0) return;
     setIsProcessing(true);
 
+    let billId = editingBillId;
     try {
-      let billId = editingBillId;
 
       if (billId) {
         // 1a. Reset existing bill
@@ -250,8 +250,20 @@ export function BillBuilder({
       setEditingBillId(null);
       setIsPaymentOpen(false);
       
-    } catch (err: any) {
-      toast.error(err.message || "Something went wrong while saving");
+    } catch (err: unknown) {
+      if (billId) {
+        try {
+          await fetch(`/api/bills/${billId}/reset`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+        } catch (cleanupErr) {
+          console.error("Failed to rollback bill:", cleanupErr);
+        }
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg || "Something went wrong while saving");
     } finally {
       setIsProcessing(false);
     }
