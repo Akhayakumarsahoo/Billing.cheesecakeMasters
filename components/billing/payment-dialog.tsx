@@ -59,31 +59,35 @@ export function PaymentDialog({
 
   const handleConfirm = () => {
     if (selectedMode === "part_payment") {
-      if (splitTotal !== grandTotal) return;
+      const splitTotalCents = Math.round(splitTotal * 100);
+      const grandTotalCents = Math.round(grandTotal * 100);
+      if (splitTotalCents < grandTotalCents) return;
       
       const payments: { mode: string; amount: number }[] = [];
-      let remainingToAllocate = grandTotal;
+      let remainingCents = grandTotalCents;
 
-      // Prioritize non-cash for exact amounts, cash handles the change
+      // Prioritize non-cash for exact amounts, cash handles the rest/change
       const nonCashModes = ["upi", "card", "other"];
       
       for (const mode of nonCashModes) {
-        const val = parseFloat(splitAmounts[mode]) || 0;
-        if (val > 0) {
-          const allocated = Math.min(val, remainingToAllocate);
-          if (allocated > 0) {
-            payments.push({ mode, amount: allocated });
-            remainingToAllocate -= allocated;
+        const valCents = Math.round((parseFloat(splitAmounts[mode]) || 0) * 100);
+        if (valCents > 0) {
+          const allocatedCents = Math.min(valCents, remainingCents);
+          if (allocatedCents > 0) {
+            payments.push({ mode, amount: allocatedCents / 100 });
+            remainingCents -= allocatedCents;
           }
         }
       }
 
       // Cash takes the rest if available
-      const cashVal = parseFloat(splitAmounts["cash"]) || 0;
-      if (cashVal > 0 && remainingToAllocate > 0) {
-        const allocated = Math.min(cashVal, remainingToAllocate);
-        payments.push({ mode: "cash", amount: allocated });
-        remainingToAllocate -= allocated;
+      const cashValCents = Math.round((parseFloat(splitAmounts["cash"]) || 0) * 100);
+      if (cashValCents > 0 && remainingCents > 0) {
+        const allocatedCents = Math.min(cashValCents, remainingCents);
+        if (allocatedCents > 0) {
+          payments.push({ mode: "cash", amount: allocatedCents / 100 });
+          remainingCents -= allocatedCents;
+        }
       }
 
       onConfirm(payments);
@@ -96,9 +100,9 @@ export function PaymentDialog({
 
   const isPartPayment = selectedMode === "part_payment";
   
-  // Validation for button
+  // Validation for button using rounded cents to bypass float precision limits and allow paying in excess (with change return)
   const isValid = isPartPayment 
-    ? splitTotal === grandTotal 
+    ? Math.round(splitTotal * 100) >= Math.round(grandTotal * 100)
     : true;
 
   const Content = (

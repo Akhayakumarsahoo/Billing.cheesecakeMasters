@@ -23,9 +23,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     where: { clerkUserId: userId },
   });
 
-  // Temporary auto-creation for development
-  if (!user) {
-    // Before auto-creating an admin, ensure this clerk user isn't an outlet
+  // Dev-only fallback: auto-create an admin row if a Clerk user exists but
+  // has no DB record yet. This must never run in production.
+  if (!user && process.env.NODE_ENV !== "production") {
+    // Ensure this Clerk user is not an outlet before creating an admin account.
     const outlet = await prisma.outlet.findUnique({
       where: { clerkUserId: userId },
     });

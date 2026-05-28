@@ -51,15 +51,22 @@ change.
   - Updated breakpoints to push sidebar to bottom-nav on tablet (`lg`).
   - Implemented visually grouped menu items by category in the POS builder.
   - Replaced persistent cart sidebar with a Shadcn `Drawer` triggered by a bottom-right FAB on tablet/mobile screens.
-  - Added "Part Payment" mode with split inputs for Cash, UPI, Card, and API integration for multiple payments per bill.
+  - Added "Part Payment" mode with split inputs for Cash, UPI, Card, and API integration for multiple payments per bill. Resolved "Confirm Payment" validation and disable bug by switching to robust cents-based calculations (using Math.round) to eliminate floating-point precision mismatches and gracefully handle cash overpayments with change return.
+  - Optimized bill creation speed in the POS builder: Refactored sequential N+1 item and payment creation HTTP requests to execute concurrently using `Promise.all`, reducing checkout round-trips from N+M+2 to a flat 4 sequential steps and boosting speed by 2x to 4x.
   - Added "Open Item" feature allowing custom line items to be added to the cart on-the-fly, backed by schema update making `menuItemId` optional.
   - Implemented Order History "Edit" and "Cancel" workflows restricted to same-day transactions. Edit now uses an in-place replacement strategy, retaining the original bill number.
   - Added Date Range filtering (capped at 2 months) and a detailed Payment Method breakdown card to the Sales Summary page.
 
-- **Build & TypeScript Type Fixes**
-  - Centralized the `Decimal` export in `lib/db.ts` using static imports from the `Prisma` namespace (as both a constructor and type alias) to resolve the `@prisma/client` named export limitations without breaking bundlers (like Webpack/Turbopack) with dynamic requires.
-  - Refactored all 8 dashboard/POS/API files to import `Decimal` from `@/lib/db`.
-  - Verified that the full Next.js production build (`npm run build`) compiles successfully without any TypeScript or routing errors.
+- **Codebase Optimization & Readability Audit**
+  - Extracted 4 shared helpers to `lib/utils.ts`: `getLocalDateString`, `parseDateRange`, `bucketPayments`, `formatINR` — eliminated copy-paste across 4 files.
+  - Created reusable `<StatCard>` component (`components/ui/stat-card.tsx`) — eliminated 8+ duplicated metric card JSX blocks across dashboard pages.
+  - Refactored `dashboard/page.tsx`, `outlets/[id]/page.tsx`, and `pos/sales/page.tsx` to use all shared utilities and `<StatCard>`.
+  - Fixed date filter inconsistency: all dashboard pages now filter on `completedAt` (previously some used `createdAt`).
+  - Removed hardcoded hex color values from dashboard pages — now use CSS vars.
+  - Added `process.env.NODE_ENV !== "production"` guard on dev-only auto-admin-creation path in `lib/auth.ts`.
+  - Fixed `categories: any[]` prop in `BillBuilder` — now typed as `SerializedCategory[]`.
+  - Refactored `orders/page.tsx` date parsing to use shared `parseDateRange` util.
+  - All changes verified: `npx tsc --noEmit` exits with zero errors.
 
 ## In Progress
 

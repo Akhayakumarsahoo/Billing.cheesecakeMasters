@@ -2,49 +2,29 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import { AdminOrdersClient } from "./admin-orders-client";
+import { parseDateRange } from "@/lib/utils";
 
 export default async function OutletOrdersPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string, to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { id } = await params;
+
+  // Auth check — admin and manager only
   const user = await getCurrentUser();
   if (!user || (user.role !== "admin" && user.role !== "manager")) {
     redirect("/");
   }
 
-  const outlet = await prisma.outlet.findUnique({
-    where: { id },
-  });
+  const outlet = await prisma.outlet.findUnique({ where: { id } });
+  if (!outlet) notFound();
 
-  if (!outlet) {
-    notFound();
-  }
+  const { from, to } = await searchParams;
+  const { start, end } = parseDateRange(from, to);
 
-  const resolvedParams = await searchParams;
-
-  const getLocalDateString = (d: Date) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const todayStr = getLocalDateString(new Date());
-  
-  const fromStr = resolvedParams.from || todayStr;
-  const toStr = resolvedParams.to || todayStr;
-
-  let start = new Date(`${fromStr}T00:00:00.000`);
-  let end = new Date(`${toStr}T23:59:59.999`);
-
-  if (!isFinite(start.getTime()) || !isFinite(end.getTime())) {
-    start = new Date(`${todayStr}T00:00:00.000`);
-    end = new Date(`${todayStr}T23:59:59.999`);
-  }
 
   const bills = await prisma.bill.findMany({
     where: { 

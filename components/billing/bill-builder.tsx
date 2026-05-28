@@ -22,6 +22,12 @@ export type SerializedMenuItem = {
   isCustom?: boolean;
 };
 
+export type SerializedCategory = {
+  id: string;
+  name: string;
+  sortOrder: number | null;
+};
+
 type CartItem = {
   menuItem: SerializedMenuItem;
   quantity: number;
@@ -31,7 +37,7 @@ export function BillBuilder({
   categories,
   menuItems,
 }: {
-  categories: any[];
+  categories: SerializedCategory[];
   menuItems: SerializedMenuItem[];
 }) {
   const router = useRouter();
@@ -198,8 +204,8 @@ export function BillBuilder({
         billId = draftBill.id;
       }
 
-      // 2. Add line items
-      for (const item of cart) {
+      // 2. Add line items in parallel
+      const itemPromises = cart.map(item => {
         const payload = item.menuItem.isCustom
           ? {
               itemName: item.menuItem.name,
@@ -212,28 +218,36 @@ export function BillBuilder({
               quantity: item.quantity,
             };
 
-        const itemRes = await fetch(`/api/bills/${billId}/items`, {
+        return fetch(`/api/bills/${billId}/items`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
+        }).then(res => {
+          if (!res.ok) throw new Error("Failed to add line item");
+          return res;
         });
-        if (!itemRes.ok) throw new Error("Failed to add line item");
-      }
+      });
 
-      // 3. Add payments
-      for (const p of payments) {
-        if (p.amount > 0) {
-          const payRes = await fetch(`/api/bills/${billId}/payments`, {
+      await Promise.all(itemPromises);
+
+      // 3. Add payments in parallel
+      const paymentPromises = payments
+        .filter(p => p.amount > 0)
+        .map(p => {
+          return fetch(`/api/bills/${billId}/payments`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               mode: p.mode,
               amount: p.amount,
             }),
+          }).then(res => {
+            if (!res.ok) throw new Error("Failed to add payment");
+            return res;
           });
-          if (!payRes.ok) throw new Error("Failed to add payment");
-        }
-      }
+        });
+
+      await Promise.all(paymentPromises);
 
       // 4. Complete bill
       const completeRes = await fetch(`/api/bills/${billId}/complete`, {
