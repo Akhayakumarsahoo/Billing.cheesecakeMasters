@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { prisma } from "@/lib/db";
-import { Prisma } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -69,39 +69,39 @@ export default async function SalesDashboard({ searchParams }: { searchParams: P
     }
   });
 
-  const totalRevenue = bills.reduce((sum, bill) => sum.add(bill.grandTotal), new Prisma.Decimal(0));
-  const totalGst = bills.reduce((sum, bill) => sum.add(bill.totalGst), new Prisma.Decimal(0));
+  const totalRevenue = bills.reduce((sum, bill) => sum.add(bill.grandTotal), new Decimal(0));
+  const totalGst = bills.reduce((sum, bill) => sum.add(bill.totalGst), new Decimal(0));
 
-  let totalCash = new Prisma.Decimal(0);
-  let totalCard = new Prisma.Decimal(0);
-  let totalOnline = new Prisma.Decimal(0);
-  let totalOther = new Prisma.Decimal(0);
-  let totalNotPaid = new Prisma.Decimal(0);
+  let totalCash = new Decimal(0);
+  let totalCard = new Decimal(0);
+  let totalOnline = new Decimal(0);
+  let totalOther = new Decimal(0);
+  let totalNotPaid = new Decimal(0);
 
   // For outlet breakdown
   const outletStats: Record<string, {
     name: string;
     billsCount: number;
-    revenue: Prisma.Decimal;
-    cgst: Prisma.Decimal;
-    sgst: Prisma.Decimal;
-    gstTotal: Prisma.Decimal;
+    revenue: Decimal;
+    cgst: Decimal;
+    sgst: Decimal;
+    gstTotal: Decimal;
   }> = {};
 
   outlets.forEach(o => {
     outletStats[o.id] = {
       name: o.name,
       billsCount: 0,
-      revenue: new Prisma.Decimal(0),
-      cgst: new Prisma.Decimal(0),
-      sgst: new Prisma.Decimal(0),
-      gstTotal: new Prisma.Decimal(0)
+      revenue: new Decimal(0),
+      cgst: new Decimal(0),
+      sgst: new Decimal(0),
+      gstTotal: new Decimal(0)
     };
   });
 
   bills.forEach(bill => {
     // Overall Payment Breakdown
-    let billPaymentsTotal = new Prisma.Decimal(0);
+    let billPaymentsTotal = new Decimal(0);
     bill.payments.forEach((p) => {
       billPaymentsTotal = billPaymentsTotal.add(p.amount);
       const mode = p.mode.toLowerCase();

@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
-import { Prisma } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { notFound, redirect } from "next/navigation";
@@ -70,18 +70,18 @@ export default async function OutletDashboardPage({
     }
   });
 
-  const totalRevenue = bills.reduce((sum, bill) => sum.add(bill.grandTotal), new Prisma.Decimal(0));
-  const totalGst = bills.reduce((sum, bill) => sum.add(bill.totalGst), new Prisma.Decimal(0));
+  const totalRevenue = bills.reduce((sum, bill) => sum.add(bill.grandTotal), new Decimal(0));
+  const totalGst = bills.reduce((sum, bill) => sum.add(bill.totalGst), new Decimal(0));
 
-  let totalCash = new Prisma.Decimal(0);
-  let totalCard = new Prisma.Decimal(0);
-  let totalOnline = new Prisma.Decimal(0);
-  let totalOther = new Prisma.Decimal(0);
-  let totalNotPaid = new Prisma.Decimal(0);
+  let totalCash = new Decimal(0);
+  let totalCard = new Decimal(0);
+  let totalOnline = new Decimal(0);
+  let totalOther = new Decimal(0);
+  let totalNotPaid = new Decimal(0);
 
   bills.forEach(bill => {
     // Payment Breakdown
-    let billPaymentsTotal = new Prisma.Decimal(0);
+    let billPaymentsTotal = new Decimal(0);
     bill.payments.forEach((p) => {
       billPaymentsTotal = billPaymentsTotal.add(p.amount);
       const mode = p.mode.toLowerCase();

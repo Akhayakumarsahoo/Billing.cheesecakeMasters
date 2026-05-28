@@ -1,6 +1,4 @@
-import { Prisma } from "@prisma/client";
-type Decimal = Prisma.Decimal;
-const Decimal = Prisma.Decimal;
+import { Decimal } from "@prisma/client/runtime/library";
 
 export interface LineItemInput {
   basePrice: Decimal;

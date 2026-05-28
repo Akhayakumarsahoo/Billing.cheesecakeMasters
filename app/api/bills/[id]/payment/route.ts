@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { Prisma } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
 export async function PATCH(
   req: NextRequest,
@@ -48,8 +48,8 @@ export async function PATCH(
 
     // Verify payment sum matches grand total
     const totalPayment = payments.reduce(
-      (sum, p) => sum.add(new Prisma.Decimal(p.amount)),
-      new Prisma.Decimal(0)
+      (sum, p) => sum.add(new Decimal(p.amount)),
+      new Decimal(0)
     );
 
     if (!totalPayment.equals(bill.grandTotal)) {
