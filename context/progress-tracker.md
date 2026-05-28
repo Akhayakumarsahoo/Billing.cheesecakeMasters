@@ -57,7 +57,7 @@ change.
   - Added Date Range filtering (capped at 2 months) and a detailed Payment Method breakdown card to the Sales Summary page.
 
 - **Build & TypeScript Type Fixes**
-  - Centralized the `Decimal` export in `lib/db.ts` as both a constructor and a type alias to bypass the `@prisma/client` named export restriction on driver adapters.
+  - Centralized the `Decimal` export in `lib/db.ts` using static imports from the `Prisma` namespace (as both a constructor and type alias) to resolve the `@prisma/client` named export limitations without breaking bundlers (like Webpack/Turbopack) with dynamic requires.
   - Refactored all 8 dashboard/POS/API files to import `Decimal` from `@/lib/db`.
   - Verified that the full Next.js production build (`npm run build`) compiles successfully without any TypeScript or routing errors.
 

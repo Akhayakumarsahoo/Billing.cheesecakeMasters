@@ -70,8 +70,8 @@ export default async function OutletDashboardPage({
     }
   });
 
-  const totalRevenue = bills.reduce((sum, bill) => sum.add(bill.grandTotal), new Decimal(0));
-  const totalGst = bills.reduce((sum, bill) => sum.add(bill.totalGst), new Decimal(0));
+  const totalRevenue = bills.reduce((sum: Decimal, bill) => sum.add(bill.grandTotal), new Decimal(0));
+  const totalGst = bills.reduce((sum: Decimal, bill) => sum.add(bill.totalGst), new Decimal(0));
 
   let totalCash = new Decimal(0);
   let totalCard = new Decimal(0);

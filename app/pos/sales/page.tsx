@@ -57,11 +57,11 @@ export default async function SalesPage({
   });
 
   const totalRevenue = bills.reduce(
-    (sum, bill) => sum.add(bill.grandTotal),
+    (sum: Decimal, bill) => sum.add(bill.grandTotal),
     new Decimal(0),
   );
   const totalGst = bills.reduce(
-    (sum, bill) => sum.add(bill.totalGst),
+    (sum: Decimal, bill) => sum.add(bill.totalGst),
     new Decimal(0),
   );
 
