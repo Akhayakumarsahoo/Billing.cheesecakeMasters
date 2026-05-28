@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { CompleteBillSchema } from "@/lib/validators";
 import { computeBillTotals } from "@/lib/gst";
 import { NextResponse } from "next/server";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@/lib/db";
 
 export async function POST(
   req: Request,

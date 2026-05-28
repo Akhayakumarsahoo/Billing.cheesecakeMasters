@@ -2,7 +2,7 @@ import { getCurrentOutlet } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Receipt, Percent, Coins, Info } from "lucide-react";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@/lib/db";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import {
   Tooltip,

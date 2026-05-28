@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@/lib/db";
 
 export async function PATCH(
   req: NextRequest,

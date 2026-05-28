@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { prisma } from "@/lib/db";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@/lib/db";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 

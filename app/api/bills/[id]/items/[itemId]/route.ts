@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { UpdateLineItemSchema } from "@/lib/validators";
 import { computeLineItem } from "@/lib/gst";
 import { NextResponse } from "next/server";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@/lib/db";
 
 export async function PATCH(
   req: Request,
