@@ -1,4 +1,4 @@
-import { IndianRupee, Percent, Receipt, Info } from "lucide-react";
+import { IndianRupee, Percent, Receipt, Info, Wallet } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { Decimal } from "@/lib/db";
@@ -58,6 +58,13 @@ export default async function OutletDashboardPage({
   // Payment mode breakdown
   const paymentBuckets = bucketPayments(bills);
 
+  // Fetch latest active settlement closing cash balance
+  const latestActiveSettlement = await prisma.dailySettlement.findFirst({
+    where: { outletId: id, status: "active" },
+    orderBy: { settlementDate: "desc" },
+  });
+  const currentCashBoxBalance = latestActiveSettlement ? latestActiveSettlement.closingCash.toNumber() : 0;
+
   return (
     <>
       {/* Page Header */}
@@ -74,7 +81,7 @@ export default async function OutletDashboardPage({
       </div>
 
       {/* Summary Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
           icon={IndianRupee}
           label="Total Revenue"
@@ -92,6 +99,12 @@ export default async function OutletDashboardPage({
           label="GST Collected"
           value={`₹${formatINR(totalGst.toNumber())}`}
           subtext="CGST + SGST"
+        />
+        <StatCard
+          icon={Wallet}
+          label="Cash Box Balance"
+          value={`₹${formatINR(currentCashBoxBalance)}`}
+          subtext="Current drawer balance"
         />
       </div>
 

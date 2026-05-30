@@ -1,13 +1,19 @@
 "use client";
-
+ 
 import { useState } from "react";
-import { Search, Receipt, Edit2, XCircle } from "lucide-react";
+import { Search, Receipt, Edit2, XCircle, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type SerializedMenuItem = {
   id: string;
@@ -47,10 +53,12 @@ type SerializedBill = {
   id: string;
   billNumber: string;
   createdAt: string;
+  updatedAt: string;
   status: string;
   grandTotal: string;
   payments: SerializedPayment[];
   lineItems: SerializedLineItem[];
+  modifiedByName?: string | null;
 };
 
 export function OrdersClient({
@@ -65,6 +73,18 @@ export function OrdersClient({
   const [search, setSearch] = useState("");
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [selectedBill, setSelectedBill] = useState<SerializedBill | null>(null);
+
+  const formatDateTime = (dateStr: string) => {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: true
+    }).format(new Date(dateStr));
+  };
 
   const filteredBills = bills.filter(bill => 
     bill.billNumber.toLowerCase().includes(search.toLowerCase())
@@ -190,7 +210,33 @@ export function OrdersClient({
               <div>
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <div className="font-mono text-sm font-medium text-[var(--text-primary)]">{bill.billNumber}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-sm font-medium text-[var(--text-primary)]">{bill.billNumber}</span>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <span className="inline-flex cursor-help text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors p-0.5">
+                                <Info className="h-4 w-4" strokeWidth={1.5} />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="p-3 bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-md rounded-lg text-xs space-y-1.5 text-[var(--text-primary)]">
+                              <div>
+                                <span className="font-medium text-[var(--text-secondary)] mr-1">Created:</span>
+                                <span className="font-mono">{formatDateTime(bill.createdAt)}</span>
+                              </div>
+                              <div>
+                                <span className="font-medium text-[var(--text-secondary)] mr-1">Last Modified:</span>
+                                <span className="font-mono">{formatDateTime(bill.updatedAt)}</span>
+                                {bill.modifiedByName && (
+                                  <span className="text-[var(--text-muted)] ml-1">by {bill.modifiedByName}</span>
+                                )}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </div>
                     <div className="text-xs text-[var(--text-secondary)] mt-0.5">
                       {new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }).format(new Date(bill.createdAt))}
                     </div>

@@ -73,6 +73,7 @@ export async function GET(req: Request) {
         include: {
           outlet: { select: { id: true, name: true } },
           payments: { select: { mode: true, amount: true } },
+          modifiedBy: { select: { name: true } },
         },
         orderBy: { createdAt: "desc" },
       }),
@@ -87,9 +88,12 @@ export async function GET(req: Request) {
       totalSgst: b.totalSgst.toString(),
       totalGst: b.totalGst.toString(),
       createdAt: b.createdAt.toISOString(),
+      updatedAt: b.updatedAt.toISOString(),
       completedAt: b.completedAt?.toISOString() || null,
       cancelledAt: b.cancelledAt?.toISOString() || null,
       payments: b.payments.map(p => ({ mode: p.mode, amount: p.amount.toString() })),
+      modifiedByName: b.modifiedBy?.name ?? null,
+      modifiedBy: undefined,
     }));
 
     return NextResponse.json({

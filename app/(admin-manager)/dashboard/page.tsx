@@ -3,6 +3,7 @@ import {
   Percent,
   Receipt,
   Info,
+  Wallet,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -39,6 +40,31 @@ export default async function SalesDashboard({
     select: { id: true, name: true },
   });
 
+  // Fetch the latest active daily settlement for all active outlets
+  const latestSettlements = await prisma.dailySettlement.findMany({
+    where: {
+      status: "active",
+      outletId: { in: outlets.map((o) => o.id) },
+    },
+    orderBy: { settlementDate: "desc" },
+  });
+
+  const cashboxMap: Record<string, Decimal> = {};
+  const processedOutlets = new Set<string>();
+  for (const o of outlets) {
+    cashboxMap[o.id] = new Decimal(0);
+  }
+  for (const s of latestSettlements) {
+    if (!processedOutlets.has(s.outletId)) {
+      cashboxMap[s.outletId] = s.closingCash;
+      processedOutlets.add(s.outletId);
+    }
+  }
+  const totalCashboxBalance = Object.values(cashboxMap).reduce(
+    (sum, bal) => sum.add(bal),
+    new Decimal(0),
+  );
+
   // Fetch all printed bills in the selected date range.
   // Filter on completedAt (the bill's actual completion timestamp).
   const bills = await prisma.bill.findMany({
@@ -69,6 +95,7 @@ export default async function SalesDashboard({
   const outletStatsMap: Record<
     string,
     {
+      id: string;
       name: string;
       billsCount: number;
       revenue: Decimal;
@@ -81,6 +108,7 @@ export default async function SalesDashboard({
   // Initialise a row for every active outlet
   for (const o of outlets) {
     outletStatsMap[o.id] = {
+      id: o.id,
       name: o.name,
       billsCount: 0,
       revenue: new Decimal(0),
@@ -120,7 +148,7 @@ export default async function SalesDashboard({
       </div>
 
       {/* Summary Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
           icon={IndianRupee}
           label="Total Revenue"
@@ -138,6 +166,12 @@ export default async function SalesDashboard({
           label="GST Collected"
           value={`₹${formatINR(totalGst.toNumber())}`}
           subtext="CGST + SGST"
+        />
+        <StatCard
+          icon={Wallet}
+          label="Cash Drawer Balance"
+          value={`₹${formatINR(totalCashboxBalance.toNumber())}`}
+          subtext="Consolidated cash in hand"
         />
       </div>
 
@@ -196,7 +230,7 @@ export default async function SalesDashboard({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-[var(--border-default)]">
-                {["Outlet", "Bills", "Revenue", "CGST", "SGST", "GST Total"].map(
+                {["Outlet", "Bills", "Revenue", "CGST", "SGST", "GST Total", "Cash Box"].map(
                   (heading, i) => (
                     <TableHead
                       key={heading}
@@ -214,7 +248,7 @@ export default async function SalesDashboard({
               {outletStatsList.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="text-center py-8 text-[var(--text-muted)]"
                   >
                     No sales data found for the selected date range.
@@ -245,6 +279,9 @@ export default async function SalesDashboard({
                       <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
                         ₹{formatINR(stat.gstTotal.toNumber())}
                       </TableCell>
+                      <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
+                        ₹{formatINR(cashboxMap[stat.id]?.toNumber() || 0)}
+                      </TableCell>
                     </TableRow>
                   ))}
 
@@ -267,6 +304,9 @@ export default async function SalesDashboard({
                     </TableCell>
                     <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right">
                       ₹{formatINR(outletStatsList.reduce((s, o) => s + o.gstTotal.toNumber(), 0))}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right">
+                      ₹{formatINR(outletStatsList.reduce((s, o) => s + (cashboxMap[o.id]?.toNumber() || 0), 0))}
                     </TableCell>
                   </TableRow>
                 </>

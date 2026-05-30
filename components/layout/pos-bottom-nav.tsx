@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShoppingBag, Receipt, BarChart, User } from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
+import { ShoppingBag, Receipt, BarChart, Wallet } from "lucide-react";
 
 const bottomNavItems = [
   { name: "New Bill", href: "/pos", icon: ShoppingBag },
   { name: "Bills", href: "/pos/orders", icon: Receipt },
   { name: "Summary", href: "/pos/sales", icon: BarChart },
+  { name: "Settlement", href: "/pos/settlement", icon: Wallet },
 ];
 
 export function PosBottomNav() {
@@ -36,18 +36,6 @@ export function PosBottomNav() {
           </Link>
         );
       })}
-      
-      {/* For account/settings on mobile, we can use clerk UserButton wrapper or just link to settlement */}
-      <div className="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] h-full flex-1 gap-1 text-[var(--text-muted)]">
-        <UserButton 
-          appearance={{
-            elements: {
-              userButtonAvatarBox: "w-5 h-5",
-            }
-          }}
-        />
-        <span className="text-[10px] font-medium leading-none mt-1">Account</span>
-      </div>
     </nav>
   );
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentOutlet } from "@/lib/auth";
+import { getCurrentOutlet, getLoggedInUser } from "@/lib/auth";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -50,11 +50,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       );
     }
 
+    const loggedInUser = await getLoggedInUser();
+
     const updatedBill = await prisma.bill.update({
       where: { id },
       data: {
         status: "cancelled",
         cancelledAt: new Date(),
+        modifiedById: loggedInUser?.id ?? null,
       },
     });
 

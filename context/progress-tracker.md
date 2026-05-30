@@ -72,6 +72,55 @@ change.
 
 - None.
 
+## Completed (cont.)
+
+- **DateRangeFilter → shadcn Range Calendar Picker**
+  - Installed `calendar` and `popover` shadcn components via `npx shadcn@4.8.2 add calendar popover`.
+  - Rewrote `components/date-range-filter.tsx` to use a `Popover` + `Calendar` in `mode="range"`.
+  - Picker auto-closes and pushes URL params as soon as both start and end dates are selected.
+  - 62-day cap validation retained; future dates disabled via `disabled={{ after: new Date() }}`.
+  - All 5 usages (Dashboard, Outlet Detail, Admin Orders, POS Orders, POS Sales) updated automatically since `DateRangeFilter` is a single shared component.
+
+- **Daily Settlement Feature**
+  - Added `DailySettlement` model to Prisma schema and synchronized PostgreSQL database (`npx prisma db push` & `npx prisma generate`).
+  - Implemented end-of-day billed sales calculations and running cash box balance propagation logic in `lib/settlement.ts`.
+  - Built Zod validator schemas for creation and modification inputs.
+  - Created REST API routes for listing, creating, and summary checking, as well as PUT and POST routes for edits and cancels.
+  - Implemented secure edit and cancel safeguards, enforcing a strict 24-hour limit for POS outlets while exempting global admins.
+  - Developed responsive, mobile-first pages for history, creation, and editing (`/pos/settlement/*`), displaying real-time differences, opening balances, cash expenses, drawer withdrawals, and closing cash previews.
+  - Verified the entire codebase to be fully compiled under strict compiler configuration (`npx tsc --noEmit`) with zero errors.
+  - Added the Daily Settlement page link to the mobile bottom navigation bar and removed the Clerk Account icon.
+  - Implemented client-side and server-side rules preventing outlets from creating daily settlements for previous or future dates (disabled date input on client, today-only validation check on API).
+  - Added a "Short/Excess" total mismatches column (sum of Cash, UPI, Card, and Other differences) to the Daily Settlement History layout on both desktop (table column) and mobile (3-column summary grid).
+  - Implemented a detailed breakdown popup dialog modal that displays comparing columns (Billed vs Actual vs Discrepancies) for all payment methods when clicking on the daily shortage/excess total.
+  - Cleaned up redundant individual cash-only mismatch indicators next to Actual Cash values since day-level mismatches are now consolidated in the dedicated Short/Excess column.
+  - Resolved daily settlement conflicts by introducing dual-layer prevention: server-side dynamic checks & redirections on `/pos/settlement/new` and client-side button adaptations (replacing 'New Settlement' with 'Edit Today's Settlement' if today's is already logged).
+  - Enforced client-side timezone-safe date parsing in daily settlement history using a `T00:00:00` local suffix to prevent browser rendering offset drift.
+  - Implemented the Daily Settlement management page for Admin and Managers under the outlet context, adding it to the left sidebar right after "All orders".
+  - Configured custom Date Range filtration defaulting to the last 7 days of daily settlements on page load.
+  - Added role-based creation and editing rules: Admins can create and edit settlements for any date within the last 30 days (date picker active). Managers are subject to standard outlet restrictions (can only create today's, and edit within 24 hours of creation).
+  - Integrated the Date Range Filter into the **Outlet POS daily settlements page** as well, defaulted to the last 7 days.
+  - Implemented server-side default URL redirection: if the user lands on the daily settlements page (POS Outlet, Admin, or Manager context) without `from` and `to` date parameters, it automatically performs a server-side redirect, pre-filling parameters with the last 7 days range. This visually selects the 7-day range by default on the client-side `DateRangeFilter` and keeps URL, DB, and state perfectly in sync.
+  - Repositioned the date selector from the page header to the right side of the "Settlement History" records section card header on both the Outlet POS and Admin/Manager views.
+  - Resolved the URL parameter apply bug and infinite rendering loops cleanly by calling Next.js `router.refresh()` directly within the `DateRangeFilter`'s `handleApply` callback upon user submission, eliminating reactive page-level `useEffect` dependency loops entirely.
+  - Fully verified type checking (`npx tsc --noEmit`) and compiled successfully under Next.js production build (`npm run build`).
+  - **Dashboard Cash Box Balances Display**
+    - Retrieved the latest active daily settlement's `closingCash` overall to represent the real-time cash box/drawer balance.
+    - Updated the specific outlet dashboard view to retrieve and display this balance in a new `StatCard` ("Cash Box Balance"), expanding the metrics grid from `lg:grid-cols-3` to `lg:grid-cols-4`.
+    - Updated the consolidated HQ dashboard to aggregate the latest active settlements of all outlets into a consolidated "Cash Drawer Balance" metric card, expanding its top metrics grid similarly.
+    - Extended the consolidated "Sales by Outlet" breakdown table to include a dedicated right-aligned "Cash Box" column displaying individual outlet drawer balances, updating the table rows, totals row, and empty state `colSpan` elegantly.
+  - **Change Logs & Audit Tooltips**
+    - Added an `updatedAt` field to the `Bill` model in the database schema to track last modified timestamps, syncing the database schema and regenerating Prisma client type definitions successfully.
+    - Added an "i" info icon next to each bill number in both the standard POS Order History and the Admin/Manager All Orders view. Hovers trigger a detailed, portaled tooltip displaying exact **Created** and **Last Modified** audit timestamps.
+    - Prevented event bubbling cleanly by placing the tooltips inside a propagation-stopping container, allowing hover details to show without triggering the click-to-open-bill dialog modal.
+    - Added the same info icon hover tooltips beside the daily settlement dates in both POS and Admin/Manager daily settlement history tables and mobile cards, displaying their database-driven `createdAt` and `updatedAt` reconciliations.
+    - Added `createdByEmail` and `updatedByEmail` fields to `Bill` and `DailySettlement` models in `schema.prisma`.
+    - Integrated email logging into all REST routes handling creation, completion, edits, and cancellations for both bills and settlements.
+    - Enhanced hover tooltips across POS and Admin Order/Settlement histories to display creator and modifier emails next to timestamps.
+
+
+
+
 ## Next Up
 
 - [First unit to build]

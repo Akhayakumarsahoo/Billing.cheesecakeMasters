@@ -1,4 +1,4 @@
-import { requireOutlet } from "@/lib/auth";
+import { requireOutlet, getLoggedInUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { CompleteBillSchema } from "@/lib/validators";
 import { computeBillTotals } from "@/lib/gst";
@@ -82,6 +82,8 @@ export async function POST(
       );
     }
 
+    const loggedInUser = await getLoggedInUser();
+
     const updated = await prisma.bill.update({
       where: { id },
       data: {
@@ -92,6 +94,7 @@ export async function POST(
         totalSgst: totals.totalSgst,
         totalGst: totals.totalGst,
         grandTotal: totals.grandTotal,
+        modifiedById: loggedInUser?.id ?? null,
         ...(result.data.customerName !== undefined && { customerName: result.data.customerName }),
         ...(result.data.customerPhone !== undefined && { customerPhone: result.data.customerPhone }),
         ...(result.data.notes !== undefined && { notes: result.data.notes }),

@@ -2,24 +2,18 @@ export default function RootLoading() {
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--bg-base, #0a0a0b)" }}>
       <div className="flex flex-col items-center gap-4">
-        {/* Animated logo mark */}
-        <div className="relative">
-          <div
-            className="h-12 w-12 rounded-xl animate-pulse"
-            style={{ backgroundColor: "var(--accent-primary, #6366f1)" }}
-          />
-          <div
-            className="absolute inset-0 h-12 w-12 rounded-xl animate-ping opacity-20"
-            style={{ backgroundColor: "var(--accent-primary, #6366f1)" }}
-          />
+        {/* Animated logo */}
+        <div className="animate-pulse">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/favicon.svg" alt="Cheesecake Masters" width={64} height={64} />
         </div>
 
         {/* Brand name */}
         <span
-          className="font-mono font-semibold text-lg tracking-wide"
+          className="font-semibold text-lg tracking-wide"
           style={{ color: "var(--text-primary, #f5f5f5)" }}
         >
-          BillFlow
+          Cheesecake Masters
         </span>
 
         {/* Loading dots */}

@@ -19,7 +19,13 @@ export function PosSidebar() {
   return (
     <aside className="hidden lg:flex flex-col w-60 bg-[var(--bg-surface)] border-r border-[var(--border-default)] h-full">
       <div className="p-4 border-b border-[var(--border-default)]">
-        <h2 className="text-lg font-medium text-[var(--text-primary)]">POS System</h2>
+        <div className="flex items-center gap-2.5">
+          <img src="/favicon.svg" alt="Cheesecake Masters" width={32} height={32} className="shrink-0" />
+          <div>
+            <div className="font-semibold text-sm text-[var(--text-primary)] leading-tight">Cheesecake Masters</div>
+            <div className="text-xs text-[var(--text-secondary)] mt-0.5">POS System</div>
+          </div>
+        </div>
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">

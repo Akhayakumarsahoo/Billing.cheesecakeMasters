@@ -105,3 +105,17 @@ export const BillHistoryQuerySchema = z.object({
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
 });
+
+// ── Daily Settlements ──────────────────────────────────────
+export const CreateSettlementSchema = z.object({
+  settlementDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Date must be in YYYY-MM-DD format" }),
+  actualCash: z.number().nonnegative(),
+  actualUpi: z.number().nonnegative(),
+  actualCard: z.number().nonnegative(),
+  actualOther: z.number().nonnegative(),
+  cashExpense: z.number().nonnegative(),
+  cashWithdraw: z.number().nonnegative(),
+});
+
+export const UpdateSettlementSchema = CreateSettlementSchema.partial();
+

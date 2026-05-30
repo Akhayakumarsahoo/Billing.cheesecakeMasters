@@ -1,4 +1,4 @@
-import { requireOutlet } from "@/lib/auth";
+import { requireOutlet, getLoggedInUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { CreateBillSchema } from "@/lib/validators";
 import { NextResponse } from "next/server";
@@ -112,9 +112,14 @@ export async function PATCH(
       );
     }
 
+    const loggedInUser = await getLoggedInUser();
+
     const updated = await prisma.bill.update({
       where: { id },
-      data: result.data,
+      data: {
+        ...result.data,
+        modifiedById: loggedInUser?.id ?? null,
+      },
     });
 
     return NextResponse.json({

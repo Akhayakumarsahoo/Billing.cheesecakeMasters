@@ -75,3 +75,12 @@ export async function requireOutlet(): Promise<Outlet> {
   }
   return outlet;
 }
+
+export async function getLoggedInUser(): Promise<User | null> {
+  const { userId } = await auth();
+  if (!userId) return null;
+
+  return prisma.user.findUnique({
+    where: { clerkUserId: userId },
+  });
+}

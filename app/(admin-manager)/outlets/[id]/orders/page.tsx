@@ -36,6 +36,7 @@ export default async function OutletOrdersPage({
     },
     include: {
       payments: true,
+      modifiedBy: { select: { name: true } },
       lineItems: {
         include: {
           menuItem: {
@@ -52,8 +53,10 @@ export default async function OutletOrdersPage({
     id: b.id,
     billNumber: b.billNumber,
     createdAt: b.createdAt.toISOString(),
+    updatedAt: b.updatedAt.toISOString(),
     status: b.status,
     grandTotal: b.grandTotal.toString(),
+    modifiedByName: b.modifiedBy?.name ?? null,
     payments: b.payments.map(p => ({
       mode: p.mode,
       amount: p.amount.toString()
@@ -77,12 +80,16 @@ export default async function OutletOrdersPage({
     }))
   }));
 
+  const fromKey = from || "today";
+  const toKey = to || "today";
+
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-6">
-      <AdminOrdersClient 
-        initialBills={serializedBills} 
-        outletName={outlet.name} 
-        role={user.role} 
+      <AdminOrdersClient
+        key={`${fromKey}-${toKey}`}
+        initialBills={serializedBills}
+        outletName={outlet.name}
+        role={user.role}
       />
     </div>
   );

@@ -48,6 +48,7 @@ model Outlet {
   menuItems      MenuItem[]
   bills          Bill[]
   billSequence   BillSequence?
+  dailySettlements DailySettlement[]
 
   @@map("outlets")
 }
@@ -66,6 +67,11 @@ model User {
   role        UserRole
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
+
+  // Relations
+  modifiedBills       Bill[]            @relation("BillModifiedBy")
+  createdSettlements  DailySettlement[] @relation("SettlementCreatedBy")
+  modifiedSettlements DailySettlement[] @relation("SettlementModifiedBy")
 
   @@map("users")
 }
@@ -193,6 +199,9 @@ model Bill {
   completedAt DateTime? // set when status → printed
   cancelledAt DateTime? // set when status → cancelled
   createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  modifiedById String?
+  modifiedBy   User?     @relation("BillModifiedBy", fields: [modifiedById], references: [id])
 
   // Outlet relation
   outletId String
@@ -263,3 +272,50 @@ model BillPayment {
 
   @@map("bill_payments")
 }
+
+// ─────────────────────────────────────────
+// DAILY SETTLEMENTS
+// One row per daily settlement of an outlet.
+// ─────────────────────────────────────────
+
+model DailySettlement {
+  id              String   @id @default(uuid())
+  outletId        String
+  outlet          Outlet   @relation(fields: [outletId], references: [id])
+  settlementDate  DateTime // The date of the settlement (only the date part)
+  
+  // Opening balance of the cash box for this day
+  openingCash     Decimal  @db.Decimal(12, 2)
+  
+  // Billed totals (calculated from printed bills completed on this day)
+  billedCash      Decimal  @db.Decimal(12, 2)
+  billedUpi       Decimal  @db.Decimal(12, 2)
+  billedCard      Decimal  @db.Decimal(12, 2)
+  billedOther     Decimal  @db.Decimal(12, 2)
+  
+  // Actual totals entered by the outlet cashier
+  actualCash      Decimal  @db.Decimal(12, 2)
+  actualUpi       Decimal  @db.Decimal(12, 2)
+  actualCard      Decimal  @db.Decimal(12, 2)
+  actualOther     Decimal  @db.Decimal(12, 2)
+  
+  // Cash expenses and withdrawals
+  cashExpense     Decimal  @db.Decimal(12, 2)
+  cashWithdraw    Decimal  @db.Decimal(12, 2)
+  
+  // Closing balance of the cash box (Opening + Actual Cash - Expense - Withdraw)
+  closingCash     Decimal  @db.Decimal(12, 2)
+  
+  status          String   @default("active") // "active" or "cancelled"
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdById     String?
+  createdBy       User?    @relation("SettlementCreatedBy", fields: [createdById], references: [id])
+  modifiedById    String?
+  modifiedBy      User?    @relation("SettlementModifiedBy", fields: [modifiedById], references: [id])
+
+  @@unique([outletId, settlementDate])
+  @@map("daily_settlements")
+}
+

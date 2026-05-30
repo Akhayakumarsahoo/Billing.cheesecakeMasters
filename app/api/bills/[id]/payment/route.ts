@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, getLoggedInUser } from "@/lib/auth";
 import { Decimal } from "@/lib/db";
 
 export async function PATCH(
@@ -61,6 +61,8 @@ export async function PATCH(
       );
     }
 
+    const loggedInUser = await getLoggedInUser();
+
     // Delete existing and create new payments within a transaction
     await prisma.$transaction(async (tx) => {
       await tx.billPayment.deleteMany({
@@ -76,6 +78,13 @@ export async function PATCH(
           },
         });
       }
+
+      await tx.bill.update({
+        where: { id },
+        data: {
+          modifiedById: loggedInUser?.id ?? null,
+        },
+      });
     });
 
     return NextResponse.json({ success: true });

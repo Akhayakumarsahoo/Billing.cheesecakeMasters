@@ -38,6 +38,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     },
     include: {
       payments: true,
+      modifiedBy: { select: { name: true } },
       lineItems: {
         include: {
           menuItem: {
@@ -54,8 +55,10 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     id: b.id,
     billNumber: b.billNumber,
     createdAt: b.createdAt.toISOString(),
+    updatedAt: b.updatedAt.toISOString(),
     status: b.status,
     grandTotal: b.grandTotal.toString(),
+    modifiedByName: b.modifiedBy?.name ?? null,
     payments: b.payments.map(p => ({
       mode: p.mode,
       amount: p.amount.toString()
@@ -79,5 +82,5 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     }))
   }));
 
-  return <OrdersClient initialBills={serializedBills} outletName={outlet.name} />;
+  return <OrdersClient key={`${fromStr}-${toStr}`} initialBills={serializedBills} outletName={outlet.name} />;
 }

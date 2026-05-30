@@ -1,16 +1,26 @@
-import { getCurrentOutlet } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { notFound, redirect } from "next/navigation";
 import { parseDateRange, getLocalDateString } from "@/lib/utils";
-import { redirect } from "next/navigation";
-import { SettlementHistoryClient } from "./settlement-history-client";
+import { AdminSettlementHistoryClient } from "./admin-settlement-history-client";
 
-export default async function SettlementPage({
+export default async function OutletSettlementsPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ id: string }>;
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  const outlet = await getCurrentOutlet();
-  if (!outlet) return null;
+  const { id } = await params;
+
+  // Auth check — admin and manager only
+  const user = await getCurrentUser();
+  if (!user || (user.role !== "admin" && user.role !== "manager")) {
+    redirect("/");
+  }
+
+  const outlet = await prisma.outlet.findUnique({ where: { id } });
+  if (!outlet) notFound();
 
   const { from, to } = await searchParams;
 
@@ -22,7 +32,7 @@ export default async function SettlementPage({
     const fromStr = getLocalDateString(sevenDaysAgo);
     const toStr = getLocalDateString(today);
 
-    redirect(`/pos/settlement?from=${fromStr}&to=${toStr}`);
+    redirect(`/outlets/${id}/settlements?from=${fromStr}&to=${toStr}`);
   }
 
   const parsed = parseDateRange(from, to);
@@ -32,7 +42,7 @@ export default async function SettlementPage({
   // 1. Fetch latest active settlement to get current cash box balance
   const latestActiveSettlement = await prisma.dailySettlement.findFirst({
     where: {
-      outletId: outlet.id,
+      outletId: id,
       status: "active",
     },
     orderBy: {
@@ -44,10 +54,10 @@ export default async function SettlementPage({
     ? latestActiveSettlement.closingCash.toString()
     : "0.00";
 
-  // 2. Fetch settlements in range
+  // 2. Fetch all settlements within date range
   const settlements = await prisma.dailySettlement.findMany({
     where: {
-      outletId: outlet.id,
+      outletId: id,
       settlementDate: {
         gte: start,
         lte: end,
@@ -86,10 +96,12 @@ export default async function SettlementPage({
   }));
 
   return (
-    <SettlementHistoryClient
+    <AdminSettlementHistoryClient
       initialSettlements={serializedSettlements}
       currentCashBoxBalance={currentCashBoxBalance}
       outletName={outlet.name}
+      outletId={id}
+      role={user.role}
     />
   );
 }

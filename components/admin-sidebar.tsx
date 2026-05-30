@@ -11,6 +11,7 @@ import {
   Users,
   Settings,
   ListOrdered,
+  Coins,
 } from "lucide-react";
 import {
   Sidebar,
@@ -58,7 +59,8 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
   const isOutletsActive = pathname === "/outlets";
   const isMenuActive = isSpecificOutlet && pathname?.endsWith("/menu");
   const isOrdersActive = isSpecificOutlet && pathname?.endsWith("/orders");
-  const isDashboardActive = pathname === "/" || (isSpecificOutlet && !isMenuActive && !isOrdersActive);
+  const isSettlementsActive = isSpecificOutlet && pathname?.includes("/settlements");
+  const isDashboardActive = pathname === "/" || (isSpecificOutlet && !isMenuActive && !isOrdersActive && !isSettlementsActive);
 
   const dashboardHref = currentOutletId && currentOutletId !== "all" 
     ? `/outlets/${currentOutletId}` 
@@ -68,9 +70,9 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2 mt-2">
-          <div className="h-6 w-6 bg-accent-primary shrink-0" />
-          <span className="font-mono font-semibold text-lg text-text-primary group-data-[collapsible=icon]:hidden truncate">
-            BillFlow
+          <img src="/favicon.svg" alt="Cheesecake Masters" width={24} height={24} className="shrink-0" />
+          <span className="font-semibold text-sm text-text-primary group-data-[collapsible=icon]:hidden truncate leading-tight">
+            Cheesecake Masters
           </span>
         </div>
       </SidebarHeader>
@@ -90,6 +92,15 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
                   <SidebarMenuButton render={<Link href={`/outlets/${currentOutletId}/orders`} />} isActive={isOrdersActive} tooltip="All orders">
                     <ListOrdered />
                     <span>All orders</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {currentOutletId && currentOutletId !== "all" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton render={<Link href={`/outlets/${currentOutletId}/settlements`} />} isActive={isSettlementsActive} tooltip="Daily Settlement">
+                    <Coins />
+                    <span>Daily Settlement</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
