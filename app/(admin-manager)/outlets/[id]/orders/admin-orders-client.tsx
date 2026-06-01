@@ -36,6 +36,10 @@ type SerializedBill = {
   updatedAt: string;
   status: string;
   grandTotal: string;
+  subtotal: string;
+  totalCgst: string;
+  totalSgst: string;
+  totalGst: string;
   payments: SerializedPayment[];
   lineItems: SerializedLineItem[];
   modifiedByName?: string | null;
@@ -358,12 +362,37 @@ export function AdminOrdersClient({
               </div>
             )}
             
-            <div className="p-4 border-t border-[var(--border-default)] bg-[var(--bg-surface)] flex flex-col gap-4">
+            <div className="p-4 border-t border-[var(--border-default)] bg-[var(--bg-surface)] flex flex-col gap-3">
               {!isEditingPayment && (
-                <div className="flex justify-between items-center text-lg font-medium">
-                  <span className="text-[var(--text-primary)]">Grand Total</span>
-                  <span className="font-mono">₹{selectedBill.grandTotal}</span>
-                </div>
+                <>
+                  <div className="space-y-1.5 text-sm text-[var(--text-secondary)] border-b border-[var(--border-subtle)] pb-3">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span className="font-mono">₹{parseFloat(selectedBill.subtotal).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>GST (CGST + SGST)</span>
+                      <span className="font-mono">₹{parseFloat(selectedBill.totalGst).toFixed(2)}</span>
+                    </div>
+                    {(() => {
+                      const sub = parseFloat(selectedBill.subtotal);
+                      const gst = parseFloat(selectedBill.totalGst);
+                      const grand = parseFloat(selectedBill.grandTotal);
+                      const roundOff = grand - (sub + gst);
+                      return (
+                        <div className="flex justify-between">
+                          <span>Round Off</span>
+                          <span className="font-mono">{roundOff >= 0 ? "+" : ""}{roundOff.toFixed(2)}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="flex justify-between items-center text-lg font-medium">
+                    <span className="text-[var(--text-primary)]">Grand Total</span>
+                    <span className="font-mono">₹{parseFloat(selectedBill.grandTotal).toFixed(2)}</span>
+                  </div>
+                </>
               )}
               
               <div className="flex flex-wrap gap-2 justify-end pt-2 border-t border-[var(--border-subtle)]">

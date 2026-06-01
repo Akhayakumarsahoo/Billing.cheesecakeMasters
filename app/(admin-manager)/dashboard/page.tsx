@@ -5,6 +5,7 @@ import {
   Info,
   Wallet,
 } from "lucide-react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -14,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ClickableRow } from "@/components/clickable-row";
 import { prisma } from "@/lib/db";
 import { Decimal } from "@/lib/db";
 import { DateRangeFilter } from "@/components/date-range-filter";
@@ -129,10 +131,8 @@ export default async function SalesDashboard({
     stat.gstTotal = stat.gstTotal.add(bill.totalGst);
   }
 
-  // Only show outlets that actually have bills in the selected range
-  const outletStatsList = Object.values(outletStatsMap).filter(
-    (s) => s.billsCount > 0,
-  );
+  // List all active outlets including those with zero bills in the selected range
+  const outletStatsList = Object.values(outletStatsMap);
 
   return (
     <>
@@ -257,11 +257,12 @@ export default async function SalesDashboard({
               ) : (
                 <>
                   {outletStatsList.map((stat) => (
-                    <TableRow
+                    <ClickableRow
                       key={stat.name}
-                      className="border-[var(--border-default)] hover:bg-[var(--bg-surface-raised)]"
+                      href={`/outlets/${stat.id}`}
+                      className="border-[var(--border-default)] group"
                     >
-                      <TableCell className="text-sm font-medium text-[var(--text-primary)]">
+                      <TableCell className="text-sm font-medium text-[var(--text-primary)] group-hover:underline">
                         {stat.name}
                       </TableCell>
                       <TableCell className="text-sm text-[var(--text-primary)] text-right">
@@ -282,7 +283,7 @@ export default async function SalesDashboard({
                       <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
                         ₹{formatINR(cashboxMap[stat.id]?.toNumber() || 0)}
                       </TableCell>
-                    </TableRow>
+                    </ClickableRow>
                   ))}
 
                   {/* Totals Row */}

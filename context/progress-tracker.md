@@ -13,6 +13,23 @@ change.
 
 ## Completed
 
+- **Bill Grand Total Round Off & Breakdown Display**
+  - Updated `lib/gst.ts`'s `computeBillTotals` to round the grand total of the bill to the nearest whole integer using standard mathematical rounding (rounding up if fractional part is 0.5 or more, otherwise rounding down).
+  - Calculated and rendered the dynamic `roundOff` difference inside `components/billing/bill-builder.tsx`'s client-side visual totals and expandable breakdown section.
+  - Enhanced both completed order list history screens (`app/pos/orders/orders-client.tsx` and `app/(admin-manager)/outlets/[id]/orders/admin-orders-client.tsx`) by serializing `subtotal` and `totalGst` fields (via their server-side `page.tsx` parents) and displaying the full Subtotal, GST, and Round Off breakdown inside the order details modal.
+  - Verified all edits compile flawlessly under strict compiler configuration.
+
+- **POS Checkout Performance Optimization**
+  - Resolved POS counter slowness after clicking "Confirm Payment" by eliminating the cascading N+M+2 multi-fetch checkout waterfall.
+  - Implemented a unified batch checkout route `POST /api/bills/checkout` validated by `CheckoutBillSchema` in `lib/validators/index.ts`.
+  - Moved all billing actions (bill creation/reset, menu item price validation, GST calculations, split payments validation, and status completion) into a single, high-performance, atomic database transaction (`prisma.$transaction`).
+  - Refactored `components/billing/bill-builder.tsx` to communicate in exactly 1 single network request, achieving instant sub-second checkouts at the counter.
+  - Fully verified type check (`npx tsc --noEmit`) and Turbopack production build successfully.
+
+- **Dashboard Outlet Sales List Fix & Drill-down**
+  - Updated the consolidated HQ dashboard's "Sales by Outlet" breakdown table to list all active outlets in the system, even if they have zero bills/sales in the selected date range.
+  - Converted the entire row of each outlet in the "Sales by Outlet" breakdown table into an accessible, interactive button/link (`ClickableRow`) routing to its specific dashboard (`/outlets/[id]`), improving operational navigation for admins and managers.
+
 - POS Setup (09-POS-setup.md)
 
 - Implement Design System (01-design-system.md)

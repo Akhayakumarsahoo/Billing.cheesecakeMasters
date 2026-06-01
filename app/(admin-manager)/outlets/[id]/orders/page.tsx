@@ -56,6 +56,10 @@ export default async function OutletOrdersPage({
     updatedAt: b.updatedAt.toISOString(),
     status: b.status,
     grandTotal: b.grandTotal.toString(),
+    subtotal: b.subtotal.toString(),
+    totalCgst: b.totalCgst.toString(),
+    totalSgst: b.totalSgst.toString(),
+    totalGst: b.totalGst.toString(),
     modifiedByName: b.modifiedBy?.name ?? null,
     payments: b.payments.map(p => ({
       mode: p.mode,

@@ -48,7 +48,8 @@ export function computeBillTotals(lineItems: LineItemTotals[]): BillTotals {
   const totalCgst = lineItems.reduce((sum, li) => sum.add(li.lineCgst), zero);
   const totalSgst = lineItems.reduce((sum, li) => sum.add(li.lineSgst), zero);
   const totalGst = totalCgst.add(totalSgst);
-  const grandTotal = subtotal.add(totalGst);
+  const rawTotal = subtotal.add(totalGst);
+  const grandTotal = new Decimal(Math.round(rawTotal.toNumber()));
 
   return { subtotal, totalCgst, totalSgst, totalGst, grandTotal };
 }

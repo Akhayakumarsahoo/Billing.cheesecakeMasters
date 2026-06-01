@@ -124,10 +124,15 @@ export function BillBuilder({
       gstAmount += lineGst;
     });
     
+    const rawTotal = subtotal + gstAmount;
+    const grandTotal = Math.round(rawTotal);
+    const roundOff = grandTotal - rawTotal;
+    
     return {
       subtotal,
       gstAmount,
-      grandTotal: subtotal + gstAmount
+      roundOff,
+      grandTotal
     };
   }, [cart]);
 
@@ -174,88 +179,37 @@ export function BillBuilder({
     if (cart.length === 0) return;
     setIsProcessing(true);
 
-    let billId = editingBillId;
     try {
+      const payload = {
+        editingBillId: editingBillId || undefined,
+        customerName: customerName || undefined,
+        customerPhone: customerPhone || undefined,
+        lineItems: cart.map(item => {
+          return item.menuItem.isCustom
+            ? {
+                itemName: item.menuItem.name,
+                basePrice: parseFloat(item.menuItem.basePrice),
+                gstRate: parseFloat(item.menuItem.gstSlab.rate),
+                quantity: item.quantity,
+              }
+            : {
+                menuItemId: item.menuItem.id,
+                quantity: item.quantity,
+              };
+        }),
+        payments: payments.filter(p => p.amount > 0),
+      };
 
-      if (billId) {
-        // 1a. Reset existing bill
-        const resetRes = await fetch(`/api/bills/${billId}/reset`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerName: customerName || undefined,
-            customerPhone: customerPhone || undefined,
-          }),
-        });
-        if (!resetRes.ok) throw new Error("Failed to reset existing bill");
-      } else {
-        // 1b. Create draft bill
-        const createRes = await fetch("/api/bills", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerName: customerName || undefined,
-            customerPhone: customerPhone || undefined,
-          }),
-        });
-        
-        if (!createRes.ok) throw new Error("Failed to create bill");
-        const { data: draftBill } = await createRes.json();
-        billId = draftBill.id;
-      }
-
-      // 2. Add line items in parallel
-      const itemPromises = cart.map(item => {
-        const payload = item.menuItem.isCustom
-          ? {
-              itemName: item.menuItem.name,
-              basePrice: parseFloat(item.menuItem.basePrice),
-              gstRate: parseFloat(item.menuItem.gstSlab.rate),
-              quantity: item.quantity,
-            }
-          : {
-              menuItemId: item.menuItem.id,
-              quantity: item.quantity,
-            };
-
-        return fetch(`/api/bills/${billId}/items`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }).then(res => {
-          if (!res.ok) throw new Error("Failed to add line item");
-          return res;
-        });
-      });
-
-      await Promise.all(itemPromises);
-
-      // 3. Add payments in parallel
-      const paymentPromises = payments
-        .filter(p => p.amount > 0)
-        .map(p => {
-          return fetch(`/api/bills/${billId}/payments`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              mode: p.mode,
-              amount: p.amount,
-            }),
-          }).then(res => {
-            if (!res.ok) throw new Error("Failed to add payment");
-            return res;
-          });
-        });
-
-      await Promise.all(paymentPromises);
-
-      // 4. Complete bill
-      const completeRes = await fetch(`/api/bills/${billId}/complete`, {
+      const res = await fetch("/api/bills/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(payload),
       });
-      if (!completeRes.ok) throw new Error("Failed to complete bill");
+
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.error?.message || "Checkout failed");
+      }
 
       toast.success("Bill completed successfully");
       setCart([]);
@@ -265,17 +219,6 @@ export function BillBuilder({
       setIsPaymentOpen(false);
       
     } catch (err: unknown) {
-      if (billId) {
-        try {
-          await fetch(`/api/bills/${billId}/reset`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({}),
-          });
-        } catch (cleanupErr) {
-          console.error("Failed to rollback bill:", cleanupErr);
-        }
-      }
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(msg || "Something went wrong while saving");
     } finally {
@@ -403,6 +346,10 @@ export function BillBuilder({
               <div className="flex justify-between text-sm text-[var(--text-secondary)]">
                 <span>GST Amount</span>
                 <span className="font-mono">₹{totals.gstAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-[var(--text-secondary)]">
+                <span>Round Off</span>
+                <span className="font-mono">{totals.roundOff >= 0 ? "+" : ""}{totals.roundOff.toFixed(2)}</span>
               </div>
             </div>
           )}
