@@ -1,19 +1,23 @@
 import { prisma } from "./db";
+import { Prisma } from "@prisma/client";
 
-export async function generateBillNumber(outletId: string): Promise<string> {
+export async function generateBillNumber(
+  outletId: string,
+  tx?: Prisma.TransactionClient
+): Promise<string> {
+  const client = tx || prisma;
   const year = new Date().getFullYear();
 
   // Get outlet index (1-based) for the prefix
-  const outlets = await prisma.outlet.findMany({
+  const outlets = await client.outlet.findMany({
     where: { isActive: true },
     orderBy: { createdAt: "asc" },
     select: { id: true },
   });
   const outletIndex = outlets.findIndex((o) => o.id === outletId) + 1;
 
-  // Upsert sequence row and increment atomically
-  const result = await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(
+  const executeSequenceUpdate = async (t: Prisma.TransactionClient) => {
+    await t.$executeRawUnsafe(
       `INSERT INTO bill_sequences ("outletId", year, "lastSeq")
        VALUES ($1, $2, 0)
        ON CONFLICT ("outletId") DO NOTHING`,
@@ -22,14 +26,14 @@ export async function generateBillNumber(outletId: string): Promise<string> {
     );
 
     // Reset sequence if year has changed
-    await tx.$executeRawUnsafe(
+    await t.$executeRawUnsafe(
       `UPDATE bill_sequences SET "lastSeq" = 0, year = $1
        WHERE "outletId" = $2 AND year != $1`,
       year,
       outletId,
     );
 
-    const rows = await tx.$queryRawUnsafe<{ lastSeq: number }[]>(
+    const rows = await t.$queryRawUnsafe<{ lastSeq: number }[]>(
       `UPDATE bill_sequences SET "lastSeq" = "lastSeq" + 1
        WHERE "outletId" = $1
        RETURNING "lastSeq"`,
@@ -37,7 +41,16 @@ export async function generateBillNumber(outletId: string): Promise<string> {
     );
 
     return rows[0].lastSeq;
-  });
+  };
+
+  // Run the sequence update inside the provided transaction, or start a new transaction with 10000ms timeout
+  const result = tx
+    ? await executeSequenceUpdate(tx)
+    : await prisma.$transaction(async (innerTx) => {
+        return executeSequenceUpdate(innerTx);
+      }, {
+        timeout: 10000,
+      });
 
   const seq = String(result).padStart(5, "0");
   return `OTL${outletIndex}-${year}-${seq}`;

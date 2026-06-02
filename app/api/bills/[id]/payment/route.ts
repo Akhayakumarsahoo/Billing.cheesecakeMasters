@@ -85,6 +85,8 @@ export async function PATCH(
           modifiedById: loggedInUser?.id ?? null,
         },
       });
+    }, {
+      timeout: 10000,
     });
 
     return NextResponse.json({ success: true });

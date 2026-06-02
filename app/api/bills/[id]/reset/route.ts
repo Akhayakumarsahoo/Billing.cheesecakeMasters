@@ -57,6 +57,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           cancelledAt: null,
         },
       });
+    }, {
+      timeout: 10000,
     });
 
     return NextResponse.json({ success: true });

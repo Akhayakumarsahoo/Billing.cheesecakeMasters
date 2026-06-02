@@ -13,6 +13,18 @@ change.
 
 ## Completed
 
+- **Daily Settlement Cancellation Reactivation**
+  - Resolved the conflict blocking cashier and admin creation of daily settlements on dates that have previously cancelled records (which triggered unique constraint violations).
+  - Programmatically bypassed blocked redirections in POS and Admin New Settlement routes (`app/pos/settlement/new/page.tsx` and `app/(admin-manager)/outlets/[id]/settlements/new/page.tsx`) when the existing daily settlement is `"cancelled"`.
+  - Adapted the client-side settlement history tables (`app/pos/settlement/settlement-history-client.tsx` and `app/(admin-manager)/outlets/[id]/settlements/admin-settlement-history-client.tsx`) to check for `"active"` status of today's settlement, reverting buttons dynamically to "New Settlement" if today's was cancelled.
+  - Refactored the core creation API `app/api/settlements/route.ts` to softly reactivate and overwrite the existing `"cancelled"` row instead of performing a fresh duplicate `INSERT` when a new settlement is submitted, resetting `createdAt` to provide a fresh 24-hour edit/cancel window.
+
+- **Interactive Transaction Timeout & Performance Optimization**
+  - Configured a `10000` ms timeout (increased from default `5000` ms) on all billing-related interactive database transactions (`prisma.$transaction`) to handle heavy retail loads and avoid expired transaction errors.
+  - Refactored `generateBillNumber` in `lib/bill-number.ts` to accept an optional active transaction client (`tx?: Prisma.TransactionClient`).
+  - Optimized the batch POS checkout flow in `app/api/bills/checkout/route.ts` by passing the active transaction client `tx` into `generateBillNumber`, eliminating nested transaction overhead, connection pool blockages, and lock contentions.
+  - Applied the identical `10000` ms timeout to `app/api/bills/[id]/reset/route.ts` and `app/api/bills/[id]/payment/route.ts` interactive transactions for complete billing consistency.
+
 - **POS Cart Inline Payment Selector & Direct Checkout**
   - Moved the payment method selector out of the dialog and directly inline inside the cart section of `components/billing/bill-builder.tsx`, default selected to **Cash**.
   - Styled the selector as an elegant DropdownMenu trigger displaying active mode, its icon, and the running split total for visual clarity.

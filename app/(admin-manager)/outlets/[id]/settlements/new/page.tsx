@@ -34,7 +34,7 @@ export default async function AdminNewSettlementPage({
       },
     });
 
-    if (existing) {
+    if (existing && existing.status !== "cancelled") {
       redirect(`/outlets/${id}/settlements/edit/${existing.id}`);
     }
   }

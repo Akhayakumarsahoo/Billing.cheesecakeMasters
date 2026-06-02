@@ -21,7 +21,7 @@ export default async function NewSettlementPage() {
     },
   });
 
-  if (existing) {
+  if (existing && existing.status !== "cancelled") {
     redirect(`/pos/settlement/edit/${existing.id}`);
   }
 

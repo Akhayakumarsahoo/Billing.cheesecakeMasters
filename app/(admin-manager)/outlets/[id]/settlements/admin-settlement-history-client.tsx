@@ -105,7 +105,7 @@ export function AdminSettlementHistoryClient({
 
   // Check if today's settlement already exists in this outlet's history
   const todayLocalStr = new Date().toLocaleDateString("sv-SE");
-  const todaySettlement = settlements.find((s) => s.settlementDate === todayLocalStr);
+  const todaySettlement = settlements.find((s) => s.settlementDate === todayLocalStr && s.status === "active");
 
   const isWithin24Hours = (createdAtStr: string) => {
     const now = new Date();

@@ -179,7 +179,7 @@ export async function POST(req: Request) {
         });
       } else {
         // Generate new sequential bill number and create a new bill row
-        const billNumber = await generateBillNumber(outlet.id);
+        const billNumber = await generateBillNumber(outlet.id, tx);
         const newBill = await tx.bill.create({
           data: {
             billNumber,
@@ -235,6 +235,8 @@ export async function POST(req: Request) {
           payments: true,
         },
       });
+    }, {
+      timeout: 10000,
     });
 
     if (!finalBill) {

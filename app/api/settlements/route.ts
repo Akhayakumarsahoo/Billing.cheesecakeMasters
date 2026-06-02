@@ -211,7 +211,7 @@ export async function POST(req: Request) {
       },
     });
 
-    if (existing) {
+    if (existing && existing.status !== "cancelled") {
       return NextResponse.json(
         {
           error: {
@@ -236,28 +236,55 @@ export async function POST(req: Request) {
     const loggedInUser = await getLoggedInUser();
     const userId = loggedInUser?.id ?? null;
 
-    // Create record
-    const settlement = await prisma.dailySettlement.create({
-      data: {
-        outletId: targetOutletId,
-        settlementDate: date,
-        openingCash,
-        billedCash: billedSales.billedCash,
-        billedUpi: billedSales.billedUpi,
-        billedCard: billedSales.billedCard,
-        billedOther: billedSales.billedOther,
-        actualCash: new Decimal(actualCash),
-        actualUpi: new Decimal(actualUpi),
-        actualCard: new Decimal(actualCard),
-        actualOther: new Decimal(actualOther),
-        cashExpense: new Decimal(cashExpense),
-        cashWithdraw: new Decimal(cashWithdraw),
-        closingCash,
-        status: "active",
-        createdById: userId,
-        modifiedById: userId,
-      },
-    });
+    let settlement;
+
+    if (existing && existing.status === "cancelled") {
+      // Overwrite and reactivate the cancelled settlement
+      settlement = await prisma.dailySettlement.update({
+        where: { id: existing.id },
+        data: {
+          openingCash,
+          billedCash: billedSales.billedCash,
+          billedUpi: billedSales.billedUpi,
+          billedCard: billedSales.billedCard,
+          billedOther: billedSales.billedOther,
+          actualCash: new Decimal(actualCash),
+          actualUpi: new Decimal(actualUpi),
+          actualCard: new Decimal(actualCard),
+          actualOther: new Decimal(actualOther),
+          cashExpense: new Decimal(cashExpense),
+          cashWithdraw: new Decimal(cashWithdraw),
+          closingCash,
+          status: "active",
+          createdById: userId,
+          modifiedById: userId,
+          createdAt: new Date(), // Reset createdAt to now so user gets a fresh 24 hours to cancel/edit
+        },
+      });
+    } else {
+      // Create new record
+      settlement = await prisma.dailySettlement.create({
+        data: {
+          outletId: targetOutletId,
+          settlementDate: date,
+          openingCash,
+          billedCash: billedSales.billedCash,
+          billedUpi: billedSales.billedUpi,
+          billedCard: billedSales.billedCard,
+          billedOther: billedSales.billedOther,
+          actualCash: new Decimal(actualCash),
+          actualUpi: new Decimal(actualUpi),
+          actualCard: new Decimal(actualCard),
+          actualOther: new Decimal(actualOther),
+          cashExpense: new Decimal(cashExpense),
+          cashWithdraw: new Decimal(cashWithdraw),
+          closingCash,
+          status: "active",
+          createdById: userId,
+          modifiedById: userId,
+        },
+      });
+    }
 
     // Run propagation chronologically starting from this settlement's date
     await propagateCashBalances(targetOutletId, date);
