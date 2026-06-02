@@ -1,7 +1,21 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, Minus, Trash2, ShoppingBag, ChevronDown, ChevronUp, UserPlus } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Minus,
+  Trash2,
+  ShoppingBag,
+  ChevronDown,
+  ChevronUp,
+  UserPlus,
+  Banknote,
+  Smartphone,
+  CreditCard,
+  Receipt,
+  SplitSquareHorizontal,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -9,7 +23,19 @@ import { PaymentDialog } from "./payment-dialog";
 import { OpenItemDialog } from "./open-item-dialog";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Drawer, DrawerTrigger, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import {
+  Drawer,
+  DrawerTrigger,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 export type SerializedMenuItem = {
   id: string;
@@ -33,6 +59,14 @@ type CartItem = {
   quantity: number;
 };
 
+const paymentModes = [
+  { id: "cash", name: "Cash", icon: Banknote },
+  { id: "upi", name: "UPI", icon: Smartphone },
+  { id: "card", name: "Card", icon: CreditCard },
+  { id: "other", name: "Other", icon: Receipt },
+  { id: "part_payment", name: "Part Payment", icon: SplitSquareHorizontal },
+];
+
 export function BillBuilder({
   categories,
   menuItems,
@@ -52,12 +86,25 @@ export function BillBuilder({
   const [isOpenItemOpen, setIsOpenItemOpen] = useState(false);
   const [editingBillId, setEditingBillId] = useState<string | null>(null);
   const [isTotalsExpanded, setIsTotalsExpanded] = useState(false);
-  const [isCustomerDetailsExpanded, setIsCustomerDetailsExpanded] = useState(false);
+  const [isCustomerDetailsExpanded, setIsCustomerDetailsExpanded] =
+    useState(false);
+
+  const [selectedPaymentMode, setSelectedPaymentMode] = useState<string>("cash");
+  const [splitAmounts, setSplitAmounts] = useState<Record<string, string>>({
+    cash: "",
+    upi: "",
+    card: "",
+    other: "",
+  });
+
+  const splitTotal = useMemo(() => {
+    return Object.values(splitAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+  }, [splitAmounts]);
 
   useEffect(() => {
     const editCart = localStorage.getItem("pos-edit-cart");
     const editBillId = localStorage.getItem("pos-edit-bill-id");
-    
+
     if (editCart) {
       try {
         const parsed = JSON.parse(editCart);
@@ -67,7 +114,7 @@ export function BillBuilder({
       }
       localStorage.removeItem("pos-edit-cart");
     }
-    
+
     if (editBillId) {
       setEditingBillId(editBillId);
       localStorage.removeItem("pos-edit-bill-id");
@@ -76,31 +123,37 @@ export function BillBuilder({
 
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
-      const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) || 
-                            (item.sku && item.sku.toLowerCase().includes(search.toLowerCase()));
-      const matchesCategory = activeCategory === "all" || item.categoryId === activeCategory;
+      const matchesSearch =
+        item.name.toLowerCase().includes(search.toLowerCase()) ||
+        (item.sku && item.sku.toLowerCase().includes(search.toLowerCase()));
+      const matchesCategory =
+        activeCategory === "all" || item.categoryId === activeCategory;
       return matchesSearch && matchesCategory;
     });
   }, [menuItems, search, activeCategory]);
 
   const groupedItems = useMemo(() => {
-    const groups: { categoryName: string; categoryId: string; items: SerializedMenuItem[] }[] = [];
+    const groups: {
+      categoryName: string;
+      categoryId: string;
+      items: SerializedMenuItem[];
+    }[] = [];
     const catMap = new Map<string, SerializedMenuItem[]>();
-    
-    filteredItems.forEach(item => {
+
+    filteredItems.forEach((item) => {
       if (!catMap.has(item.categoryId)) {
         catMap.set(item.categoryId, []);
       }
       catMap.get(item.categoryId)!.push(item);
     });
 
-    categories.forEach(cat => {
+    categories.forEach((cat) => {
       const itemsForCat = catMap.get(cat.id);
       if (itemsForCat && itemsForCat.length > 0) {
         groups.push({
           categoryName: cat.name,
           categoryId: cat.id,
-          items: itemsForCat
+          items: itemsForCat,
         });
       }
     });
@@ -112,27 +165,27 @@ export function BillBuilder({
   const totals = useMemo(() => {
     let subtotal = 0;
     let gstAmount = 0;
-    cart.forEach(item => {
+    cart.forEach((item) => {
       const price = parseFloat(item.menuItem.basePrice);
       const qty = item.quantity;
       const rate = parseFloat(item.menuItem.gstSlab.rate);
-      
+
       const lineBaseTotal = price * qty;
       const lineGst = lineBaseTotal * (rate / 100);
-      
+
       subtotal += lineBaseTotal;
       gstAmount += lineGst;
     });
-    
+
     const rawTotal = subtotal + gstAmount;
     const grandTotal = Math.round(rawTotal);
     const roundOff = grandTotal - rawTotal;
-    
+
     return {
       subtotal,
       gstAmount,
       roundOff,
-      grandTotal
+      grandTotal,
     };
   }, [cart]);
 
@@ -140,11 +193,12 @@ export function BillBuilder({
 
   const addToCart = (menuItem: SerializedMenuItem) => {
     setCart((prev) => {
-      const existing = prev.find(item => item.menuItem.id === menuItem.id);
+      const existing = prev.find((item) => item.menuItem.id === menuItem.id);
       if (existing) {
-        return prev.map(item => item.menuItem.id === menuItem.id 
-          ? { ...item, quantity: item.quantity + 1 } 
-          : item
+        return prev.map((item) =>
+          item.menuItem.id === menuItem.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item,
         );
       }
       return [...prev, { menuItem, quantity: 1 }];
@@ -152,13 +206,17 @@ export function BillBuilder({
   };
 
   const updateQuantity = (id: string, delta: number) => {
-    setCart((prev) => prev.map(item => {
-      if (item.menuItem.id === id) {
-        const newQty = Math.max(0, item.quantity + delta);
-        return { ...item, quantity: newQty };
-      }
-      return item;
-    }).filter(item => item.quantity > 0));
+    setCart((prev) =>
+      prev
+        .map((item) => {
+          if (item.menuItem.id === id) {
+            const newQty = Math.max(0, item.quantity + delta);
+            return { ...item, quantity: newQty };
+          }
+          return item;
+        })
+        .filter((item) => item.quantity > 0),
+    );
   };
 
   const handleAddOpenItem = (name: string, price: number, gstRate: number) => {
@@ -175,7 +233,9 @@ export function BillBuilder({
     addToCart(customItem);
   };
 
-  const handleComplete = async (payments: { mode: string, amount: number }[]) => {
+  const handleComplete = async (
+    payments: { mode: string; amount: number }[],
+  ) => {
     if (cart.length === 0) return;
     setIsProcessing(true);
 
@@ -184,7 +244,7 @@ export function BillBuilder({
         editingBillId: editingBillId || undefined,
         customerName: customerName || undefined,
         customerPhone: customerPhone || undefined,
-        lineItems: cart.map(item => {
+        lineItems: cart.map((item) => {
           return item.menuItem.isCustom
             ? {
                 itemName: item.menuItem.name,
@@ -197,7 +257,7 @@ export function BillBuilder({
                 quantity: item.quantity,
               };
         }),
-        payments: payments.filter(p => p.amount > 0),
+        payments: payments.filter((p) => p.amount > 0),
       };
 
       const res = await fetch("/api/bills/checkout", {
@@ -217,6 +277,8 @@ export function BillBuilder({
       setCustomerPhone("");
       setEditingBillId(null);
       setIsPaymentOpen(false);
+      setSelectedPaymentMode("cash");
+      setSplitAmounts({ cash: "", upi: "", card: "", other: "" });
       
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -226,58 +288,123 @@ export function BillBuilder({
     }
   };
 
+  const handlePaymentModeChange = (modeId: string) => {
+    setSelectedPaymentMode(modeId);
+    if (modeId === "part_payment") {
+      setIsCartDrawerOpen(false);
+      setTimeout(() => {
+        setIsPaymentOpen(true);
+      }, 100);
+    }
+  };
+
+  const handleSaveBill = async () => {
+    if (cart.length === 0) return;
+
+    if (selectedPaymentMode === "part_payment") {
+      const splitTotalCents = Math.round(splitTotal * 100);
+      const grandTotalCents = Math.round(totals.grandTotal * 100);
+
+      if (splitTotalCents >= grandTotalCents) {
+        // Already fully entered and valid, proceed directly
+        const payments: { mode: string; amount: number }[] = [];
+        let remainingCents = grandTotalCents;
+
+        const nonCashModes = ["upi", "card", "other"];
+        for (const mode of nonCashModes) {
+          const valCents = Math.round((parseFloat(splitAmounts[mode]) || 0) * 100);
+          if (valCents > 0) {
+            const allocatedCents = Math.min(valCents, remainingCents);
+            if (allocatedCents > 0) {
+              payments.push({ mode, amount: allocatedCents / 100 });
+              remainingCents -= allocatedCents;
+            }
+          }
+        }
+
+        const cashValCents = Math.round((parseFloat(splitAmounts["cash"]) || 0) * 100);
+        if (cashValCents > 0 && remainingCents > 0) {
+          const allocatedCents = Math.min(cashValCents, remainingCents);
+          if (allocatedCents > 0) {
+            payments.push({ mode: "cash", amount: allocatedCents / 100 });
+            remainingCents -= allocatedCents;
+          }
+        }
+
+        await handleComplete(payments);
+      } else {
+        // Trigger dialog to fill split
+        setIsCartDrawerOpen(false);
+        setIsPaymentOpen(true);
+      }
+    } else {
+      // Single payment checkout directly
+      await handleComplete([{ mode: selectedPaymentMode, amount: totals.grandTotal }]);
+    }
+  };
+
   const CartContent = (
     <div className="flex flex-col h-full bg-[var(--bg-surface)]">
       <div className="p-4 border-b border-[var(--border-default)] shrink-0">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium">Current Bill</h2>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => {
-              setIsCartDrawerOpen(false);
-              // Small delay to ensure the drawer's focus trap is fully released before dialog mounts
-              setTimeout(() => setIsOpenItemOpen(true), 50);
-            }}
-          >
-            Open Item
-          </Button>
-        </div>
-        <div className="mt-4">
-          {isCustomerDetailsExpanded || customerName || customerPhone ? (
-            <div className="space-y-3 bg-[var(--bg-surface-raised)] p-3 rounded-lg border border-[var(--border-default)]">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-[var(--text-secondary)]">Customer Details</span>
-                {(!customerName && !customerPhone) && (
-                  <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => setIsCustomerDetailsExpanded(false)}>
-                    Hide
-                  </Button>
-                )}
-              </div>
-              <Input 
-                placeholder="Customer Name (Optional)" 
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="h-10 bg-[var(--bg-surface)]"
-              />
-              <Input 
-                placeholder="Phone Number (Optional)" 
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                className="h-10 bg-[var(--bg-surface)]"
-              />
-            </div>
-          ) : (
-            <Button 
-              variant="outline" 
-              className="w-full text-[var(--text-secondary)] border-dashed h-10"
-              onClick={() => setIsCustomerDetailsExpanded(true)}
+          <div className="flex items-center gap-2">
+            {!isCustomerDetailsExpanded && !customerName && !customerPhone && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 p-0"
+                title="Add Customer Details"
+                onClick={() => setIsCustomerDetailsExpanded(true)}
+              >
+                <UserPlus className="w-4 h-4" />
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsCartDrawerOpen(false);
+                // Small delay to ensure the drawer's focus trap is fully released before dialog mounts
+                setTimeout(() => setIsOpenItemOpen(true), 50);
+              }}
             >
-              <UserPlus className="w-4 h-4 mr-2" />
-              Add Customer Details
+              Open Item
             </Button>
-          )}
+          </div>
         </div>
+
+        {(isCustomerDetailsExpanded || customerName || customerPhone) && (
+          <div className="mt-4 space-y-3 bg-[var(--bg-surface-raised)] p-3 rounded-lg border border-[var(--border-default)]">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-medium text-[var(--text-secondary)]">
+                Customer Details
+              </span>
+              {!customerName && !customerPhone && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs px-2"
+                  onClick={() => setIsCustomerDetailsExpanded(false)}
+                >
+                  Hide
+                </Button>
+              )}
+            </div>
+            <Input
+              placeholder="Customer Name (Optional)"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              className="h-10 bg-[var(--bg-surface)]"
+            />
+            <Input
+              placeholder="Phone Number (Optional)"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              className="h-10 bg-[var(--bg-surface)]"
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[var(--bg-surface-raised)]">
@@ -288,26 +415,41 @@ export function BillBuilder({
           </div>
         ) : (
           cart.map((item) => (
-            <div key={item.menuItem.id} className="bg-[var(--bg-surface)] p-3 rounded-lg border border-[var(--border-default)] flex items-start gap-2">
+            <div
+              key={item.menuItem.id}
+              className="bg-[var(--bg-surface)] p-3 rounded-lg border border-[var(--border-default)] flex items-start gap-2"
+            >
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-[var(--text-primary)] truncate">{item.menuItem.name}</div>
+                <div className="text-sm font-medium text-[var(--text-primary)] truncate">
+                  {item.menuItem.name}
+                </div>
                 <div className="text-xs font-mono text-[var(--text-secondary)] mt-0.5">
-                  ₹{parseFloat(item.menuItem.basePrice).toFixed(2)} × {item.quantity} {item.menuItem.unit}
+                  ₹{parseFloat(item.menuItem.basePrice).toFixed(2)} ×{" "}
+                  {item.quantity} {item.menuItem.unit}
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2 shrink-0">
                 <div className="text-sm font-mono font-medium">
-                  ₹{(parseFloat(item.menuItem.basePrice) * item.quantity).toFixed(2)}
+                  ₹
+                  {(
+                    parseFloat(item.menuItem.basePrice) * item.quantity
+                  ).toFixed(2)}
                 </div>
                 <div className="flex items-center gap-2 bg-[var(--bg-surface-raised)] rounded border border-[var(--border-default)]">
-                  <button 
+                  <button
                     onClick={() => updateQuantity(item.menuItem.id, -1)}
                     className="p-1 text-[var(--interactive-default)] hover:text-[var(--text-primary)]"
                   >
-                    {item.quantity === 1 ? <Trash2 className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
+                    {item.quantity === 1 ? (
+                      <Trash2 className="h-4 w-4" />
+                    ) : (
+                      <Minus className="h-4 w-4" />
+                    )}
                   </button>
-                  <span className="text-sm font-mono w-6 text-center">{item.quantity}</span>
-                  <button 
+                  <span className="text-sm font-mono w-6 text-center">
+                    {item.quantity}
+                  </span>
+                  <button
                     onClick={() => updateQuantity(item.menuItem.id, 1)}
                     className="p-1 text-[var(--interactive-default)] hover:text-[var(--text-primary)]"
                   >
@@ -320,49 +462,100 @@ export function BillBuilder({
         )}
       </div>
 
-      <div className="p-4 border-t border-[var(--border-default)] bg-[var(--bg-surface)] shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        <div className="mb-4">
-          <div 
-            className="flex justify-between items-center text-xl font-medium cursor-pointer hover:bg-[var(--bg-surface-raised)] p-3 -mx-3 rounded-lg transition-colors select-none"
+      <div className="p-3 pb-4 border-t border-[var(--border-default)] bg-[var(--bg-surface)] shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div className="mb-2.5">
+          <div
+            className="flex justify-between items-center text-lg font-medium cursor-pointer hover:bg-[var(--bg-surface-raised)] py-1.5 px-3 -mx-3 rounded-lg transition-colors select-none"
             onClick={() => setIsTotalsExpanded(!isTotalsExpanded)}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <span>Total</span>
               {isTotalsExpanded ? (
-                <ChevronUp className="w-5 h-5 text-[var(--text-muted)]" />
+                <ChevronUp className="w-4 h-4 text-text-muted" />
               ) : (
-                <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
+                <ChevronDown className="w-4 h-4 text-text-muted" />
               )}
             </div>
-            <span className="font-mono">₹{totals.grandTotal.toFixed(2)}</span>
+            <span className="font-mono text-xl">₹{totals.grandTotal.toFixed(2)}</span>
           </div>
 
           {isTotalsExpanded && (
-            <div className="pt-3 pb-1 px-1 mt-1 border-t border-[var(--border-subtle)] space-y-2 animate-in fade-in slide-in-from-top-2">
-              <div className="flex justify-between text-sm text-[var(--text-secondary)]">
+            <div className="pt-2 pb-0.5 px-1 mt-1 border-t border-border-subtle space-y-1.5 animate-in fade-in slide-in-from-top-2">
+              <div className="flex justify-between text-xs text-text-secondary">
                 <span>Subtotal</span>
                 <span className="font-mono">₹{totals.subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-sm text-[var(--text-secondary)]">
+              <div className="flex justify-between text-xs text-text-secondary">
                 <span>GST Amount</span>
-                <span className="font-mono">₹{totals.gstAmount.toFixed(2)}</span>
+                <span className="font-mono">
+                  ₹{totals.gstAmount.toFixed(2)}
+                </span>
               </div>
-              <div className="flex justify-between text-sm text-[var(--text-secondary)]">
+              <div className="flex justify-between text-xs text-text-secondary">
                 <span>Round Off</span>
-                <span className="font-mono">{totals.roundOff >= 0 ? "+" : ""}{totals.roundOff.toFixed(2)}</span>
+                <span className="font-mono">
+                  {totals.roundOff >= 0 ? "+" : ""}
+                  {totals.roundOff.toFixed(2)}
+                </span>
               </div>
             </div>
           )}
         </div>
-        <Button 
-          className="w-full h-14 text-base bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white rounded-lg"
-          disabled={cart.length === 0}
-          onClick={() => {
-            setIsCartDrawerOpen(false);
-            setIsPaymentOpen(true);
-          }}
+
+        {/* Payment Method Selector */}
+        <div className="mb-3 space-y-1">
+          <label className="text-xs font-medium text-text-secondary">Payment Method</label>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              disabled={cart.length === 0}
+              className="w-full h-10 flex items-center justify-between px-3 bg-bg-surface hover:bg-bg-hover border border-border-default hover:border-border-strong rounded-lg text-sm text-text-primary font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <span className="flex items-center gap-2">
+                {(() => {
+                  const activeMode = paymentModes.find(m => m.id === selectedPaymentMode) || paymentModes[0];
+                  const SelectedIcon = activeMode.icon;
+                  return (
+                    <>
+                      <SelectedIcon className="h-4 w-4 text-text-secondary" strokeWidth={1.5} />
+                      <span>
+                        {activeMode.name}
+                        {selectedPaymentMode === "part_payment" && splitTotal > 0 && ` (₹${splitTotal.toFixed(2)})`}
+                      </span>
+                    </>
+                  );
+                })()}
+              </span>
+              <ChevronDown className="h-4 w-4 text-text-muted" strokeWidth={1.5} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-[368px] max-w-[calc(100vw-32px)] bg-bg-surface border-border-default shadow-md rounded-lg p-1" align="end">
+              {paymentModes.map((mode) => {
+                const Icon = mode.icon;
+                const isSelected = selectedPaymentMode === mode.id;
+                return (
+                  <DropdownMenuItem
+                    key={mode.id}
+                    onClick={() => handlePaymentModeChange(mode.id)}
+                    className={`flex items-center gap-3 p-2.5 text-sm font-medium cursor-pointer rounded-md transition-colors ${
+                      isSelected 
+                        ? "bg-bg-active text-text-primary font-semibold" 
+                        : "hover:bg-bg-hover text-text-primary"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 text-text-secondary" strokeWidth={1.5} />
+                    <span className="flex-1">{mode.name}</span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <Button
+          className="w-full h-11 text-sm bg-accent-primary hover:bg-accent-primary-hover text-white rounded-lg font-medium"
+          disabled={cart.length === 0 || isProcessing}
+          onClick={handleSaveBill}
         >
-          Proceed to Pay
+          {isProcessing ? "Saving..." : "Save Bill"}
         </Button>
       </div>
     </div>
@@ -375,8 +568,8 @@ export function BillBuilder({
         <div className="p-4 border-b border-[var(--border-default)] bg-[var(--bg-surface)] shrink-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
-            <Input 
-              placeholder="Search items by name or SKU..." 
+            <Input
+              placeholder="Search items by name or SKU..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 h-12 rounded-lg bg-[var(--bg-surface)]"
@@ -398,8 +591,8 @@ export function BillBuilder({
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                     {group.items.map((item) => (
-                      <div 
-                        key={item.id} 
+                      <div
+                        key={item.id}
                         onClick={() => addToCart(item)}
                         className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg p-3 hover:border-[var(--border-strong)] hover:shadow-sm transition-all cursor-pointer select-none active:bg-[var(--bg-active)] flex flex-col justify-between min-h-[100px]"
                       >
@@ -446,9 +639,7 @@ export function BillBuilder({
             <DrawerHeader className="hidden">
               <DrawerTitle>Cart</DrawerTitle>
             </DrawerHeader>
-            <div className="flex-1 overflow-hidden">
-              {CartContent}
-            </div>
+            <div className="flex-1 overflow-hidden">{CartContent}</div>
           </DrawerContent>
         </Drawer>
       </div>
@@ -459,6 +650,8 @@ export function BillBuilder({
         grandTotal={totals.grandTotal}
         onConfirm={handleComplete}
         isProcessing={isProcessing}
+        splitAmounts={splitAmounts}
+        setSplitAmounts={setSplitAmounts}
       />
 
       <OpenItemDialog

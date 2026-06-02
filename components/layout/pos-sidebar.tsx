@@ -17,7 +17,7 @@ export function PosSidebar() {
   const { signOut } = useClerk();
 
   return (
-    <aside className="hidden lg:flex flex-col w-60 bg-[var(--bg-surface)] border-r border-[var(--border-default)] h-full">
+    <aside className="hidden lg:flex flex-col w-52 bg-[var(--bg-surface)] border-r border-[var(--border-default)] h-full">
       <div className="p-4 border-b border-[var(--border-default)]">
         <div className="flex items-center gap-2.5">
           <img src="/favicon.svg" alt="Cheesecake Masters" width={32} height={32} className="shrink-0" />

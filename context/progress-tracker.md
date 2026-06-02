@@ -13,6 +13,13 @@ change.
 
 ## Completed
 
+- **POS Cart Inline Payment Selector & Direct Checkout**
+  - Moved the payment method selector out of the dialog and directly inline inside the cart section of `components/billing/bill-builder.tsx`, default selected to **Cash**.
+  - Styled the selector as an elegant DropdownMenu trigger displaying active mode, its icon, and the running split total for visual clarity.
+  - Renamed the cart action CTA to "Save Bill", which executes immediate checkout for single payment modes (Cash, UPI, Card, Other) in exactly 1 click without displaying any dialog popup.
+  - Updated `components/billing/payment-dialog.tsx` to act as a dedicated "Part Payment Split" dialog that accepts state as props from the parent cart, preserving cashier split inputs across dialog openings.
+  - Refactored dialog header titles, descriptions, and buttons to focus purely on inputting split amounts and saving the part payment bill.
+
 - **Bill Grand Total Round Off & Breakdown Display**
   - Updated `lib/gst.ts`'s `computeBillTotals` to round the grand total of the bill to the nearest whole integer using standard mathematical rounding (rounding up if fractional part is 0.5 or more, otherwise rounding down).
   - Calculated and rendered the dynamic `roundOff` difference inside `components/billing/bill-builder.tsx`'s client-side visual totals and expandable breakdown section.
