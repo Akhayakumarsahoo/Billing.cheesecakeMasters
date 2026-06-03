@@ -17,7 +17,7 @@ export const CreateUserSchema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(["manager"]), // admin is never allowed here
+  role: z.enum(["manager", "admin"]),
 });
 
 export const UpdateUserSchema = z.object({

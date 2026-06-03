@@ -505,49 +505,80 @@ export function BillBuilder({
         {/* Payment Method Selector */}
         <div className="mb-3 space-y-1">
           <label className="text-xs font-medium text-text-secondary">Payment Method</label>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              disabled={cart.length === 0}
-              className="w-full h-10 flex items-center justify-between px-3 bg-bg-surface hover:bg-bg-hover border border-border-default hover:border-border-strong rounded-lg text-sm text-text-primary font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <span className="flex items-center gap-2">
-                {(() => {
-                  const activeMode = paymentModes.find(m => m.id === selectedPaymentMode) || paymentModes[0];
-                  const SelectedIcon = activeMode.icon;
+          
+          {/* Desktop View: DropdownMenu */}
+          <div className="hidden lg:block">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                disabled={cart.length === 0}
+                className="w-full h-10 flex items-center justify-between px-3 bg-bg-surface hover:bg-bg-hover border border-border-default hover:border-border-strong rounded-lg text-sm text-text-primary font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <span className="flex items-center gap-2">
+                  {(() => {
+                    const activeMode = paymentModes.find(m => m.id === selectedPaymentMode) || paymentModes[0];
+                    const SelectedIcon = activeMode.icon;
+                    return (
+                      <>
+                        <SelectedIcon className="h-4 w-4 text-text-secondary" strokeWidth={1.5} />
+                        <span>
+                          {activeMode.name}
+                          {selectedPaymentMode === "part_payment" && splitTotal > 0 && ` (₹${splitTotal.toFixed(2)})`}
+                        </span>
+                      </>
+                    );
+                  })()}
+                </span>
+                <ChevronDown className="h-4 w-4 text-text-muted" strokeWidth={1.5} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[368px] max-w-[calc(100vw-32px)] bg-bg-surface border-border-default shadow-md rounded-lg p-1" align="end">
+                {paymentModes.map((mode) => {
+                  const Icon = mode.icon;
+                  const isSelected = selectedPaymentMode === mode.id;
                   return (
-                    <>
-                      <SelectedIcon className="h-4 w-4 text-text-secondary" strokeWidth={1.5} />
-                      <span>
-                        {activeMode.name}
-                        {selectedPaymentMode === "part_payment" && splitTotal > 0 && ` (₹${splitTotal.toFixed(2)})`}
-                      </span>
-                    </>
+                    <DropdownMenuItem
+                      key={mode.id}
+                      onClick={() => handlePaymentModeChange(mode.id)}
+                      className={`flex items-center gap-3 p-2.5 text-sm font-medium cursor-pointer rounded-md transition-colors ${
+                        isSelected 
+                          ? "bg-bg-active text-text-primary font-semibold" 
+                          : "hover:bg-bg-hover text-text-primary"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 text-text-secondary" strokeWidth={1.5} />
+                      <span className="flex-1">{mode.name}</span>
+                    </DropdownMenuItem>
                   );
-                })()}
-              </span>
-              <ChevronDown className="h-4 w-4 text-text-muted" strokeWidth={1.5} />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-[368px] max-w-[calc(100vw-32px)] bg-bg-surface border-border-default shadow-md rounded-lg p-1" align="end">
-              {paymentModes.map((mode) => {
-                const Icon = mode.icon;
-                const isSelected = selectedPaymentMode === mode.id;
-                return (
-                  <DropdownMenuItem
-                    key={mode.id}
-                    onClick={() => handlePaymentModeChange(mode.id)}
-                    className={`flex items-center gap-3 p-2.5 text-sm font-medium cursor-pointer rounded-md transition-colors ${
-                      isSelected 
-                        ? "bg-bg-active text-text-primary font-semibold" 
-                        : "hover:bg-bg-hover text-text-primary"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 text-text-secondary" strokeWidth={1.5} />
-                    <span className="flex-1">{mode.name}</span>
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Mobile/Tablet View: Inline Touch-friendly Grid */}
+          <div className="grid grid-cols-2 gap-2 lg:hidden">
+            {paymentModes.map((mode) => {
+              const Icon = mode.icon;
+              const isSelected = selectedPaymentMode === mode.id;
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  disabled={cart.length === 0 || isProcessing}
+                  onClick={() => handlePaymentModeChange(mode.id)}
+                  className={`flex items-center gap-2 px-3 h-10 border rounded-lg text-xs font-medium transition-colors cursor-pointer select-none disabled:opacity-50 disabled:pointer-events-none ${
+                    isSelected
+                      ? "bg-accent-primary text-white border-accent-primary hover:bg-accent-primary-hover"
+                      : "bg-bg-surface text-text-primary border-border-default hover:bg-bg-hover hover:border-strong"
+                  } ${mode.id === "part_payment" ? "col-span-2 justify-center" : ""}`}
+                >
+                  <Icon className={`h-4 w-4 ${isSelected ? "text-white" : "text-text-secondary"}`} strokeWidth={1.5} />
+                  <span>
+                    {mode.name}
+                    {mode.id === "part_payment" && splitTotal > 0 && ` (₹${splitTotal.toFixed(2)})`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <Button

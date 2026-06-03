@@ -12,7 +12,7 @@ export default async function UsersPage() {
 
   const users = await prisma.user.findMany({
     where: {
-      role: "manager", // Only show managers, not outlets
+      role: { in: ["manager", "admin"] },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -28,7 +28,7 @@ export default async function UsersPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
         <p className="text-sm text-text-muted mt-1">
-          Manage your managers.
+          Manage your admins and managers.
         </p>
       </div>
 

@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentOutlet, getLoggedInUser } from "@/lib/auth";
+import { getCurrentOutlet, getCurrentUser, getLoggedInUser } from "@/lib/auth";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const outlet = await getCurrentOutlet();
-    if (!outlet) return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Unauthorized" } }, { status: 401 });
+    const user = await getCurrentUser();
+
+    if (!outlet && !user) {
+      return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Unauthorized" } }, { status: 401 });
+    }
+
+    if (user && user.role !== "admin" && user.role !== "manager") {
+      return NextResponse.json({ error: { code: "FORBIDDEN", message: "Forbidden" } }, { status: 403 });
+    }
 
     const bill = await prisma.bill.findUnique({
       where: { id },
@@ -25,7 +33,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: { code: "NOT_FOUND", message: "Bill not found" } }, { status: 404 });
     }
 
-    if (bill.outletId !== outlet.id) {
+    // Outlets can only cancel their own bills
+    if (outlet && bill.outletId !== outlet.id) {
       return NextResponse.json({ error: { code: "FORBIDDEN", message: "Forbidden" } }, { status: 403 });
     }
 
@@ -36,7 +45,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
                       billDate.getMonth() === today.getMonth() &&
                       billDate.getDate() === today.getDate();
                       
-    if (!isSameDay) {
+    const isAdmin = user?.role === "admin";
+                      
+    if (!isSameDay && !isAdmin) {
       return NextResponse.json(
         { error: { code: "BAD_REQUEST", message: "Cannot cancel bills from previous days" } }, 
         { status: 400 }

@@ -20,7 +20,7 @@ export function UsersClient({ initialData }: UsersClientProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">All Managers</h2>
+        <h2 className="text-lg font-medium">All Users</h2>
         <CreateUserModal />
       </div>
 
@@ -39,7 +39,7 @@ export function UsersClient({ initialData }: UsersClientProps) {
             {initialData.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-text-muted h-24">
-                  No managers found.
+                  No users found.
                 </TableCell>
               </TableRow>
             ) : (

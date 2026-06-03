@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function CreateUserModal() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export function CreateUserModal() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<string>("manager");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +35,7 @@ export function CreateUserModal() {
           name,
           email,
           password,
-          role: "manager",
+          role,
         }),
       });
 
@@ -42,12 +44,13 @@ export function CreateUserModal() {
         throw new Error(data.error?.message || "Failed to create user");
       }
 
-      toast.success("Manager created successfully!");
+      toast.success(`${role === "admin" ? "Admin" : "Manager"} created successfully!`);
       setOpen(false);
       
       setName("");
       setEmail("");
       setPassword("");
+      setRole("manager");
       
       router.refresh();
     } catch (err: any) {
@@ -59,10 +62,10 @@ export function CreateUserModal() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>Create Manager</DialogTrigger>
+      <DialogTrigger render={<Button />}>Create User</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create Manager</DialogTitle>
+          <DialogTitle>Create User</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
@@ -83,7 +86,7 @@ export function CreateUserModal() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. manager@billflow.com"
+              placeholder="e.g. user@billflow.com"
               required
             />
           </div>
@@ -97,6 +100,18 @@ export function CreateUserModal() {
               placeholder="Minimum 8 characters"
               required
             />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="role">Role *</Label>
+            <Select value={role} onValueChange={(val) => setRole(val || "manager")}>
+              <SelectTrigger id="role" className="w-full">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end gap-3 mt-4">

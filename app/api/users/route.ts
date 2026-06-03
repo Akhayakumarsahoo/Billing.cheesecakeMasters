@@ -64,14 +64,6 @@ export async function POST(req: Request) {
 
     const { name, email, password, role } = result.data;
 
-    // Reject if role === 'admin'
-    if (role === ("admin" as any)) {
-      return NextResponse.json(
-        { error: { code: "ADMIN_CREATION_FORBIDDEN", message: "Cannot create admin users" } },
-        { status: 403 }
-      );
-    }
-
     // Check local db for email collision first
     const existingDbUser = await prisma.user.findUnique({
       where: { email }
@@ -113,7 +105,7 @@ export async function POST(req: Request) {
           clerkUserId: clerkUser.id,
           name,
           email,
-          role: role as "manager",
+          role: role as any,
           isActive: true,
         },
       });

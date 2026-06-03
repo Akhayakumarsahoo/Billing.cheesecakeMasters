@@ -7,7 +7,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 export async function AdminNavbar() {
   const outlets = await prisma.outlet.findMany({
     select: { id: true, name: true },
-    orderBy: { createdAt: "asc" },
+    orderBy: { name: "asc" },
   });
 
   const user = await getCurrentUser();

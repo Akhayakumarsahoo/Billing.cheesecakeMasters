@@ -13,6 +13,25 @@ change.
 
 ## Completed
 
+- **Admin User Creation in User Management**
+  - Updated the validator schema `lib/validators/index.ts` to allow `"admin"` role in `CreateUserSchema`.
+  - Removed the restriction blocking `"admin"` role creation inside the API endpoint `app/api/users/route.ts` and enabled dynamic database mapping.
+  - Adjusted the user management view page `app/(admin-manager)/users/page.tsx` and client component `app/(admin-manager)/users/users-client.tsx` to query and display both `"admin"` and `"manager"` user accounts.
+  - Refactored `components/users/create-user-modal.tsx` to include an interactive shadcn `Select` role dropdown (options: Manager, Admin) during creation.
+
+- **Mobile POS Touch-Friendly Payment Selector**
+  - Replaced the portaled `DropdownMenu` payment method selector inside `components/billing/bill-builder.tsx` on smaller screens (mobile/tablet under the `lg` breakpoint) with an inline touch-friendly grid of styled buttons.
+  - Resolved Radix / Vaul portal overlay click interception issues inside the bottom sheet drawer on mobile devices, ensuring cashiers can change payment methods reliably with a single touch.
+  - Maintained the clean `DropdownMenu` display on desktop views.
+
+- **Outlet Selector Alphabetical Sort**
+  - Updated the top navigation bar outlet selector (`components/admin-navbar.tsx`) to query and order outlets alphabetically (`orderBy: { name: "asc" }`), improving navigation and accessibility for admins and managers.
+
+- **Admin/Manager Bill Cancellation Authorization**
+  - Expanded the bill cancellation API route (`app/api/bills/[id]/cancel/route.ts`) to authorize both Outlet POS sessions and shared User (Admin/Manager) accounts.
+  - Implemented standard role-based scope checks: Outlet POS accounts can only cancel bills belonging strictly to their assigned outlet, whereas Admins and Managers have global cross-outlet cancellation authority.
+  - Allowed global **Admin** accounts to bypass the same-day cancellation constraint, enabling them to cancel bills from any previous day.
+
 - **Daily Settlement Cancellation Reactivation**
   - Resolved the conflict blocking cashier and admin creation of daily settlements on dates that have previously cancelled records (which triggered unique constraint violations).
   - Programmatically bypassed blocked redirections in POS and Admin New Settlement routes (`app/pos/settlement/new/page.tsx` and `app/(admin-manager)/outlets/[id]/settlements/new/page.tsx`) when the existing daily settlement is `"cancelled"`.
