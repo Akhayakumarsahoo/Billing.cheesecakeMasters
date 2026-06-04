@@ -106,7 +106,7 @@ export function AdminOrdersClient({
     setIsEditingPayment(true);
     // Initialize payment breakdown from bill
     // We provide standard modes if not present
-    const modes = ["cash", "upi", "card", "other"];
+    const modes = ["cash", "upi", "card", "online"];
     const breakdown = modes.map(mode => {
       const existing = bill.payments.find(p => p.mode.toLowerCase() === mode);
       return {

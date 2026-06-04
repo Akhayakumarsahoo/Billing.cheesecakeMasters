@@ -52,11 +52,9 @@ export interface SerializedSettlement {
   billedCash: string;
   billedUpi: string;
   billedCard: string;
-  billedOther: string;
   actualCash: string;
   actualUpi: string;
   actualCard: string;
-  actualOther: string;
   cashExpense: string;
   cashWithdraw: string;
   closingCash: string;
@@ -299,8 +297,8 @@ export function SettlementHistoryClient({
                     const billedCashVal = parseFloat(s.billedCash);
                     const cashDiffVal = actualCashVal - billedCashVal;
 
-                    const totalBilled = parseFloat(s.billedCash) + parseFloat(s.billedUpi) + parseFloat(s.billedCard) + parseFloat(s.billedOther);
-                    const totalActual = parseFloat(s.actualCash) + parseFloat(s.actualUpi) + parseFloat(s.actualCard) + parseFloat(s.actualOther);
+                    const totalBilled = parseFloat(s.billedCash) + parseFloat(s.billedUpi) + parseFloat(s.billedCard);
+                    const totalActual = parseFloat(s.actualCash) + parseFloat(s.actualUpi) + parseFloat(s.actualCard);
                     const totalDiff = totalActual - totalBilled;
 
                     return (
@@ -441,8 +439,8 @@ export function SettlementHistoryClient({
                 const billedCashVal = parseFloat(s.billedCash);
                 const cashDiffVal = actualCashVal - billedCashVal;
 
-                const totalBilled = parseFloat(s.billedCash) + parseFloat(s.billedUpi) + parseFloat(s.billedCard) + parseFloat(s.billedOther);
-                const totalActual = parseFloat(s.actualCash) + parseFloat(s.actualUpi) + parseFloat(s.actualCard) + parseFloat(s.actualOther);
+                const totalBilled = parseFloat(s.billedCash) + parseFloat(s.billedUpi) + parseFloat(s.billedCard);
+                const totalActual = parseFloat(s.actualCash) + parseFloat(s.actualUpi) + parseFloat(s.actualCard);
                 const totalDiff = totalActual - totalBilled;
 
                 return (
@@ -719,17 +717,14 @@ export function SettlementHistoryClient({
             const cashD = getDiffForMode(breakdownSettlement.actualCash, breakdownSettlement.billedCash);
             const upiD = getDiffForMode(breakdownSettlement.actualUpi, breakdownSettlement.billedUpi);
             const cardD = getDiffForMode(breakdownSettlement.actualCard, breakdownSettlement.billedCard);
-            const otherD = getDiffForMode(breakdownSettlement.actualOther, breakdownSettlement.billedOther);
 
             const totBilled = parseFloat(breakdownSettlement.billedCash) +
                               parseFloat(breakdownSettlement.billedUpi) +
-                              parseFloat(breakdownSettlement.billedCard) +
-                              parseFloat(breakdownSettlement.billedOther);
+                              parseFloat(breakdownSettlement.billedCard);
 
             const totActual = parseFloat(breakdownSettlement.actualCash) +
                               parseFloat(breakdownSettlement.actualUpi) +
-                              parseFloat(breakdownSettlement.actualCard) +
-                              parseFloat(breakdownSettlement.actualOther);
+                              parseFloat(breakdownSettlement.actualCard);
 
             const totDiff = totActual - totBilled;
 
@@ -761,7 +756,6 @@ export function SettlementHistoryClient({
                         { mode: "Cash", billed: breakdownSettlement.billedCash, actual: breakdownSettlement.actualCash, diff: cashD },
                         { mode: "UPI", billed: breakdownSettlement.billedUpi, actual: breakdownSettlement.actualUpi, diff: upiD },
                         { mode: "Card", billed: breakdownSettlement.billedCard, actual: breakdownSettlement.actualCard, diff: cardD },
-                        { mode: "Other", billed: breakdownSettlement.billedOther, actual: breakdownSettlement.actualOther, diff: otherD },
                       ].map((row) => (
                         <TableRow key={row.mode}>
                           <TableCell className="font-medium text-xs text-[var(--text-primary)]">

@@ -13,6 +13,21 @@ change.
 
 ## Completed
 
+- **Remove Other Daily Settlement Fields & Change 'other' Payment Mode to 'online'**
+  - Removed all references to `actualOther` and `billedOther` from daily settlements in the Prisma schema, database, API routes, and front-end forms/history views.
+  - Replaced the `'other'` payment mode in the `PaymentMode` enum with `'online'` across the database, validator schemas, bill builder cart component, and admin dashboards.
+  - Separated `online` (representing delivery sales) and `upi` (representing UPI payments) in the dashboard breakdown widgets and POS sales overview.
+  - Successfully migrated existing database records without data loss by modifying the remote PostgreSQL DB type and updating existing payments' mode to `'online'`.
+  - Confirmed successful compilation (`npx tsc --noEmit`) and clean production builds (`npm run build`).
+
+- **Calendar Date Selector Styling Fix**
+  - Resolved CSS/Tailwind overlapping borders inside `components/ui/calendar.tsx` during single-day date range selections.
+  - Implemented attribute/substring-matching selectors (`[class*=range_end]`, `[class*=range_start]`) to conditionally hide the range connection background and connector pseudo-elements (`after:`) when the active day cell is both the start and end of the selected date range.
+
+- **Remove User Name from Top Navbar**
+  - Removed the user's name text element (`{user?.name || "User"}`) and its container from the main header layout inside `components/admin-navbar.tsx`.
+  - Cleaned up the unused helper imports.
+
 - **Admin User Creation in User Management**
   - Updated the validator schema `lib/validators/index.ts` to allow `"admin"` role in `CreateUserSchema`.
   - Removed the restriction blocking `"admin"` role creation inside the API endpoint `app/api/users/route.ts` and enabled dynamic database mapping.

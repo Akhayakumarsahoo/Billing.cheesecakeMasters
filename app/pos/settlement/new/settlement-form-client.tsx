@@ -34,7 +34,6 @@ interface SummaryData {
   billedCash: string;
   billedUpi: string;
   billedCard: string;
-  billedOther: string;
   totalBilled: string;
 }
 
@@ -47,7 +46,6 @@ interface SettlementFormClientProps {
     actualCash: string;
     actualUpi: string;
     actualCard: string;
-    actualOther: string;
     cashExpense: string;
     cashWithdraw: string;
   };
@@ -69,7 +67,6 @@ export function SettlementFormClient({
   const [actualCash, setActualCash] = useState<string>(initialFormValues?.actualCash || "0");
   const [actualUpi, setActualUpi] = useState<string>(initialFormValues?.actualUpi || "0");
   const [actualCard, setActualCard] = useState<string>(initialFormValues?.actualCard || "0");
-  const [actualOther, setActualOther] = useState<string>(initialFormValues?.actualOther || "0");
   const [cashExpense, setCashExpense] = useState<string>(initialFormValues?.cashExpense || "0");
   const [cashWithdraw, setCashWithdraw] = useState<string>(initialFormValues?.cashWithdraw || "0");
 
@@ -111,7 +108,6 @@ export function SettlementFormClient({
   const cashDiff = getDifference(actualCash, summary.billedCash);
   const upiDiff = getDifference(actualUpi, summary.billedUpi);
   const cardDiff = getDifference(actualCard, summary.billedCard);
-  const otherDiff = getDifference(actualOther, summary.billedOther);
 
   // Compute Closing Cash
   const opening = parseFloat(summary.openingCash || "0");
@@ -141,7 +137,6 @@ export function SettlementFormClient({
       actualCash: parseFloat(actualCash || "0"),
       actualUpi: parseFloat(actualUpi || "0"),
       actualCard: parseFloat(actualCard || "0"),
-      actualOther: parseFloat(actualOther || "0"),
       cashExpense: parseFloat(cashExpense || "0"),
       cashWithdraw: parseFloat(cashWithdraw || "0"),
     };
@@ -315,22 +310,6 @@ export function SettlementFormClient({
                     placeholder="0.00"
                   />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="actualOther" className="text-sm text-[var(--text-primary)]">
-                    Actual Other Received (₹)
-                  </Label>
-                  <Input
-                    id="actualOther"
-                    type="text"
-                    inputMode="decimal"
-                    value={actualOther}
-                    disabled={isSubmitting}
-                    onChange={(e) => handleInputChange(e.target.value, setActualOther)}
-                    className="font-mono text-sm bg-white border-[var(--border-default)]"
-                    placeholder="0.00"
-                  />
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -406,7 +385,6 @@ export function SettlementFormClient({
                     { mode: "Cash", billed: summary.billedCash, actual: actualCash, diff: cashDiff },
                     { mode: "UPI", billed: summary.billedUpi, actual: actualUpi, diff: upiDiff },
                     { mode: "Card", billed: summary.billedCard, actual: actualCard, diff: cardDiff },
-                    { mode: "Other", billed: summary.billedOther, actual: actualOther, diff: otherDiff },
                   ].map((row) => (
                     <TableRow key={row.mode}>
                       <TableCell className="font-medium text-xs text-[var(--text-primary)]">

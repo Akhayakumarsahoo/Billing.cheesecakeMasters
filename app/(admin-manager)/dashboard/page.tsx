@@ -187,7 +187,8 @@ export default async function SalesDashboard({
                 { label: "Not paid", value: paymentBuckets.notPaid },
                 { label: "Cash", value: paymentBuckets.cash },
                 { label: "Card", value: paymentBuckets.card },
-                { label: "Online / UPI", value: paymentBuckets.online },
+                { label: "UPI", value: paymentBuckets.upi },
+                { label: "Online (Delivery)", value: paymentBuckets.online },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between items-center">
                   <span className="text-[var(--text-secondary)] font-medium">{label}</span>
@@ -196,26 +197,6 @@ export default async function SalesDashboard({
                   </span>
                 </div>
               ))}
-              <div className="flex justify-between items-center">
-                <span className="text-[var(--text-secondary)] font-medium flex items-center gap-1">
-                  Other
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[var(--text-primary)]">
-                    ₹ {paymentBuckets.other.toLocaleString("en-IN")}
-                  </span>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Info className="h-4 w-4 text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Any uncategorized payment methods</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </div>
             </div>
           </CardContent>
         </Card>

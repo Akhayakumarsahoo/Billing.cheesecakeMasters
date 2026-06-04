@@ -63,7 +63,7 @@ const paymentModes = [
   { id: "cash", name: "Cash", icon: Banknote },
   { id: "upi", name: "UPI", icon: Smartphone },
   { id: "card", name: "Card", icon: CreditCard },
-  { id: "other", name: "Other", icon: Receipt },
+  { id: "online", name: "Online", icon: Receipt },
   { id: "part_payment", name: "Part Payment", icon: SplitSquareHorizontal },
 ];
 
@@ -94,7 +94,7 @@ export function BillBuilder({
     cash: "",
     upi: "",
     card: "",
-    other: "",
+    online: "",
   });
 
   const splitTotal = useMemo(() => {
@@ -278,7 +278,7 @@ export function BillBuilder({
       setEditingBillId(null);
       setIsPaymentOpen(false);
       setSelectedPaymentMode("cash");
-      setSplitAmounts({ cash: "", upi: "", card: "", other: "" });
+      setSplitAmounts({ cash: "", upi: "", card: "", online: "" });
       
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -310,7 +310,7 @@ export function BillBuilder({
         const payments: { mode: string; amount: number }[] = [];
         let remainingCents = grandTotalCents;
 
-        const nonCashModes = ["upi", "card", "other"];
+        const nonCashModes = ["upi", "card", "online"];
         for (const mode of nonCashModes) {
           const valCents = Math.round((parseFloat(splitAmounts[mode]) || 0) * 100);
           if (valCents > 0) {

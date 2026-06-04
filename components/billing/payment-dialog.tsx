@@ -11,7 +11,7 @@ const paymentModes = [
   { id: "cash", name: "Cash", icon: Banknote },
   { id: "upi", name: "UPI", icon: Smartphone },
   { id: "card", name: "Card", icon: CreditCard },
-  { id: "other", name: "Other", icon: Receipt },
+  { id: "online", name: "Online", icon: Receipt },
   { id: "part_payment", name: "Part Payment", icon: SplitSquareHorizontal },
 ];
 
@@ -51,7 +51,7 @@ export function PaymentDialog({
     let remainingCents = grandTotalCents;
 
     // Prioritize non-cash for exact amounts, cash handles the rest/change
-    const nonCashModes = ["upi", "card", "other"];
+    const nonCashModes = ["upi", "card", "online"];
     
     for (const mode of nonCashModes) {
       const valCents = Math.round((parseFloat(splitAmounts[mode]) || 0) * 100);

@@ -1,7 +1,6 @@
 import { UserButton } from "@clerk/nextjs";
 import { prisma } from "@/lib/db";
 import { OutletSelector } from "./admin-navbar/outlet-selector";
-import { getCurrentUser } from "@/lib/auth";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export async function AdminNavbar() {
@@ -9,8 +8,6 @@ export async function AdminNavbar() {
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
-
-  const user = await getCurrentUser();
 
   return (
     <header className="h-[56px] bg-bg-surface border-b border-border-default flex items-center justify-between px-4 shrink-0">
@@ -26,9 +23,6 @@ export async function AdminNavbar() {
         <OutletSelector outlets={outlets} />
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">
-          {user?.name || "User"}
-        </span>
         <UserButton />
       </div>
     </header>

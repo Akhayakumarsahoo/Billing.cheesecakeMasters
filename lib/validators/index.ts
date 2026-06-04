@@ -79,7 +79,7 @@ export const CheckoutBillSchema = z.object({
   lineItems: z.array(CheckoutLineItemSchema).min(1),
   payments: z.array(
     z.object({
-      mode: z.enum(["cash", "upi", "card", "other"]),
+      mode: z.enum(["cash", "upi", "card", "online"]),
       amount: z.number().positive(),
     })
   ).min(1),
@@ -108,7 +108,7 @@ export const CompleteBillSchema = z.object({
 
 // ── Payments ──────────────────────────────────────────────
 export const AddPaymentSchema = z.object({
-  mode: z.enum(["cash", "upi", "card", "other"]),
+  mode: z.enum(["cash", "upi", "card", "online"]),
   amount: z.number().positive(),
 });
 
@@ -123,7 +123,7 @@ export const BillHistoryQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   status: z.enum(["draft", "printed", "cancelled"]).optional(),
-  paymentMode: z.enum(["cash", "upi", "card", "other"]).optional(),
+  paymentMode: z.enum(["cash", "upi", "card", "online"]).optional(),
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
   billNumber: z.string().optional(),
@@ -137,7 +137,6 @@ export const CreateSettlementSchema = z.object({
   actualCash: z.number().nonnegative(),
   actualUpi: z.number().nonnegative(),
   actualCard: z.number().nonnegative(),
-  actualOther: z.number().nonnegative(),
   cashExpense: z.number().nonnegative(),
   cashWithdraw: z.number().nonnegative(),
 });

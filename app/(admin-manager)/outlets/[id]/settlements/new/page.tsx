@@ -48,7 +48,6 @@ export default async function AdminNewSettlementPage({
     billedCash: billedSales.billedCash.toString(),
     billedUpi: billedSales.billedUpi.toString(),
     billedCard: billedSales.billedCard.toString(),
-    billedOther: billedSales.billedOther.toString(),
     totalBilled: billedSales.totalBilled.toString(),
   };
 

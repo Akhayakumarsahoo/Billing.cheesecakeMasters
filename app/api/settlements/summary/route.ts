@@ -50,7 +50,6 @@ export async function GET(req: Request) {
         billedCash: billedSales.billedCash.toString(),
         billedUpi: billedSales.billedUpi.toString(),
         billedCard: billedSales.billedCard.toString(),
-        billedOther: billedSales.billedOther.toString(),
         totalBilled: billedSales.totalBilled.toString(),
       }
     }, { status: 200 });

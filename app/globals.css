@@ -161,3 +161,13 @@
     @apply font-sans;
   }
 }
+
+/* Fix Calendar range selector overlapping styles for single-day range */
+.rdp-range_start.rdp-range_end,
+.rdp-day_range_start.rdp-day_range_end {
+  background-color: transparent !important;
+}
+.rdp-range_start.rdp-range_end::after,
+.rdp-day_range_start.rdp-day_range_end::after {
+  display: none !important;
+}

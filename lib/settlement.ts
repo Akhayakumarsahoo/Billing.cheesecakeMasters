@@ -19,7 +19,6 @@ export async function getBilledSalesForDate(outletId: string, dateStr: string) {
   let billedCash = new Decimal(0);
   let billedUpi = new Decimal(0);
   let billedCard = new Decimal(0);
-  let billedOther = new Decimal(0);
 
   for (const bill of bills) {
     for (const payment of bill.payments) {
@@ -31,8 +30,6 @@ export async function getBilledSalesForDate(outletId: string, dateStr: string) {
         billedUpi = billedUpi.plus(amt);
       } else if (mode === "card") {
         billedCard = billedCard.plus(amt);
-      } else {
-        billedOther = billedOther.plus(amt);
       }
     }
   }
@@ -41,8 +38,7 @@ export async function getBilledSalesForDate(outletId: string, dateStr: string) {
     billedCash,
     billedUpi,
     billedCard,
-    billedOther,
-    totalBilled: billedCash.plus(billedUpi).plus(billedCard).plus(billedOther),
+    totalBilled: billedCash.plus(billedUpi).plus(billedCard),
   };
 }
 

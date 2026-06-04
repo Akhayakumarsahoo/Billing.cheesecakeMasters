@@ -62,7 +62,6 @@ export default async function AdminEditSettlementPage({
     billedCash: billedSales.billedCash.toString(),
     billedUpi: billedSales.billedUpi.toString(),
     billedCard: billedSales.billedCard.toString(),
-    billedOther: billedSales.billedOther.toString(),
     totalBilled: billedSales.totalBilled.toString(),
   };
 
@@ -70,7 +69,6 @@ export default async function AdminEditSettlementPage({
     actualCash: settlement.actualCash.toString(),
     actualUpi: settlement.actualUpi.toString(),
     actualCard: settlement.actualCard.toString(),
-    actualOther: settlement.actualOther.toString(),
     cashExpense: settlement.cashExpense.toString(),
     cashWithdraw: settlement.cashWithdraw.toString(),
   };

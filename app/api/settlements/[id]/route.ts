@@ -48,11 +48,9 @@ export async function GET(
         billedCash: settlement.billedCash.toString(),
         billedUpi: settlement.billedUpi.toString(),
         billedCard: settlement.billedCard.toString(),
-        billedOther: settlement.billedOther.toString(),
         actualCash: settlement.actualCash.toString(),
         actualUpi: settlement.actualUpi.toString(),
         actualCard: settlement.actualCard.toString(),
-        actualOther: settlement.actualOther.toString(),
         cashExpense: settlement.cashExpense.toString(),
         cashWithdraw: settlement.cashWithdraw.toString(),
         closingCash: settlement.closingCash.toString(),
@@ -167,7 +165,6 @@ export async function PUT(
     const actualCash = data.actualCash !== undefined ? new Decimal(data.actualCash) : settlement.actualCash;
     const actualUpi = data.actualUpi !== undefined ? new Decimal(data.actualUpi) : settlement.actualUpi;
     const actualCard = data.actualCard !== undefined ? new Decimal(data.actualCard) : settlement.actualCard;
-    const actualOther = data.actualOther !== undefined ? new Decimal(data.actualOther) : settlement.actualOther;
     const cashExpense = data.cashExpense !== undefined ? new Decimal(data.cashExpense) : settlement.cashExpense;
     const cashWithdraw = data.cashWithdraw !== undefined ? new Decimal(data.cashWithdraw) : settlement.cashWithdraw;
 
@@ -185,11 +182,9 @@ export async function PUT(
         billedCash: billedSales.billedCash,
         billedUpi: billedSales.billedUpi,
         billedCard: billedSales.billedCard,
-        billedOther: billedSales.billedOther,
         actualCash,
         actualUpi,
         actualCard,
-        actualOther,
         cashExpense,
         cashWithdraw,
         closingCash,
@@ -214,11 +209,9 @@ export async function PUT(
         billedCash: s.billedCash.toString(),
         billedUpi: s.billedUpi.toString(),
         billedCard: s.billedCard.toString(),
-        billedOther: s.billedOther.toString(),
         actualCash: s.actualCash.toString(),
         actualUpi: s.actualUpi.toString(),
         actualCard: s.actualCard.toString(),
-        actualOther: s.actualOther.toString(),
         cashExpense: s.cashExpense.toString(),
         cashWithdraw: s.cashWithdraw.toString(),
         closingCash: s.closingCash.toString(),

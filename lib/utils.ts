@@ -52,9 +52,9 @@ export function formatINR(value: number): string {
 
 export interface PaymentBuckets {
   cash: number;
+  upi: number;
   card: number;
-  online: number; // UPI + netbanking
-  other: number;
+  online: number; // delivery sales
   notPaid: number; // grand total - paid amount
 }
 
@@ -66,7 +66,7 @@ export interface PaymentBuckets {
 export function bucketPayments(
   bills: { grandTotal: { toNumber(): number }; payments: { mode: string; amount: { toNumber(): number } }[] }[],
 ): PaymentBuckets {
-  const buckets: PaymentBuckets = { cash: 0, card: 0, online: 0, other: 0, notPaid: 0 };
+  const buckets: PaymentBuckets = { cash: 0, upi: 0, card: 0, online: 0, notPaid: 0 };
 
   for (const bill of bills) {
     let paidForBill = 0;
@@ -78,10 +78,10 @@ export function bucketPayments(
         buckets.cash += amount;
       } else if (mode === "card") {
         buckets.card += amount;
-      } else if (mode === "upi" || mode === "online" || mode === "netbanking") {
+      } else if (mode === "upi") {
+        buckets.upi += amount;
+      } else if (mode === "online") {
         buckets.online += amount;
-      } else {
-        buckets.other += amount;
       }
     }
     const grandTotal = bill.grandTotal.toNumber();
