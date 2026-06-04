@@ -23,21 +23,17 @@ export default async function AdminNewSettlementPage({
 
   const todayStr = getLocalDateString(new Date());
 
-  // If manager, check if today's settlement already exists (managers can only manage today's)
-  if (user.role === "manager") {
-    const existing = await prisma.dailySettlement.findUnique({
-      where: {
-        outletId_settlementDate: {
-          outletId: id,
-          settlementDate: new Date(`${todayStr}T00:00:00.000Z`),
-        },
+  // Check if a daily settlement for today already exists in the database
+  const existing = await prisma.dailySettlement.findUnique({
+    where: {
+      outletId_settlementDate: {
+        outletId: id,
+        settlementDate: new Date(`${todayStr}T00:00:00.000Z`),
       },
-    });
+    },
+  });
 
-    if (existing && existing.status !== "cancelled") {
-      redirect(`/outlets/${id}/settlements/edit/${existing.id}`);
-    }
-  }
+  const exists = !!existing && existing.status !== "cancelled";
 
   const billedSales = await getBilledSalesForDate(id, todayStr);
   const openingCash = await getOpeningCashForDate(id, todayStr);
@@ -49,6 +45,7 @@ export default async function AdminNewSettlementPage({
     billedUpi: billedSales.billedUpi.toString(),
     billedCard: billedSales.billedCard.toString(),
     totalBilled: billedSales.totalBilled.toString(),
+    exists,
   };
 
   return (

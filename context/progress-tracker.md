@@ -13,6 +13,12 @@ change.
 
 ## Completed
 
+- **Always Show New Settlement Button & Prevent Duplicates**
+  - Replaced the conditional top-header button logic in both POS `SettlementHistoryClient` and Admin `AdminSettlementHistoryClient` to always render the "New Settlement" button, allowing cashiers, admins, and managers to navigate to the new settlement form at any time.
+  - Removed automatic redirects from the POS new settlement page (`app/pos/settlement/new/page.tsx`) and Admin new settlement page (`app/(admin-manager)/outlets/[id]/settlements/new/page.tsx`) when today's settlement already exists.
+  - Enhanced the daily settlement summary API route (`app/api/settlements/summary/route.ts`) to query and return an `exists` boolean indicating whether an active daily settlement already exists for the given date.
+  - Updated both client form components (`SettlementFormClient` and `AdminSettlementFormClient`) to support the `exists` flag in `SummaryData`, display a warning alert banner when trying to create a settlement for a day that already exists, and disable form submission/saving accordingly.
+
 - **Remove Other Daily Settlement Fields & Change 'other' Payment Mode to 'online'**
   - Removed all references to `actualOther` and `billedOther` from daily settlements in the Prisma schema, database, API routes, and front-end forms/history views.
   - Replaced the `'other'` payment mode in the `PaymentMode` enum with `'online'` across the database, validator schemas, bill builder cart component, and admin dashboards.

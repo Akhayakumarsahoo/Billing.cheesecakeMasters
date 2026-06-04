@@ -21,9 +21,7 @@ export default async function NewSettlementPage() {
     },
   });
 
-  if (existing && existing.status !== "cancelled") {
-    redirect(`/pos/settlement/edit/${existing.id}`);
-  }
+  const exists = !!existing && existing.status !== "cancelled";
 
   const billedSales = await getBilledSalesForDate(outlet.id, todayStr);
   const openingCash = await getOpeningCashForDate(outlet.id, todayStr);
@@ -35,6 +33,7 @@ export default async function NewSettlementPage() {
     billedUpi: billedSales.billedUpi.toString(),
     billedCard: billedSales.billedCard.toString(),
     totalBilled: billedSales.totalBilled.toString(),
+    exists,
   };
 
   return (

@@ -161,23 +161,13 @@ export function SettlementHistoryClient({
             End of day drawer reconciliation for {outletName}
           </p>
         </div>
-        {todaySettlement ? (
-          <Link
-            href={`/pos/settlement/edit/${todaySettlement.id}`}
-            className={buttonVariants({ className: "bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white self-start sm:self-center flex items-center gap-2" })}
-          >
-            <Edit className="h-4 w-4" strokeWidth={1.5} />
-            Edit Today's Settlement
-          </Link>
-        ) : (
-          <Link
-            href="/pos/settlement/new"
-            className={buttonVariants({ className: "bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white self-start sm:self-center flex items-center gap-2" })}
-          >
-            <Plus className="h-4 w-4" strokeWidth={1.5} />
-            New Settlement
-          </Link>
-        )}
+        <Link
+          href="/pos/settlement/new"
+          className={buttonVariants({ className: "bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white self-start sm:self-center flex items-center gap-2" })}
+        >
+          <Plus className="h-4 w-4" strokeWidth={1.5} />
+          New Settlement
+        </Link>
       </div>
 
       {/* Metric Grid */}

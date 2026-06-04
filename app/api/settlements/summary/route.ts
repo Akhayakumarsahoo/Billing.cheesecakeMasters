@@ -1,5 +1,6 @@
 import { getCurrentUser, getCurrentOutlet } from "@/lib/auth";
 import { getBilledSalesForDate, getOpeningCashForDate } from "@/lib/settlement";
+import { prisma } from "@/lib/db";
 import { getLocalDateString } from "@/lib/utils";
 import { NextResponse } from "next/server";
 
@@ -40,6 +41,16 @@ export async function GET(req: Request) {
       targetOutletId = paramOutletId;
     }
 
+    const existing = await prisma.dailySettlement.findUnique({
+      where: {
+        outletId_settlementDate: {
+          outletId: targetOutletId,
+          settlementDate: new Date(`${dateStr}T00:00:00.000Z`),
+        },
+      },
+    });
+    const exists = !!existing && existing.status !== "cancelled";
+
     const billedSales = await getBilledSalesForDate(targetOutletId, dateStr);
     const openingCash = await getOpeningCashForDate(targetOutletId, dateStr);
 
@@ -51,6 +62,7 @@ export async function GET(req: Request) {
         billedUpi: billedSales.billedUpi.toString(),
         billedCard: billedSales.billedCard.toString(),
         totalBilled: billedSales.totalBilled.toString(),
+        exists,
       }
     }, { status: 200 });
   } catch (error: any) {

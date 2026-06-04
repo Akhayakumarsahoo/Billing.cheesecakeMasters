@@ -33,6 +33,7 @@ interface SummaryData {
   billedUpi: string;
   billedCard: string;
   totalBilled: string;
+  exists?: boolean;
 }
 
 interface AdminSettlementFormClientProps {
@@ -214,6 +215,15 @@ export function AdminSettlementFormClient({
         <div className="bg-[var(--state-error-bg)] border border-[var(--state-error-border)] rounded-xl p-4 text-sm text-[var(--state-error-text)] flex items-start gap-3">
           <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {summary.exists && !isEdit && (
+        <div className="bg-[var(--state-warning-bg)] border border-[var(--state-warning-border)] rounded-xl p-4 text-sm text-[var(--state-warning-text)] flex items-start gap-3 animate-in fade-in duration-300">
+          <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+          <span>
+            A daily settlement for {date} already exists. You cannot create a duplicate settlement for this date.
+          </span>
         </div>
       )}
 
@@ -452,7 +462,7 @@ export function AdminSettlementFormClient({
 
               <Button
                 type="submit"
-                disabled={isSubmitting || isFetchingSummary}
+                disabled={isSubmitting || isFetchingSummary || (summary.exists && !isEdit)}
                 className="w-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white h-12 rounded-lg text-sm font-medium flex justify-center items-center gap-2 mt-4"
               >
                 <Save className="h-4 w-4" strokeWidth={1.5} />
@@ -460,6 +470,8 @@ export function AdminSettlementFormClient({
                   ? "Saving Settlement..."
                   : isEdit
                   ? "Save Modified Settlement"
+                  : summary.exists
+                  ? "Settlement Already Exists"
                   : "Save Settlement"}
               </Button>
             </CardContent>

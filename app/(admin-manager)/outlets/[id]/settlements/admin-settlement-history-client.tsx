@@ -171,15 +171,6 @@ export function AdminSettlementHistoryClient({
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {todaySettlement ? (
-            <Link
-              href={`/outlets/${outletId}/settlements/edit/${todaySettlement.id}`}
-              className={buttonVariants({ className: "bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white flex items-center gap-2 text-xs" })}
-            >
-              <Edit className="h-4 w-4" strokeWidth={1.5} />
-              Edit Today's Settlement
-            </Link>
-          ) : (
             <Link
               href={`/outlets/${outletId}/settlements/new`}
               className={buttonVariants({ className: "bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white flex items-center gap-2 text-xs" })}
@@ -187,7 +178,6 @@ export function AdminSettlementHistoryClient({
               <Plus className="h-4 w-4" strokeWidth={1.5} />
               New Settlement
             </Link>
-          )}
         </div>
       </div>
 
