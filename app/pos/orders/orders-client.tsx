@@ -1,13 +1,14 @@
 "use client";
  
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Receipt, Edit2, XCircle, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { OrderCardsSkeleton } from "@/components/ui-skeletons";
 import {
   Tooltip,
   TooltipContent,
@@ -68,15 +69,29 @@ type SerializedBill = {
 export function OrdersClient({
   initialBills,
   outletName,
+  fromDate,
+  toDate,
 }: {
   initialBills: SerializedBill[];
   outletName: string;
+  fromDate: string;
+  toDate: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [bills, setBills] = useState(initialBills);
   const [search, setSearch] = useState("");
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [selectedBill, setSelectedBill] = useState<SerializedBill | null>(null);
+
+  useEffect(() => {
+    setBills(initialBills);
+  }, [initialBills]);
+
+  const urlFrom = searchParams.get("from") || fromDate;
+  const urlTo = searchParams.get("to") || toDate;
+  const isTransitioning = urlFrom !== fromDate || urlTo !== toDate;
+
 
   const formatDateTime = (dateStr: string) => {
     return new Intl.DateTimeFormat('en-US', {
@@ -200,91 +215,95 @@ export function OrdersClient({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredBills.map((bill) => {
-          const isEditable = bill.status !== "cancelled" && isSameDay(bill.createdAt);
-          const isProcessingThis = isProcessing === bill.id;
+      {isTransitioning ? (
+        <OrderCardsSkeleton />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredBills.map((bill) => {
+            const isEditable = bill.status !== "cancelled" && isSameDay(bill.createdAt);
+            const isProcessingThis = isProcessing === bill.id;
 
-          return (
-            <div 
-              key={bill.id} 
-              className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl p-4 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[var(--interactive-default)] hover:shadow-md transition-all"
-              onClick={() => setSelectedBill(bill)}
-            >
-              <div>
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-sm font-medium text-[var(--text-primary)]">{bill.billNumber}</span>
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <span className="inline-flex cursor-help text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors p-0.5">
-                                <Info className="h-4 w-4" strokeWidth={1.5} />
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent className="p-3 bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-md rounded-lg text-xs space-y-1.5 text-[var(--text-primary)]">
-                              <div>
-                                <span className="font-medium text-[var(--text-secondary)] mr-1">Created:</span>
-                                <span className="font-mono">{formatDateTime(bill.createdAt)}</span>
-                              </div>
-                              <div>
-                                <span className="font-medium text-[var(--text-secondary)] mr-1">Last Modified:</span>
-                                <span className="font-mono">{formatDateTime(bill.updatedAt)}</span>
-                                {bill.modifiedByName && (
-                                  <span className="text-[var(--text-muted)] ml-1">by {bill.modifiedByName}</span>
-                                )}
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+            return (
+              <div 
+                key={bill.id} 
+                className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl p-4 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[var(--interactive-default)] hover:shadow-md transition-all"
+                onClick={() => setSelectedBill(bill)}
+              >
+                <div>
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-sm font-medium text-[var(--text-primary)]">{bill.billNumber}</span>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <span className="inline-flex cursor-help text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors p-0.5">
+                                  <Info className="h-4 w-4" strokeWidth={1.5} />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="p-3 bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-md rounded-lg text-xs space-y-1.5 text-[var(--text-primary)]">
+                                <div>
+                                  <span className="font-medium text-[var(--text-secondary)] mr-1">Created:</span>
+                                  <span className="font-mono">{formatDateTime(bill.createdAt)}</span>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-[var(--text-secondary)] mr-1">Last Modified:</span>
+                                  <span className="font-mono">{formatDateTime(bill.updatedAt)}</span>
+                                  {bill.modifiedByName && (
+                                    <span className="text-[var(--text-muted)] ml-1">by {bill.modifiedByName}</span>
+                                  )}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </div>
+                      <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+                        {new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }).format(new Date(bill.createdAt))}
                       </div>
                     </div>
-                    <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-                      {new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }).format(new Date(bill.createdAt))}
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      bill.status === 'printed' ? 'bg-[var(--state-success-bg)] text-[var(--state-success-text)] border border-[var(--state-success-border)]' :
+                      bill.status === 'cancelled' ? 'bg-[var(--state-error-bg)] text-[var(--state-error-text)] border border-[var(--state-error-border)]' :
+                      'bg-[var(--state-info-bg)] text-[var(--state-info-text)] border border-[var(--state-info-border)]'
+                    }`}>
+                      {bill.status.toUpperCase()}
+                    </span>
+                  </div>
+                  
+                  <div className="py-3 border-y border-[var(--border-subtle)] my-3 space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[var(--text-secondary)]">Items</span>
+                      <span className="font-medium text-[var(--text-primary)]">{bill.lineItems.length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[var(--text-secondary)]">Payment</span>
+                      <span className="font-medium text-[var(--text-primary)] capitalize">
+                        {bill.payments.length > 0 ? bill.payments.map(p => p.mode).join(", ") : "-"}
+                      </span>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    bill.status === 'printed' ? 'bg-[var(--state-success-bg)] text-[var(--state-success-text)] border border-[var(--state-success-border)]' :
-                    bill.status === 'cancelled' ? 'bg-[var(--state-error-bg)] text-[var(--state-error-text)] border border-[var(--state-error-border)]' :
-                    'bg-[var(--state-info-bg)] text-[var(--state-info-text)] border border-[var(--state-info-border)]'
-                  }`}>
-                    {bill.status.toUpperCase()}
-                  </span>
-                </div>
-                
-                <div className="py-3 border-y border-[var(--border-subtle)] my-3 space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[var(--text-secondary)]">Items</span>
-                    <span className="font-medium text-[var(--text-primary)]">{bill.lineItems.length}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[var(--text-secondary)]">Payment</span>
-                    <span className="font-medium text-[var(--text-primary)] capitalize">
-                      {bill.payments.length > 0 ? bill.payments.map(p => p.mode).join(", ") : "-"}
+
+                  <div className="flex justify-between items-center mt-3">
+                    <span className="text-sm font-medium text-[var(--text-secondary)]">Total</span>
+                    <span className="font-mono text-lg font-medium text-[var(--text-primary)]">
+                      ₹{bill.grandTotal}
                     </span>
                   </div>
                 </div>
-
-                <div className="flex justify-between items-center mt-3">
-                  <span className="text-sm font-medium text-[var(--text-secondary)]">Total</span>
-                  <span className="font-mono text-lg font-medium text-[var(--text-primary)]">
-                    ₹{bill.grandTotal}
-                  </span>
-                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
 
-        {filteredBills.length === 0 && (
-          <div className="col-span-full py-12 text-center text-[var(--text-muted)] space-y-3 bg-[var(--bg-surface-raised)] border border-[var(--border-default)] rounded-xl border-dashed">
-            <Receipt className="h-8 w-8 mx-auto opacity-50" />
-            <p className="text-sm">No orders found.</p>
-          </div>
-        )}
-      </div>
+          {filteredBills.length === 0 && (
+            <div className="col-span-full py-12 text-center text-[var(--text-muted)] space-y-3 bg-[var(--bg-surface-raised)] border border-[var(--border-default)] rounded-xl border-dashed">
+              <Receipt className="h-8 w-8 mx-auto opacity-50" />
+              <p className="text-sm">No orders found.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {selectedBill && (
         <Dialog open={!!selectedBill} onOpenChange={(open) => !open && setSelectedBill(null)}>

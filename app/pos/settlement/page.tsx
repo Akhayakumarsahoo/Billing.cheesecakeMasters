@@ -88,6 +88,8 @@ export default async function SettlementPage({
       initialSettlements={serializedSettlements}
       currentCashBoxBalance={currentCashBoxBalance}
       outletName={outlet.name}
+      fromDate={from}
+      toDate={to}
     />
   );
 }

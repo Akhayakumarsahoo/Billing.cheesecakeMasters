@@ -28,12 +28,37 @@ import {
 import { StatCard } from "@/components/ui/stat-card";
 import { parseDateRange, bucketPayments, formatINR } from "@/lib/utils";
 
+import { Suspense } from "react";
+import { DashboardSkeleton } from "@/components/ui-skeletons";
+
 export default async function SalesDashboard({
   searchParams,
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { from, to } = await searchParams;
+
+  return (
+    <>
+      {/* Page Header */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-medium text-[var(--text-primary)]">
+            Sales Dashboard
+          </h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">All outlets</p>
+        </div>
+        <DateRangeFilter />
+      </div>
+
+      <Suspense key={`${from || ""}-${to || ""}`} fallback={<DashboardSkeleton />}>
+        <DashboardContent from={from} to={to} />
+      </Suspense>
+    </>
+  );
+}
+
+async function DashboardContent({ from, to }: { from?: string; to?: string }) {
   const { start, end } = parseDateRange(from, to);
 
   // Fetch active outlets (for building the per-outlet breakdown)
@@ -136,16 +161,6 @@ export default async function SalesDashboard({
 
   return (
     <>
-      {/* Page Header */}
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-medium text-[var(--text-primary)]">
-            Sales Dashboard
-          </h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">All outlets</p>
-        </div>
-        <DateRangeFilter />
-      </div>
 
       {/* Summary Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -184,7 +199,6 @@ export default async function SalesDashboard({
           <CardContent className="p-6">
             <div className="space-y-4">
               {[
-                { label: "Not paid", value: paymentBuckets.notPaid },
                 { label: "Cash", value: paymentBuckets.cash },
                 { label: "Card", value: paymentBuckets.card },
                 { label: "UPI", value: paymentBuckets.upi },

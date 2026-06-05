@@ -90,10 +90,11 @@ export default async function OutletOrdersPage({
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-6">
       <AdminOrdersClient
-        key={`${fromKey}-${toKey}`}
         initialBills={serializedBills}
         outletName={outlet.name}
         role={user.role}
+        fromDate={from || "today"}
+        toDate={to || "today"}
       />
     </div>
   );

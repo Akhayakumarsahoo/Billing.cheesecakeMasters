@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { StatCardsSkeleton, TableSkeleton } from "@/components/ui-skeletons";
 import {
   Wallet,
   Plus,
@@ -69,6 +70,8 @@ interface AdminSettlementHistoryClientProps {
   outletName: string;
   outletId: string;
   role: string;
+  fromDate: string;
+  toDate: string;
 }
 
 export function AdminSettlementHistoryClient({
@@ -77,9 +80,17 @@ export function AdminSettlementHistoryClient({
   outletName,
   outletId,
   role,
+  fromDate,
+  toDate,
 }: AdminSettlementHistoryClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const settlements = initialSettlements;
+  
+  const urlFrom = searchParams.get("from") || fromDate;
+  const urlTo = searchParams.get("to") || toDate;
+  const isTransitioning = urlFrom !== fromDate || urlTo !== toDate;
+
   const [expandedMobileRow, setExpandedMobileRow] = useState<string | null>(null);
   const [breakdownSettlement, setBreakdownSettlement] = useState<SerializedSettlement | null>(null);
 
@@ -182,55 +193,60 @@ export function AdminSettlementHistoryClient({
       </div>
 
       {/* Metric Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] p-6 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-[var(--bg-hover)] rounded-lg text-[var(--text-primary)]">
-            <Wallet className="h-6 w-6" strokeWidth={1.5} />
-          </div>
-          <div>
-            <span className="text-sm text-[var(--text-secondary)] font-medium">
-              Cash Box Balance
-            </span>
-            <div className="text-2xl font-bold font-mono text-[var(--text-primary)] mt-1">
-              ₹ {formatINR(parseFloat(currentCashBoxBalance))}
+      {isTransitioning ? (
+        <StatCardsSkeleton count={3} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] p-6 shadow-sm flex items-center gap-4">
+            <div className="p-3 bg-[var(--bg-hover)] rounded-lg text-[var(--text-primary)]">
+              <Wallet className="h-6 w-6" strokeWidth={1.5} />
+            </div>
+            <div>
+              <span className="text-sm text-[var(--text-secondary)] font-medium">
+                Cash Box Balance
+              </span>
+              <div className="text-2xl font-bold font-mono text-[var(--text-primary)] mt-1">
+                ₹ {formatINR(parseFloat(currentCashBoxBalance))}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] p-6 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-[var(--bg-hover)] rounded-lg text-[var(--text-primary)]">
-            <Calendar className="h-6 w-6" strokeWidth={1.5} />
-          </div>
-          <div>
-            <span className="text-sm text-[var(--text-secondary)] font-medium">
-              Settlements in Range
-            </span>
-            <div className="text-2xl font-bold font-mono text-[var(--text-primary)] mt-1">
-              {settlements.length}
+          <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] p-6 shadow-sm flex items-center gap-4">
+            <div className="p-3 bg-[var(--bg-hover)] rounded-lg text-[var(--text-primary)]">
+              <Calendar className="h-6 w-6" strokeWidth={1.5} />
+            </div>
+            <div>
+              <span className="text-sm text-[var(--text-secondary)] font-medium">
+                Settlements in Range
+              </span>
+              <div className="text-2xl font-bold font-mono text-[var(--text-primary)] mt-1">
+                {settlements.length}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] p-6 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-[var(--bg-hover)] rounded-lg text-[var(--text-primary)]">
-            <Coins className="h-6 w-6" strokeWidth={1.5} />
-          </div>
-          <div>
-            <span className="text-sm text-[var(--text-secondary)] font-medium">
-              Last Settled Date
-            </span>
-            <div className="text-lg font-bold font-mono text-[var(--text-primary)] mt-1.5">
-              {settlements.length > 0
-                ? new Date(`${settlements[0].settlementDate}T00:00:00`).toLocaleDateString("en-IN", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })
-                : "No settlements"}
+          <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] p-6 shadow-sm flex items-center gap-4">
+            <div className="p-3 bg-[var(--bg-hover)] rounded-lg text-[var(--text-primary)]">
+              <Coins className="h-6 w-6" strokeWidth={1.5} />
+            </div>
+            <div>
+              <span className="text-sm text-[var(--text-secondary)] font-medium">
+                Last Settled Date
+              </span>
+              <div className="text-lg font-bold font-mono text-[var(--text-primary)] mt-1.5">
+                {settlements.length > 0
+                  ? new Date(`${settlements[0].settlementDate}T00:00:00`).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "No settlements"}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
       {/* Main Content Area */}
       <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm">
         <div className="p-5 border-b border-[var(--border-default)] flex items-center justify-between gap-4 flex-wrap">
@@ -256,7 +272,11 @@ export function AdminSettlementHistoryClient({
           </div>
         </div>
 
-        {settlements.length === 0 ? (
+        {isTransitioning ? (
+          <div className="p-6">
+            <TableSkeleton rows={5} cols={9} />
+          </div>
+        ) : settlements.length === 0 ? (
           <div className="p-12 text-center space-y-4">
             <Coins className="h-12 w-12 mx-auto text-[var(--text-muted)] animate-bounce" strokeWidth={1} />
             <h3 className="text-lg font-medium text-[var(--text-primary)]">

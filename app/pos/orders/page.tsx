@@ -86,5 +86,13 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     }))
   }));
 
-  return <OrdersClient key={`${fromStr}-${toStr}`} initialBills={serializedBills} outletName={outlet.name} />;
+  return (
+    <OrdersClient
+      initialBills={serializedBills}
+      outletName={outlet.name}
+      fromDate={fromStr}
+      toDate={toStr}
+    />
+  );
 }
+

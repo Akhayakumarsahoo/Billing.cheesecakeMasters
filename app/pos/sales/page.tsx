@@ -13,6 +13,9 @@ import {
 import { StatCard } from "@/components/ui/stat-card";
 import { parseDateRange, bucketPayments, formatINR } from "@/lib/utils";
 
+import { Suspense } from "react";
+import { POSSalesSkeletonBody } from "@/components/ui-skeletons";
+
 export default async function SalesPage({
   searchParams,
 }: {
@@ -22,6 +25,38 @@ export default async function SalesPage({
   if (!outlet) return null;
 
   const { from, to } = await searchParams;
+
+  return (
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-medium text-[var(--text-primary)]">
+            Sales Summary
+          </h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            Performance for {outlet.name}
+          </p>
+        </div>
+        <DateRangeFilter />
+      </div>
+
+      <Suspense key={`${from || ""}-${to || ""}`} fallback={<POSSalesSkeletonBody />}>
+        <SalesContent outlet={outlet} from={from} to={to} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function SalesContent({
+  outlet,
+  from,
+  to,
+}: {
+  outlet: { id: string; name: string };
+  from?: string;
+  to?: string;
+}) {
   const { start, end } = parseDateRange(from, to);
 
   // Fetch printed bills for this outlet, filtered by completion date
@@ -48,21 +83,7 @@ export default async function SalesPage({
   const paymentBuckets = bucketPayments(bills);
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-medium text-[var(--text-primary)]">
-            Sales Summary
-          </h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Performance for {outlet.name}
-          </p>
-        </div>
-        <DateRangeFilter />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         {/* Total Sales + Payment Breakdown Card */}
         <Card className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm col-span-1">
           <CardContent className="p-6">
@@ -83,7 +104,6 @@ export default async function SalesPage({
 
             <div className="space-y-4 pt-2">
               {[
-                { label: "Not paid", value: paymentBuckets.notPaid },
                 { label: "Cash", value: paymentBuckets.cash },
                 { label: "Card", value: paymentBuckets.card },
                 { label: "UPI", value: paymentBuckets.upi },
@@ -116,6 +136,5 @@ export default async function SalesPage({
           />
         </div>
       </div>
-    </div>
   );
 }

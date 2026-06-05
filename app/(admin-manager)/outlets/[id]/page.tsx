@@ -14,6 +14,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { StatCard } from "@/components/ui/stat-card";
 import { parseDateRange, bucketPayments, formatINR } from "@/lib/utils";
 
+import { Suspense } from "react";
+import { OutletDashboardSkeleton } from "@/components/ui-skeletons";
+
 export default async function OutletDashboardPage({
   params,
   searchParams,
@@ -33,6 +36,38 @@ export default async function OutletDashboardPage({
   if (!outlet) notFound();
 
   const { from, to } = await searchParams;
+
+  return (
+    <>
+      {/* Page Header */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-medium text-[var(--text-primary)]">
+            {outlet.name} Dashboard
+          </h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            GSTIN: {outlet.gstin || "N/A"}
+          </p>
+        </div>
+        <DateRangeFilter />
+      </div>
+
+      <Suspense key={`${from || ""}-${to || ""}`} fallback={<OutletDashboardSkeleton />}>
+        <OutletDashboardContent id={id} from={from} to={to} />
+      </Suspense>
+    </>
+  );
+}
+
+async function OutletDashboardContent({
+  id,
+  from,
+  to,
+}: {
+  id: string;
+  from?: string;
+  to?: string;
+}) {
   const { start, end } = parseDateRange(from, to);
 
   // Fetch printed bills for this outlet, filtered by completion date
@@ -67,18 +102,6 @@ export default async function OutletDashboardPage({
 
   return (
     <>
-      {/* Page Header */}
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-medium text-[var(--text-primary)]">
-            {outlet.name} Dashboard
-          </h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            GSTIN: {outlet.gstin || "N/A"}
-          </p>
-        </div>
-        <DateRangeFilter />
-      </div>
 
       {/* Summary Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -117,7 +140,6 @@ export default async function OutletDashboardPage({
           <CardContent className="p-6">
             <div className="space-y-4">
               {[
-                { label: "Not paid", value: paymentBuckets.notPaid },
                 { label: "Cash", value: paymentBuckets.cash },
                 { label: "Card", value: paymentBuckets.card },
                 { label: "UPI", value: paymentBuckets.upi },

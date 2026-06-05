@@ -13,6 +13,25 @@ change.
 
 ## Completed
 
+- **Remove "Not paid" Mode from Dashboards**
+  - Removed the "Not paid" entry from the Payment Breakdown card list in the POS Sales summary page (`app/pos/sales/page.tsx`), Admin Consolidated dashboard (`app/(admin-manager)/dashboard/page.tsx`), and Admin Outlet dashboard (`app/(admin-manager)/outlets/[id]/page.tsx`).
+  - Successfully verified compilation and clean Next.js production builds.
+
+- **Immediate Skeleton Fallbacks on Date Transitions**
+  - Swapped static route-level `key` remounting triggers in both POS Order History (`app/pos/orders/page.tsx`) and Admin Order History (`app/(admin-manager)/outlets/[id]/orders/page.tsx`) with props-driven state synchronization.
+  - Implemented client-side routing transition detection in history and summary client components (`OrdersClient`, `AdminOrdersClient`, `SettlementHistoryClient`, `AdminSettlementHistoryClient`) by comparing loaded date props with current URL parameters via `useSearchParams()`.
+  - Added shared `OrderCardsSkeleton` helper to the UI skeletons library (`components/ui-skeletons.tsx`) representing cards matching order history layout design.
+  - Conditionally swap cards grid for `OrderCardsSkeleton` and metric/tables blocks for `StatCardsSkeleton`/`TableSkeleton` during transitions, maintaining fully responsive and interactive filters, headers, and navigation layout shell.
+  - Resolved compiler syntax error in POS Sales summary page (`app/pos/sales/page.tsx`).
+  - Confirmed successful compilation (`npx tsc --noEmit`) and successful Next.js production build (`npm run build`).
+
+- **Responsive Date Range Picker with Predefined Shortcuts**
+  - Updated the shared `DateRangeFilter` component (`components/date-range-filter.tsx`) to dynamically swap layouts depending on device screen sizes (breakpoint 1024px).
+  - Implemented calculations for shortcuts: Today, Yesterday, Last 7 Days, Last 30 Days, This Month, and Last Month.
+  - Built a bottom sheet drawer for mobile/tablet screen widths containing a single-month calendar view configured to stretch and fill the available container width fully and styled as `relative` to anchor the absolute month navigation buttons at the top of the calendar grid rather than the top of the drawer, a grid layout of pill-shaped shortcut buttons, and side-by-side Cancel and Confirm actions.
+  - Redesigned the desktop view as a wide popover incorporating a left-aligned vertical shortcuts sidebar, a double-month calendar, and a footer displaying the date range in standard `dd/MM/yyyy to dd/MM/yyyy` format with Apply and Cancel buttons.
+  - Verified all edits compile cleanly and the Next.js production build completes without issues.
+
 - **Always Show New Settlement Button & Prevent Duplicates**
   - Replaced the conditional top-header button logic in both POS `SettlementHistoryClient` and Admin `AdminSettlementHistoryClient` to always render the "New Settlement" button, allowing cashiers, admins, and managers to navigate to the new settlement form at any time.
   - Removed automatic redirects from the POS new settlement page (`app/pos/settlement/new/page.tsx`) and Admin new settlement page (`app/(admin-manager)/outlets/[id]/settlements/new/page.tsx`) when today's settlement already exists.

@@ -100,6 +100,8 @@ export default async function OutletSettlementsPage({
       outletName={outlet.name}
       outletId={id}
       role={user.role}
+      fromDate={from}
+      toDate={to}
     />
   );
 }
