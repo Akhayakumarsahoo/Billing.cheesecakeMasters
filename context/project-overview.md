@@ -125,6 +125,7 @@ This application is a centralized, web-based billing system for a single retail 
 - Optional customer name and phone number capture per bill
 - Multi-mode and split payment per bill (cash, UPI, card)
 - GST-compliant bill records with CGST + SGST split (intra-state only)
+- Bill-level discounts (percentage or fixed amount type, with reasons, stored and reported)
 - Bill status lifecycle: `draft` → `printed` → `cancelled`
 - Immutable bill records — no hard deletes on bills, line items, or payments
 - Outlet POS bill history with filters and daily sales summary page
@@ -139,7 +140,7 @@ This application is a centralized, web-based billing system for a single retail 
 
 - Public signup or self-registration of any kind
 - Creating a second admin account via the UI
-- Discounts of any kind (item-level, bill-level, coupon codes, BOGO, manager overrides)
+- Discounts of any kind except bill-level discounts (item-level, coupon codes, BOGO, manager overrides)
 - Customer profiles and purchase history
 - Loyalty/membership points
 - Bill delivery via WhatsApp, SMS, or email

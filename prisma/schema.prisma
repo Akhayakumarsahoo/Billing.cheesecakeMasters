@@ -195,6 +195,12 @@ model Bill {
   totalGst   Decimal @default(0) @db.Decimal(12, 2)
   grandTotal Decimal @default(0) @db.Decimal(12, 2)
 
+  // Discount details
+  discount       Decimal  @default(0) @db.Decimal(12, 2)
+  discountType   String?  // 'percentage' | 'fixed'
+  discountReason String?
+  discountValue  Decimal? @db.Decimal(12, 2)
+
   notes       String?
   completedAt DateTime? // set when status → printed
   cancelledAt DateTime? // set when status → cancelled

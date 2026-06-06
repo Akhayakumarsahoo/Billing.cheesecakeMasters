@@ -2,7 +2,7 @@ import { getCurrentOutlet } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Decimal } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
-import { Receipt, Percent, Coins, Info } from "lucide-react";
+import { Receipt, Percent, Coins, Info, Tag } from "lucide-react";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import {
   Tooltip,
@@ -78,6 +78,10 @@ async function SalesContent({
     (sum: Decimal, bill) => sum.add(bill.totalGst),
     new Decimal(0),
   );
+  const totalDiscount = bills.reduce(
+    (sum: Decimal, bill) => sum.add(bill.discount),
+    new Decimal(0),
+  );
 
   // Payment mode breakdown
   const paymentBuckets = bucketPayments(bills);
@@ -123,7 +127,7 @@ async function SalesContent({
         </Card>
 
         {/* Bills count + GST cards */}
-        <div className="col-span-1 md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="col-span-1 md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard
             icon={Receipt}
             label="Bills Generated"
@@ -133,6 +137,11 @@ async function SalesContent({
             icon={Percent}
             label="GST Collected"
             value={`₹${totalGst.toFixed(2)}`}
+          />
+          <StatCard
+            icon={Tag}
+            label="Total Discount"
+            value={`₹${totalDiscount.toFixed(2)}`}
           />
         </div>
       </div>

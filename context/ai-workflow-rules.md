@@ -82,6 +82,7 @@ This application is a centralized, web-based billing system for a retail busines
 - Walk-in retail billing with line items and real-time GST computation
 - Multi-mode and split payment per bill
 - GST-compliant bill records with CGST/SGST 
+- Bill-level discounts (percentage or fixed amount type, with reasons, stored and reported)
 - Draft bill cancellation
 - HQ consolidated dashboard (total sales, per-outlet breakdown, GST by slab, payment mode summary)
 - PostgreSQL schema with views for all dashboard queries
@@ -91,7 +92,7 @@ This application is a centralized, web-based billing system for a retail busines
 
 ## Out of Scope (Phase 1)
 
-- Discounts of any kind (item-level, bill-level, coupon codes, BOGO, manager overrides)
+- Discounts of any kind except bill-level discounts (item-level, coupon codes, BOGO, manager overrides)
 - Customer profiles, purchase history, and loyalty/membership points
 - Bill delivery via WhatsApp, SMS, or email
 - Thermal receipt printing

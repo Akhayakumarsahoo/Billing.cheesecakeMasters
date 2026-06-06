@@ -68,7 +68,7 @@ export async function POST(
       );
     }
 
-    const totals = computeBillTotals(bill.lineItems);
+    const totals = computeBillTotals(bill.lineItems, bill.discount);
 
     const paymentTotal = bill.payments.reduce(
       (sum, p) => sum.add(p.amount),

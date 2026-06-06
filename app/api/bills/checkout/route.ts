@@ -25,7 +25,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const { editingBillId, customerName, customerPhone, notes, lineItems, payments } = result.data;
+    const { 
+      editingBillId, 
+      customerName, 
+      customerPhone, 
+      notes, 
+      lineItems, 
+      payments,
+      discountType,
+      discountValue,
+      discountReason,
+    } = result.data;
 
     // 1. Resolve menu items and cache them in memory to eliminate N+1 queries
     const menuItemIds = lineItems
@@ -116,7 +126,33 @@ export async function POST(req: Request) {
     }
 
     // 3. Compute overall totals
-    const totals = computeBillTotals(finalLineItemsData);
+    const initialTotals = computeBillTotals(finalLineItemsData);
+
+    // Calculate and validate discount
+    let discountAmount = new Decimal(0);
+    if (discountType && discountValue !== undefined && discountValue !== null) {
+      const valDec = new Decimal(discountValue);
+      if (discountType === "percentage") {
+        if (discountValue < 1 || discountValue > 100) {
+          return NextResponse.json(
+            { error: { code: "VALIDATION_ERROR", message: "Percentage discount must be between 1 and 100" } },
+            { status: 400 }
+          );
+        }
+        discountAmount = initialTotals.subtotal.mul(valDec).div(100);
+      } else if (discountType === "fixed") {
+        if (valDec.greaterThan(initialTotals.subtotal)) {
+          return NextResponse.json(
+            { error: { code: "VALIDATION_ERROR", message: "Fixed discount amount cannot exceed total core amount" } },
+            { status: 400 }
+          );
+        }
+        discountAmount = valDec;
+      }
+    }
+
+    const finalTotals = computeBillTotals(finalLineItemsData, discountAmount);
+    const finalGrandTotal = finalTotals.grandTotal;
 
     // 4. Validate payment total matches computed grand total
     const paymentTotal = payments.reduce(
@@ -124,7 +160,7 @@ export async function POST(req: Request) {
       new Decimal(0)
     );
 
-    if (!paymentTotal.equals(totals.grandTotal)) {
+    if (!paymentTotal.equals(finalGrandTotal)) {
       return NextResponse.json(
         { error: { code: "PAYMENT_MISMATCH", message: "Payment total does not match bill total" } },
         { status: 422 }
@@ -166,11 +202,15 @@ export async function POST(req: Request) {
           data: {
             status: "printed",
             completedAt: new Date(),
-            subtotal: totals.subtotal,
-            totalCgst: totals.totalCgst,
-            totalSgst: totals.totalSgst,
-            totalGst: totals.totalGst,
-            grandTotal: totals.grandTotal,
+            subtotal: finalTotals.subtotal,
+            totalCgst: finalTotals.totalCgst,
+            totalSgst: finalTotals.totalSgst,
+            totalGst: finalTotals.totalGst,
+            grandTotal: finalTotals.grandTotal,
+            discount: discountAmount,
+            discountType: discountType || null,
+            discountReason: discountReason || null,
+            discountValue: discountValue !== undefined && discountValue !== null ? new Decimal(discountValue) : null,
             customerName: customerName || null,
             customerPhone: customerPhone || null,
             notes: notes || null,
@@ -186,11 +226,15 @@ export async function POST(req: Request) {
             outletId: outlet.id,
             status: "printed",
             completedAt: new Date(),
-            subtotal: totals.subtotal,
-            totalCgst: totals.totalCgst,
-            totalSgst: totals.totalSgst,
-            totalGst: totals.totalGst,
-            grandTotal: totals.grandTotal,
+            subtotal: finalTotals.subtotal,
+            totalCgst: finalTotals.totalCgst,
+            totalSgst: finalTotals.totalSgst,
+            totalGst: finalTotals.totalGst,
+            grandTotal: finalTotals.grandTotal,
+            discount: discountAmount,
+            discountType: discountType || null,
+            discountReason: discountReason || null,
+            discountValue: discountValue !== undefined && discountValue !== null ? new Decimal(discountValue) : null,
             customerName: customerName || null,
             customerPhone: customerPhone || null,
             notes: notes || null,
@@ -200,22 +244,31 @@ export async function POST(req: Request) {
       }
 
       // Batch insert the new line items
+      const discountRatio = finalTotals.subtotal.greaterThan(0) ? discountAmount.div(finalTotals.subtotal) : new Decimal(0);
       await tx.billLineItem.createMany({
-        data: finalLineItemsData.map((item) => ({
-          billId: billId!,
-          menuItemId: item.menuItemId,
-          itemName: item.itemName,
-          sku: item.sku,
-          unit: item.unit,
-          quantity: item.quantity,
-          basePrice: item.basePrice,
-          gstRate: item.gstRate,
-          lineBaseTotal: item.lineBaseTotal,
-          lineGstAmount: item.lineGstAmount,
-          lineCgst: item.lineCgst,
-          lineSgst: item.lineSgst,
-          lineTotal: item.lineTotal,
-        })),
+        data: finalLineItemsData.map((item) => {
+          const discountedLineBaseTotal = item.lineBaseTotal.mul(new Decimal(1).sub(discountRatio));
+          const discountedLineGst = discountedLineBaseTotal.mul(item.gstRate).div(100);
+          const lineCgst = discountedLineGst.div(2);
+          const lineSgst = discountedLineGst.div(2);
+          const lineTotal = discountedLineBaseTotal.add(discountedLineGst);
+
+          return {
+            billId: billId!,
+            menuItemId: item.menuItemId,
+            itemName: item.itemName,
+            sku: item.sku,
+            unit: item.unit,
+            quantity: item.quantity,
+            basePrice: item.basePrice,
+            gstRate: item.gstRate,
+            lineBaseTotal: discountedLineBaseTotal,
+            lineGstAmount: discountedLineGst,
+            lineCgst: lineCgst,
+            lineSgst: lineSgst,
+            lineTotal: lineTotal,
+          };
+        }),
       });
 
       // Batch insert the new payments
@@ -254,6 +307,8 @@ export async function POST(req: Request) {
         totalCgst: finalBill.totalCgst.toString(),
         totalSgst: finalBill.totalSgst.toString(),
         totalGst: finalBill.totalGst.toString(),
+        discount: finalBill.discount.toString(),
+        discountValue: finalBill.discountValue ? finalBill.discountValue.toString() : null,
         lineItems: finalBill.lineItems.map((li) => ({
           ...li,
           quantity: li.quantity.toString(),

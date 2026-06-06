@@ -1,4 +1,4 @@
-import { IndianRupee, Percent, Receipt, Info, Wallet } from "lucide-react";
+import { IndianRupee, Percent, Receipt, Info, Wallet, Tag } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { Decimal } from "@/lib/db";
@@ -89,6 +89,10 @@ async function OutletDashboardContent({
     (sum: Decimal, bill) => sum.add(bill.totalGst),
     new Decimal(0),
   );
+  const totalDiscount = bills.reduce(
+    (sum: Decimal, bill) => sum.add(bill.discount),
+    new Decimal(0),
+  );
 
   // Payment mode breakdown
   const paymentBuckets = bucketPayments(bills);
@@ -104,7 +108,7 @@ async function OutletDashboardContent({
     <>
 
       {/* Summary Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <StatCard
           icon={IndianRupee}
           label="Total Revenue"
@@ -122,6 +126,12 @@ async function OutletDashboardContent({
           label="GST Collected"
           value={`₹${formatINR(totalGst.toNumber())}`}
           subtext="CGST + SGST"
+        />
+        <StatCard
+          icon={Tag}
+          label="Total Discount"
+          value={`₹${formatINR(totalDiscount.toNumber())}`}
+          subtext="Total discounts given"
         />
         <StatCard
           icon={Wallet}

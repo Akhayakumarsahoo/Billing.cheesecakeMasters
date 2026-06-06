@@ -83,6 +83,9 @@ export const CheckoutBillSchema = z.object({
       amount: z.number().positive(),
     })
   ).min(1),
+  discountType: z.enum(["percentage", "fixed"]).optional().nullable(),
+  discountValue: z.number().nonnegative().optional().nullable(),
+  discountReason: z.string().max(300).optional().nullable(),
 });
 
 export const AddLineItemSchema = z.object({

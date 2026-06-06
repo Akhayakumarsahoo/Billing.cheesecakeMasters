@@ -62,6 +62,10 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     totalCgst: b.totalCgst.toString(),
     totalSgst: b.totalSgst.toString(),
     totalGst: b.totalGst.toString(),
+    discount: b.discount.toString(),
+    discountType: b.discountType,
+    discountReason: b.discountReason,
+    discountValue: b.discountValue ? b.discountValue.toString() : null,
     modifiedByName: b.modifiedBy?.name ?? null,
     payments: b.payments.map(p => ({
       mode: p.mode,

@@ -13,6 +13,19 @@ change.
 
 ## Completed
 
+- **Implement Billing Discounts Feature**
+  - Added discount fields (`discount`, `discountType`, `discountReason`, and `discountValue`) to the `Bill` model in `schema.prisma` and successfully synced with the live PostgreSQL database.
+  - Extended request validation in `lib/validators/index.ts` to accept optional discount properties during POS checkouts and same-day order modifications.
+  - Updated the API checkout route (`app/api/bills/checkout/route.ts`) to validate discount rules (percentage within `[1, 100]`, fixed amount `<= subtotal`), calculate discount amounts, apply them to the grand total, persist them, and serialize them.
+  - Implemented the `<DiscountDialog>` popup component (`components/billing/discount-dialog.tsx`) to allow interactive selection of discount type, value, and reason in the POS.
+  - Updated the client-side `<BillBuilder>` (`components/billing/bill-builder.tsx`) to support discount calculations, display a summary row, pre-fill discounts on edit operations using `localStorage`, and show active status on the Discount cart button.
+  - Enhanced POS Order History (`orders-client.tsx`), Admin Order History (`admin-orders-client.tsx`), and corresponding server pages to display discount rows in bill lists and order details modals.
+  - Added total discounts tracking and visualization to the POS Sales Summary (`app/pos/sales/page.tsx`), Admin specific outlet dashboard (`app/(admin-manager)/outlets/[id]/page.tsx`), and Consolidated Headquarters dashboard (`app/(admin-manager)/dashboard/page.tsx`).
+  - Replaced CGST/SGST columns on the HQ "Sales by Outlet" breakdown table with a new "Discount" column, displaying the exact discount sums per outlet or zero.
+  - Recalculated GST (CGST + SGST) on the discounted base `(subtotal - discount)` at checkout, update the stored `BillLineItem` database records proportionally, and update the client-side cart totals visualization.
+  - Disabled the Discount button when the POS cart is empty, and automatically cleared applied discount states once all items are removed from the cart.
+  - Verified compilation and optimized Next.js production builds compile cleanly without warnings or errors.
+
 - **Remove "Not paid" Mode from Dashboards**
   - Removed the "Not paid" entry from the Payment Breakdown card list in the POS Sales summary page (`app/pos/sales/page.tsx`), Admin Consolidated dashboard (`app/(admin-manager)/dashboard/page.tsx`), and Admin Outlet dashboard (`app/(admin-manager)/outlets/[id]/page.tsx`).
   - Successfully verified compilation and clean Next.js production builds.

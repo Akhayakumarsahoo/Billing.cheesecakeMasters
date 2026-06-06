@@ -4,6 +4,7 @@ import {
   Receipt,
   Info,
   Wallet,
+  Tag,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -114,6 +115,10 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     (sum: Decimal, bill) => sum.add(bill.totalGst),
     new Decimal(0),
   );
+  const totalDiscount = bills.reduce(
+    (sum: Decimal, bill) => sum.add(bill.discount),
+    new Decimal(0),
+  );
 
   // Payment mode breakdown — extracted to shared util
   const paymentBuckets = bucketPayments(bills);
@@ -126,8 +131,7 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       name: string;
       billsCount: number;
       revenue: Decimal;
-      cgst: Decimal;
-      sgst: Decimal;
+      discount: Decimal;
       gstTotal: Decimal;
     }
   > = {};
@@ -139,8 +143,7 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       name: o.name,
       billsCount: 0,
       revenue: new Decimal(0),
-      cgst: new Decimal(0),
-      sgst: new Decimal(0),
+      discount: new Decimal(0),
       gstTotal: new Decimal(0),
     };
   }
@@ -151,8 +154,7 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     if (!stat) continue;
     stat.billsCount += 1;
     stat.revenue = stat.revenue.add(bill.grandTotal);
-    stat.cgst = stat.cgst.add(bill.totalCgst);
-    stat.sgst = stat.sgst.add(bill.totalSgst);
+    stat.discount = stat.discount.add(bill.discount);
     stat.gstTotal = stat.gstTotal.add(bill.totalGst);
   }
 
@@ -163,7 +165,7 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     <>
 
       {/* Summary Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <StatCard
           icon={IndianRupee}
           label="Total Revenue"
@@ -181,6 +183,12 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
           label="GST Collected"
           value={`₹${formatINR(totalGst.toNumber())}`}
           subtext="CGST + SGST"
+        />
+        <StatCard
+          icon={Tag}
+          label="Total Discount"
+          value={`₹${formatINR(totalDiscount.toNumber())}`}
+          subtext="Total discounts given"
         />
         <StatCard
           icon={Wallet}
@@ -225,13 +233,13 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-[var(--border-default)]">
-                {["Outlet", "Bills", "Revenue", "CGST", "SGST", "GST Total", "Cash Box"].map(
+                {["Outlet", "Bills", "Revenue", "Discount", "GST Total", "Cash Box"].map(
                   (heading, i) => (
                     <TableHead
                       key={heading}
                       className={`text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide h-10 ${
                         i === 0 ? "text-left" : "text-right"
-                      } ${i === 3 || i === 4 ? "hidden sm:table-cell" : ""}`}
+                      }`}
                     >
                       {heading}
                     </TableHead>
@@ -243,7 +251,7 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
               {outletStatsList.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={6}
                     className="text-center py-8 text-[var(--text-muted)]"
                   >
                     No sales data found for the selected date range.
@@ -266,11 +274,8 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
                       <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
                         ₹{formatINR(stat.revenue.toNumber())}
                       </TableCell>
-                      <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right hidden sm:table-cell">
-                        ₹{formatINR(stat.cgst.toNumber())}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right hidden sm:table-cell">
-                        ₹{formatINR(stat.sgst.toNumber())}
+                      <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
+                        ₹{formatINR(stat.discount.toNumber())}
                       </TableCell>
                       <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
                         ₹{formatINR(stat.gstTotal.toNumber())}
@@ -292,11 +297,8 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
                     <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right">
                       ₹{formatINR(outletStatsList.reduce((s, o) => s + o.revenue.toNumber(), 0))}
                     </TableCell>
-                    <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right hidden sm:table-cell">
-                      ₹{formatINR(outletStatsList.reduce((s, o) => s + o.cgst.toNumber(), 0))}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right hidden sm:table-cell">
-                      ₹{formatINR(outletStatsList.reduce((s, o) => s + o.sgst.toNumber(), 0))}
+                    <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right">
+                      ₹{formatINR(outletStatsList.reduce((s, o) => s + o.discount.toNumber(), 0))}
                     </TableCell>
                     <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right">
                       ₹{formatINR(outletStatsList.reduce((s, o) => s + o.gstTotal.toNumber(), 0))}

@@ -61,6 +61,10 @@ type SerializedBill = {
   totalCgst: string;
   totalSgst: string;
   totalGst: string;
+  discount: string;
+  discountType: string | null;
+  discountReason: string | null;
+  discountValue: string | null;
   payments: SerializedPayment[];
   lineItems: SerializedLineItem[];
   modifiedByName?: string | null;
@@ -174,6 +178,15 @@ export function OrdersClient({
       // 2. Save to localStorage
       localStorage.setItem("pos-edit-cart", JSON.stringify(cartItems));
       localStorage.setItem("pos-edit-bill-id", bill.id);
+      if (bill.discountType) {
+        localStorage.setItem("pos-edit-discount-type", bill.discountType);
+        localStorage.setItem("pos-edit-discount-value", bill.discountValue || "0");
+        localStorage.setItem("pos-edit-discount-reason", bill.discountReason || "");
+      } else {
+        localStorage.removeItem("pos-edit-discount-type");
+        localStorage.removeItem("pos-edit-discount-value");
+        localStorage.removeItem("pos-edit-discount-reason");
+      }
 
       // 3. Redirect to POS
       toast.success("Loading bill into POS...");
@@ -277,6 +290,12 @@ export function OrdersClient({
                       <span className="text-[var(--text-secondary)]">Items</span>
                       <span className="font-medium text-[var(--text-primary)]">{bill.lineItems.length}</span>
                     </div>
+                    {parseFloat(bill.discount) > 0 && (
+                      <div className="flex justify-between text-sm text-[var(--state-error-text)] font-medium">
+                        <span>Discount</span>
+                        <span>-₹{parseFloat(bill.discount).toFixed(0)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-[var(--text-secondary)]">Payment</span>
                       <span className="font-medium text-[var(--text-primary)] capitalize">
@@ -355,6 +374,17 @@ export function OrdersClient({
                   ))}
                 </div>
               </div>
+
+              {parseFloat(selectedBill.discount) > 0 && selectedBill.discountReason && (
+                <div className="p-3 bg-red-50/50 rounded-lg border border-red-100/50 text-xs text-[var(--text-primary)] space-y-1">
+                  <div className="font-semibold text-red-800">
+                    Discount Reason
+                  </div>
+                  <div className="text-[var(--text-secondary)]">
+                    {selectedBill.discountReason}
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="p-4 border-t border-[var(--border-default)] bg-[var(--bg-surface)] flex flex-col gap-3">
@@ -363,6 +393,12 @@ export function OrdersClient({
                   <span>Subtotal</span>
                   <span className="font-mono">₹{parseFloat(selectedBill.subtotal).toFixed(2)}</span>
                 </div>
+                {parseFloat(selectedBill.discount) > 0 && (
+                  <div className="flex justify-between text-[var(--state-error-text)] font-medium">
+                    <span>Discount</span>
+                    <span className="font-mono">-₹{parseFloat(selectedBill.discount).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>GST (CGST + SGST)</span>
                   <span className="font-mono">₹{parseFloat(selectedBill.totalGst).toFixed(2)}</span>
@@ -370,8 +406,9 @@ export function OrdersClient({
                 {(() => {
                   const sub = parseFloat(selectedBill.subtotal);
                   const gst = parseFloat(selectedBill.totalGst);
+                  const disc = parseFloat(selectedBill.discount);
                   const grand = parseFloat(selectedBill.grandTotal);
-                  const roundOff = grand - (sub + gst);
+                  const roundOff = grand - (sub + gst - disc);
                   return (
                     <div className="flex justify-between">
                       <span>Round Off</span>

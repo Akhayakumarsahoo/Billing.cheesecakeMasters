@@ -15,12 +15,14 @@ import {
   CreditCard,
   Receipt,
   SplitSquareHorizontal,
+  Tag,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { PaymentDialog } from "./payment-dialog";
 import { OpenItemDialog } from "./open-item-dialog";
+import { DiscountDialog } from "./discount-dialog";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -89,6 +91,12 @@ export function BillBuilder({
   const [isCustomerDetailsExpanded, setIsCustomerDetailsExpanded] =
     useState(false);
 
+  const [discountType, setDiscountType] = useState<"percentage" | "fixed" | null>(null);
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [discountReason, setDiscountReason] = useState<string>("");
+  const [isDiscountOpen, setIsDiscountOpen] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
   const [selectedPaymentMode, setSelectedPaymentMode] = useState<string>("cash");
   const [splitAmounts, setSplitAmounts] = useState<Record<string, string>>({
     cash: "",
@@ -104,6 +112,9 @@ export function BillBuilder({
   useEffect(() => {
     const editCart = localStorage.getItem("pos-edit-cart");
     const editBillId = localStorage.getItem("pos-edit-bill-id");
+    const editDiscountType = localStorage.getItem("pos-edit-discount-type");
+    const editDiscountValue = localStorage.getItem("pos-edit-discount-value");
+    const editDiscountReason = localStorage.getItem("pos-edit-discount-reason");
 
     if (editCart) {
       try {
@@ -119,7 +130,26 @@ export function BillBuilder({
       setEditingBillId(editBillId);
       localStorage.removeItem("pos-edit-bill-id");
     }
+
+    if (editDiscountType) {
+      setDiscountType(editDiscountType as "percentage" | "fixed");
+      setDiscountValue(parseFloat(editDiscountValue || "0"));
+      setDiscountReason(editDiscountReason || "");
+
+      localStorage.removeItem("pos-edit-discount-type");
+      localStorage.removeItem("pos-edit-discount-value");
+      localStorage.removeItem("pos-edit-discount-reason");
+    }
+    setIsLoaded(true);
   }, []);
+
+  useEffect(() => {
+    if (isLoaded && cart.length === 0) {
+      setDiscountType(null);
+      setDiscountValue(0);
+      setDiscountReason("");
+    }
+  }, [cart.length, isLoaded]);
 
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
@@ -164,6 +194,23 @@ export function BillBuilder({
   // Client-side visual calculation ONLY
   const totals = useMemo(() => {
     let subtotal = 0;
+    cart.forEach((item) => {
+      const price = parseFloat(item.menuItem.basePrice);
+      const qty = item.quantity;
+      subtotal += price * qty;
+    });
+
+    let discountAmount = 0;
+    if (discountType && discountValue > 0) {
+      if (discountType === "percentage") {
+        discountAmount = subtotal * (discountValue / 100);
+      } else {
+        discountAmount = discountValue;
+      }
+    }
+
+    const discountRatio = subtotal > 0 ? discountAmount / subtotal : 0;
+
     let gstAmount = 0;
     cart.forEach((item) => {
       const price = parseFloat(item.menuItem.basePrice);
@@ -171,23 +218,24 @@ export function BillBuilder({
       const rate = parseFloat(item.menuItem.gstSlab.rate);
 
       const lineBaseTotal = price * qty;
-      const lineGst = lineBaseTotal * (rate / 100);
+      const discountedLineBaseTotal = lineBaseTotal * (1 - discountRatio);
+      const lineGst = discountedLineBaseTotal * (rate / 100);
 
-      subtotal += lineBaseTotal;
       gstAmount += lineGst;
     });
 
-    const rawTotal = subtotal + gstAmount;
-    const grandTotal = Math.round(rawTotal);
+    const rawTotal = (subtotal - discountAmount) + gstAmount;
+    const grandTotal = Math.max(0, Math.round(rawTotal));
     const roundOff = grandTotal - rawTotal;
 
     return {
       subtotal,
       gstAmount,
+      discountAmount,
       roundOff,
       grandTotal,
     };
-  }, [cart]);
+  }, [cart, discountType, discountValue]);
 
   const totalQuantity = cart.reduce((acc, item) => acc + item.quantity, 0);
 
@@ -258,6 +306,9 @@ export function BillBuilder({
               };
         }),
         payments: payments.filter((p) => p.amount > 0),
+        discountType: discountType || undefined,
+        discountValue: discountValue > 0 ? discountValue : undefined,
+        discountReason: discountReason || undefined,
       };
 
       const res = await fetch("/api/bills/checkout", {
@@ -279,6 +330,9 @@ export function BillBuilder({
       setIsPaymentOpen(false);
       setSelectedPaymentMode("cash");
       setSplitAmounts({ cash: "", upi: "", card: "", online: "" });
+      setDiscountType(null);
+      setDiscountValue(0);
+      setDiscountReason("");
       
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -348,7 +402,7 @@ export function BillBuilder({
       <div className="p-4 border-b border-[var(--border-default)] shrink-0">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium">Current Bill</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             {!isCustomerDetailsExpanded && !customerName && !customerPhone && (
               <Button
                 variant="outline"
@@ -360,6 +414,19 @@ export function BillBuilder({
                 <UserPlus className="w-4 h-4" />
               </Button>
             )}
+            <Button
+              variant={discountType ? "default" : "outline"}
+              size="sm"
+              className={discountType ? "bg-[var(--state-success-border)] hover:bg-[var(--state-success-border)]/90 text-white border-0" : ""}
+              onClick={() => {
+                setIsCartDrawerOpen(false);
+                setTimeout(() => setIsDiscountOpen(true), 50);
+              }}
+              disabled={cart.length === 0}
+            >
+              <Tag className="w-3.5 h-3.5 mr-1" strokeWidth={1.5} />
+              {discountType ? `Discount (-₹${totals.discountAmount.toFixed(0)})` : "Discount"}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -485,6 +552,12 @@ export function BillBuilder({
                 <span>Subtotal</span>
                 <span className="font-mono">₹{totals.subtotal.toFixed(2)}</span>
               </div>
+              {totals.discountAmount > 0 && (
+                <div className="flex justify-between text-xs text-[var(--state-error-text)] font-medium">
+                  <span>Discount</span>
+                  <span className="font-mono">-₹{totals.discountAmount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-xs text-text-secondary">
                 <span>GST Amount</span>
                 <span className="font-mono">
@@ -689,6 +762,20 @@ export function BillBuilder({
         isOpen={isOpenItemOpen}
         onClose={() => setIsOpenItemOpen(false)}
         onAdd={handleAddOpenItem}
+      />
+
+      <DiscountDialog
+        isOpen={isDiscountOpen}
+        onClose={() => setIsDiscountOpen(false)}
+        subtotal={totals.subtotal}
+        initialDiscountType={discountType}
+        initialDiscountValue={discountValue}
+        initialDiscountReason={discountReason}
+        onConfirm={(type, val, reason) => {
+          setDiscountType(type);
+          setDiscountValue(val);
+          setDiscountReason(reason);
+        }}
       />
     </div>
   );
