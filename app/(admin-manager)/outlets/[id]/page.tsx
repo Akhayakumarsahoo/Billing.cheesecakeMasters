@@ -12,7 +12,7 @@ import {
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { StatCard } from "@/components/ui/stat-card";
-import { parseDateRange, bucketPayments, formatINR } from "@/lib/utils";
+import { parseDateRange, formatINR } from "@/lib/utils";
 
 import { Suspense } from "react";
 import { OutletDashboardSkeleton } from "@/components/ui-skeletons";
@@ -70,32 +70,50 @@ async function OutletDashboardContent({
 }) {
   const { start, end } = parseDateRange(from, to);
 
-  // Fetch printed bills for this outlet, filtered by completion date
-  const bills = await prisma.bill.findMany({
+  // 1. Fetch aggregations for this outlet
+  const aggregations = await prisma.bill.aggregate({
     where: {
       outletId: id,
       status: "printed",
       completedAt: { gte: start, lte: end },
     },
-    include: { payments: true },
+    _count: { id: true },
+    _sum: {
+      grandTotal: true,
+      totalGst: true,
+      discount: true,
+    },
   });
 
-  // ── Aggregate totals ────────────────────────────────────
-  const totalRevenue = bills.reduce(
-    (sum: Decimal, bill) => sum.add(bill.grandTotal),
-    new Decimal(0),
-  );
-  const totalGst = bills.reduce(
-    (sum: Decimal, bill) => sum.add(bill.totalGst),
-    new Decimal(0),
-  );
-  const totalDiscount = bills.reduce(
-    (sum: Decimal, bill) => sum.add(bill.discount),
-    new Decimal(0),
-  );
+  const totalRevenue = aggregations._sum.grandTotal || new Decimal(0);
+  const totalGst = aggregations._sum.totalGst || new Decimal(0);
+  const totalDiscount = aggregations._sum.discount || new Decimal(0);
+  const totalBillsCount = aggregations._count.id;
 
-  // Payment mode breakdown
-  const paymentBuckets = bucketPayments(bills);
+  // 2. Fetch payment mode aggregates from billPayment
+  const paymentBreakdown = await prisma.billPayment.groupBy({
+    by: ["mode"],
+    where: {
+      bill: {
+        outletId: id,
+        status: "printed",
+        completedAt: { gte: start, lte: end },
+      },
+    },
+    _sum: {
+      amount: true,
+    },
+  });
+
+  const paymentBuckets = { cash: 0, upi: 0, card: 0, online: 0, notPaid: 0 };
+  for (const item of paymentBreakdown) {
+    const mode = item.mode.toLowerCase();
+    const sum = item._sum.amount?.toNumber() || 0;
+    if (mode === "cash") paymentBuckets.cash = sum;
+    else if (mode === "card") paymentBuckets.card = sum;
+    else if (mode === "upi") paymentBuckets.upi = sum;
+    else if (mode === "online") paymentBuckets.online = sum;
+  }
 
   // Fetch latest active settlement closing cash balance
   const latestActiveSettlement = await prisma.dailySettlement.findFirst({
@@ -118,7 +136,7 @@ async function OutletDashboardContent({
         <StatCard
           icon={Receipt}
           label="Total Bills"
-          value={bills.length}
+          value={totalBillsCount}
           subtext="Printed bills only"
         />
         <StatCard

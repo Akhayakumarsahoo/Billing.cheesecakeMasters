@@ -19,6 +19,7 @@ import {
 import { ClickableRow } from "@/components/clickable-row";
 import { prisma } from "@/lib/db";
 import { Decimal } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import {
   Tooltip,
@@ -27,7 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { StatCard } from "@/components/ui/stat-card";
-import { parseDateRange, bucketPayments, formatINR } from "@/lib/utils";
+import { parseDateRange, formatINR } from "@/lib/utils";
 
 import { Suspense } from "react";
 import { DashboardSkeleton } from "@/components/ui-skeletons";
@@ -68,62 +69,91 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     select: { id: true, name: true },
   });
 
-  // Fetch the latest active daily settlement for all active outlets
-  const latestSettlements = await prisma.dailySettlement.findMany({
-    where: {
-      status: "active",
-      outletId: { in: outlets.map((o) => o.id) },
-    },
-    orderBy: { settlementDate: "desc" },
-  });
-
   const cashboxMap: Record<string, Decimal> = {};
-  const processedOutlets = new Set<string>();
   for (const o of outlets) {
     cashboxMap[o.id] = new Decimal(0);
   }
-  for (const s of latestSettlements) {
-    if (!processedOutlets.has(s.outletId)) {
-      cashboxMap[s.outletId] = s.closingCash;
-      processedOutlets.add(s.outletId);
+
+  if (outlets.length > 0) {
+    const latestSettlements = await prisma.$queryRaw<
+      { outletId: string; closingCash: string }[]
+    >`
+      SELECT DISTINCT ON ("outletId") "outletId", "closingCash"::text
+      FROM daily_settlements
+      WHERE status = 'active' AND "outletId" IN (${Prisma.join(outlets.map((o) => o.id))})
+      ORDER BY "outletId", "settlementDate" DESC
+    `;
+
+    for (const s of latestSettlements) {
+      cashboxMap[s.outletId] = new Decimal(s.closingCash);
     }
   }
+
   const totalCashboxBalance = Object.values(cashboxMap).reduce(
     (sum, bal) => sum.add(bal),
     new Decimal(0),
   );
 
-  // Fetch all printed bills in the selected date range.
-  // Filter on completedAt (the bill's actual completion timestamp).
-  const bills = await prisma.bill.findMany({
+  // 1. Fetch aggregations for all printed bills in the selected date range.
+  const aggregations = await prisma.bill.aggregate({
     where: {
       status: "printed",
       completedAt: { gte: start, lte: end },
     },
-    include: {
-      payments: true,
-      outlet: { select: { name: true } },
+    _count: { id: true },
+    _sum: {
+      grandTotal: true,
+      totalGst: true,
+      discount: true,
     },
   });
 
-  // ── Aggregate totals ────────────────────────────────────
-  const totalRevenue = bills.reduce(
-    (sum: Decimal, bill) => sum.add(bill.grandTotal),
-    new Decimal(0),
-  );
-  const totalGst = bills.reduce(
-    (sum: Decimal, bill) => sum.add(bill.totalGst),
-    new Decimal(0),
-  );
-  const totalDiscount = bills.reduce(
-    (sum: Decimal, bill) => sum.add(bill.discount),
-    new Decimal(0),
-  );
+  const totalRevenue = aggregations._sum.grandTotal || new Decimal(0);
+  const totalGst = aggregations._sum.totalGst || new Decimal(0);
+  const totalDiscount = aggregations._sum.discount || new Decimal(0);
+  const totalBillsCount = aggregations._count.id;
 
-  // Payment mode breakdown — extracted to shared util
-  const paymentBuckets = bucketPayments(bills);
+  // 2. Fetch payment mode aggregates from billPayment
+  const paymentBreakdown = await prisma.billPayment.groupBy({
+    by: ["mode"],
+    where: {
+      bill: {
+        status: "printed",
+        completedAt: { gte: start, lte: end },
+      },
+    },
+    _sum: {
+      amount: true,
+    },
+  });
 
-  // Per-outlet breakdown — build stats map in a single pass over bills
+  const paymentBuckets = { cash: 0, upi: 0, card: 0, online: 0, notPaid: 0 };
+  for (const item of paymentBreakdown) {
+    const mode = item.mode.toLowerCase();
+    const sum = item._sum.amount?.toNumber() || 0;
+    if (mode === "cash") paymentBuckets.cash = sum;
+    else if (mode === "card") paymentBuckets.card = sum;
+    else if (mode === "upi") paymentBuckets.upi = sum;
+    else if (mode === "online") paymentBuckets.online = sum;
+  }
+
+  // 3. Fetch outlet-level grouping
+  const outletGroups = await prisma.bill.groupBy({
+    by: ["outletId"],
+    where: {
+      status: "printed",
+      completedAt: { gte: start, lte: end },
+    },
+    _count: {
+      id: true,
+    },
+    _sum: {
+      grandTotal: true,
+      discount: true,
+      totalGst: true,
+    },
+  });
+
   const outletStatsMap: Record<
     string,
     {
@@ -136,7 +166,6 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     }
   > = {};
 
-  // Initialise a row for every active outlet
   for (const o of outlets) {
     outletStatsMap[o.id] = {
       id: o.id,
@@ -148,17 +177,15 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     };
   }
 
-  // Accumulate each bill into its outlet's stats
-  for (const bill of bills) {
-    const stat = outletStatsMap[bill.outletId];
+  for (const g of outletGroups) {
+    const stat = outletStatsMap[g.outletId];
     if (!stat) continue;
-    stat.billsCount += 1;
-    stat.revenue = stat.revenue.add(bill.grandTotal);
-    stat.discount = stat.discount.add(bill.discount);
-    stat.gstTotal = stat.gstTotal.add(bill.totalGst);
+    stat.billsCount = g._count.id;
+    stat.revenue = g._sum.grandTotal || new Decimal(0);
+    stat.discount = g._sum.discount || new Decimal(0);
+    stat.gstTotal = g._sum.totalGst || new Decimal(0);
   }
 
-  // List all active outlets including those with zero bills in the selected range
   const outletStatsList = Object.values(outletStatsMap);
 
   return (
@@ -175,7 +202,7 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
         <StatCard
           icon={Receipt}
           label="Total Bills"
-          value={bills.length}
+          value={totalBillsCount}
           subtext="Printed bills only"
         />
         <StatCard

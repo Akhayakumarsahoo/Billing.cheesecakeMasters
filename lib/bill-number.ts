@@ -8,13 +8,14 @@ export async function generateBillNumber(
   const client = tx || prisma;
   const year = new Date().getFullYear();
 
-  // Get outlet index (1-based) for the prefix
-  const outlets = await client.outlet.findMany({
-    where: { isActive: true },
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
+  const outlet = await client.outlet.findUnique({
+    where: { id: outletId },
+    select: { sequenceIndex: true },
   });
-  const outletIndex = outlets.findIndex((o) => o.id === outletId) + 1;
+  if (!outlet) {
+    throw new Error(`Outlet not found: ${outletId}`);
+  }
+  const outletIndex = outlet.sequenceIndex;
 
   const executeSequenceUpdate = async (t: Prisma.TransactionClient) => {
     await t.$executeRawUnsafe(

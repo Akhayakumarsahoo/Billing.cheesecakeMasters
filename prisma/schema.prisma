@@ -34,14 +34,15 @@ enum PaymentMode {
 // ─────────────────────────────────────────
 
 model Outlet {
-  id          String   @id @default(uuid())
-  clerkUserId String   @unique // The Clerk user ID used for the outlet POS login
-  name        String
-  address     String?
-  stateCode   String   @db.Char(2) // e.g. "OD" for Odisha
-  gstin       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id            String   @id @default(uuid())
+  clerkUserId   String   @unique // The Clerk user ID used for the outlet POS login
+  sequenceIndex Int      @unique @default(autoincrement())
+  name          String
+  address       String?
+  stateCode     String   @db.Char(2) // e.g. "OD" for Odisha
+  gstin         String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
 
   // Relations
   menuCategories MenuCategory[]

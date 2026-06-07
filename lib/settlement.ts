@@ -117,3 +117,46 @@ export async function propagateCashBalances(outletId: string, startDate: Date) {
     currentOpeningCash = closing;
   }
 }
+
+/**
+ * Automatically syncs billed sales and closing cash for a daily settlement if one exists on a given date,
+ * and propagates updated balances forward.
+ */
+export async function syncSettlementForDate(outletId: string, date: Date) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const dateStr = `${yyyy}-${mm}-${dd}`;
+  const settlementDate = new Date(`${dateStr}T00:00:00.000Z`);
+
+  const settlement = await prisma.dailySettlement.findUnique({
+    where: {
+      outletId_settlementDate: {
+        outletId,
+        settlementDate,
+      },
+    },
+  });
+
+  if (settlement && settlement.status === "active") {
+    const billedSales = await getBilledSalesForDate(outletId, dateStr);
+    
+    const closingCash = settlement.openingCash
+      .plus(settlement.actualCash)
+      .minus(settlement.cashExpense)
+      .minus(settlement.cashWithdraw);
+
+    await prisma.dailySettlement.update({
+      where: { id: settlement.id },
+      data: {
+        billedCash: billedSales.billedCash,
+        billedUpi: billedSales.billedUpi,
+        billedCard: billedSales.billedCard,
+        closingCash,
+      },
+    });
+
+    await propagateCashBalances(outletId, settlementDate);
+  }
+}
+

@@ -21,14 +21,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     const billDate = new Date(bill.createdAt);
-    const today = new Date();
-    
-    const isSameDay = billDate.getFullYear() === today.getFullYear() &&
-                      billDate.getMonth() === today.getMonth() &&
-                      billDate.getDate() === today.getDate();
+    const now = new Date();
+    const diffMs = now.getTime() - billDate.getTime();
+    const isWithin24Hours = diffMs >= 0 && diffMs <= 24 * 60 * 60 * 1000;
                       
-    if (!isSameDay) {
-      return NextResponse.json({ error: { code: "BAD_REQUEST", message: "Cannot edit bills from previous days" } }, { status: 400 });
+    if (!isWithin24Hours) {
+      return NextResponse.json({ error: { code: "BAD_REQUEST", message: "Cannot edit bills created more than 24 hours ago" } }, { status: 400 });
     }
 
     // Wrap the reset logic in a transaction

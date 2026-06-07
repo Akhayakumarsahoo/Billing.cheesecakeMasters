@@ -199,12 +199,11 @@ export function OrdersClient({
     }
   };
 
-  const isSameDay = (dateStr: string) => {
+  const isWithin24Hours = (dateStr: string) => {
     const billDate = new Date(dateStr);
-    const today = new Date();
-    return billDate.getUTCFullYear() === today.getUTCFullYear() &&
-           billDate.getUTCMonth() === today.getUTCMonth() &&
-           billDate.getUTCDate() === today.getUTCDate();
+    const now = new Date();
+    const diffMs = now.getTime() - billDate.getTime();
+    return diffMs >= 0 && diffMs <= 24 * 60 * 60 * 1000;
   };
 
   return (
@@ -233,7 +232,7 @@ export function OrdersClient({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredBills.map((bill) => {
-            const isEditable = bill.status !== "cancelled" && isSameDay(bill.createdAt);
+            const isEditable = bill.status !== "cancelled" && isWithin24Hours(bill.createdAt);
             const isProcessingThis = isProcessing === bill.id;
 
             return (
@@ -424,7 +423,7 @@ export function OrdersClient({
               </div>
               
               <div className="flex flex-wrap gap-2 justify-end pt-2 border-t border-[var(--border-subtle)]">
-                {selectedBill.status !== "cancelled" && isSameDay(selectedBill.createdAt) && (
+                {selectedBill.status !== "cancelled" && isWithin24Hours(selectedBill.createdAt) && (
                   <>
                     <Button 
                       variant="outline" 

@@ -16,6 +16,7 @@ import {
   Receipt,
   SplitSquareHorizontal,
   Tag,
+  Edit2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -87,6 +88,7 @@ export function BillBuilder({
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const [isOpenItemOpen, setIsOpenItemOpen] = useState(false);
   const [editingBillId, setEditingBillId] = useState<string | null>(null);
+  const [editingCartItem, setEditingCartItem] = useState<CartItem | null>(null);
   const [isTotalsExpanded, setIsTotalsExpanded] = useState(false);
   const [isCustomerDetailsExpanded, setIsCustomerDetailsExpanded] =
     useState(false);
@@ -279,6 +281,34 @@ export function BillBuilder({
       isCustom: true,
     };
     addToCart(customItem);
+  };
+
+  const handleOpenItemClose = () => {
+    setIsOpenItemOpen(false);
+    setEditingCartItem(null);
+  };
+
+  const handleOpenItemAddOrEdit = (name: string, price: number, gstRate: number) => {
+    if (editingCartItem) {
+      setCart((prev) =>
+        prev.map((item) =>
+          item.menuItem.id === editingCartItem.menuItem.id
+            ? {
+                ...item,
+                menuItem: {
+                  ...item.menuItem,
+                  name,
+                  basePrice: price.toString(),
+                  gstSlab: { rate: gstRate.toString() },
+                },
+              }
+            : item
+        )
+      );
+      setEditingCartItem(null);
+    } else {
+      handleAddOpenItem(name, price, gstRate);
+    }
   };
 
   const handleComplete = async (
@@ -487,8 +517,20 @@ export function BillBuilder({
               className="bg-[var(--bg-surface)] p-3 rounded-lg border border-[var(--border-default)] flex items-start gap-2"
             >
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-[var(--text-primary)] truncate">
-                  {item.menuItem.name}
+                <div className="text-sm font-medium text-[var(--text-primary)] truncate flex items-center gap-1.5">
+                  <span className="truncate">{item.menuItem.name}</span>
+                  {item.menuItem.isCustom && (
+                    <button
+                      onClick={() => {
+                        setEditingCartItem(item);
+                        setIsOpenItemOpen(true);
+                      }}
+                      className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 rounded hover:bg-[var(--bg-hover)] flex-shrink-0"
+                      title="Edit open item name and price"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+                    </button>
+                  )}
                 </div>
                 <div className="text-xs font-mono text-[var(--text-secondary)] mt-0.5">
                   ₹{parseFloat(item.menuItem.basePrice).toFixed(2)} ×{" "}
@@ -760,8 +802,12 @@ export function BillBuilder({
 
       <OpenItemDialog
         isOpen={isOpenItemOpen}
-        onClose={() => setIsOpenItemOpen(false)}
-        onAdd={handleAddOpenItem}
+        onClose={handleOpenItemClose}
+        onAdd={handleOpenItemAddOrEdit}
+        initialName={editingCartItem?.menuItem.name}
+        initialPrice={editingCartItem ? parseFloat(editingCartItem.menuItem.basePrice) : undefined}
+        initialGstRate={editingCartItem ? parseFloat(editingCartItem.menuItem.gstSlab.rate) : undefined}
+        isEditing={!!editingCartItem}
       />
 
       <DiscountDialog

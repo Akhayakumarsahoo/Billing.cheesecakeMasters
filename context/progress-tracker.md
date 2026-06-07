@@ -13,6 +13,24 @@ change.
 
 ## Completed
 
+- **24-Hour Bill Edits and Open Item Modifications**
+  - Updated all time check logic (`checkout`, `cancel`, and `reset` API routes) to support a 24-hour window from bill creation for POS edits/cancellations.
+  - Implemented backend item modification route `PATCH /api/bills/[id]/items/[itemId]` to permit Admins to edit open item names and prices on printed bills.
+  - Added transaction-safe totals recalculation logic (re-applying discounts and round-offs) and automatic proportional payment scaling to prevent payment mismatches.
+  - Created automatic daily settlement recalculation and balance propagation trigger `syncSettlementForDate` inside `lib/settlement.ts`.
+  - Added name and price editing functionality for open items in the POS builder cart, updating `<OpenItemDialog>` to accept initial states and support edit mode.
+  - Integrated open item edits on the Admin dashboard's order details view modal (`admin-orders-client.tsx`), showing an edit trigger next to custom items.
+  - Verified project builds cleanly (`npm run build`) and type checks with zero errors.
+
+- **Scalability and Concurrency Optimizations for 100+ Outlets**
+  - Added a persistent `sequenceIndex` auto-incrementing integer column to the `Outlet` model in the PostgreSQL database and updated `prisma/schema.prisma`.
+  - Updated `generateBillNumber` in `lib/bill-number.ts` to fetch the specific outlet's `sequenceIndex` from the database. This guarantees a stable, immutable, and persistent bill prefix (`OTL1`, `OTL2`, etc.) independent of outlet activation status, eliminating sequential numbering shifts and avoiding querying all active outlets for every invoice.
+  - Refactored global dashboard metrics in `app/(admin-manager)/dashboard/page.tsx` to run database-level aggregations (`prisma.bill.aggregate` and `prisma.billPayment.groupBy`) instead of loading thousands of bills and payments into memory, resolving memory exhaustion (OOM) risk.
+  - Refactored consolidated cash box balance calculation to query only the latest active daily settlement per outlet using a single raw SQL `DISTINCT ON ("outletId")` PostgreSQL query, avoiding table scanning all settlements in memory.
+  - Optimized individual outlet detail dashboards in `app/(admin-manager)/outlets/[id]/page.tsx` and cashier sales summary page in `app/pos/sales/page.tsx` to utilize database-level aggregations (`prisma.bill.aggregate` and `prisma.billPayment.groupBy`), eliminating memory overhead.
+  - Configured PostgreSQL driver connection pool limit to `max: 2` in `lib/db.ts` to prevent database connection exhaustion under heavy concurrent traffic in serverless deployment environments.
+  - Verified compilation (`npx tsc --noEmit`) and client generation (`npx prisma generate`) execute with zero errors.
+
 - **Implement Billing Discounts Feature**
   - Added discount fields (`discount`, `discountType`, `discountReason`, and `discountValue`) to the `Bill` model in `schema.prisma` and successfully synced with the live PostgreSQL database.
   - Extended request validation in `lib/validators/index.ts` to accept optional discount properties during POS checkouts and same-day order modifications.

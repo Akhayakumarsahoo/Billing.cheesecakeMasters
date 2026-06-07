@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentOutlet, getCurrentUser, getLoggedInUser } from "@/lib/auth";
+import { syncSettlementForDate } from "@/lib/settlement";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -39,17 +40,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     const billDate = new Date(bill.createdAt);
-    const today = new Date();
-    
-    const isSameDay = billDate.getFullYear() === today.getFullYear() &&
-                      billDate.getMonth() === today.getMonth() &&
-                      billDate.getDate() === today.getDate();
+    const now = new Date();
+    const diffMs = now.getTime() - billDate.getTime();
+    const isWithin24Hours = diffMs >= 0 && diffMs <= 24 * 60 * 60 * 1000;
                       
     const isAdmin = user?.role === "admin";
                       
-    if (!isSameDay && !isAdmin) {
+    if (!isWithin24Hours && !isAdmin) {
       return NextResponse.json(
-        { error: { code: "BAD_REQUEST", message: "Cannot cancel bills from previous days" } }, 
+        { error: { code: "BAD_REQUEST", message: "Cannot cancel bills created more than 24 hours ago" } }, 
         { status: 400 }
       );
     }
@@ -71,6 +70,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         modifiedById: loggedInUser?.id ?? null,
       },
     });
+
+    if (updatedBill.completedAt) {
+      await syncSettlementForDate(updatedBill.outletId, updatedBill.completedAt);
+    }
 
     return NextResponse.json({ data: updatedBill });
   } catch (error: any) {

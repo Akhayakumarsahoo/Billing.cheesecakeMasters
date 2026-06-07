@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { CheckoutBillSchema } from "@/lib/validators";
 import { computeLineItem, computeBillTotals } from "@/lib/gst";
 import { generateBillNumber } from "@/lib/bill-number";
+import { syncSettlementForDate } from "@/lib/settlement";
 import { NextResponse } from "next/server";
 import { Decimal } from "@/lib/db";
 
@@ -184,11 +185,10 @@ export async function POST(req: Request) {
         }
 
         const billDate = new Date(bill.createdAt);
-        const today = new Date();
-        const isSameDay = billDate.getFullYear() === today.getFullYear() &&
-                          billDate.getMonth() === today.getMonth() &&
-                          billDate.getDate() === today.getDate();
-        if (!isSameDay) {
+        const now = new Date();
+        const diffMs = now.getTime() - billDate.getTime();
+        const isWithin24Hours = diffMs >= 0 && diffMs <= 24 * 60 * 60 * 1000;
+        if (!isWithin24Hours) {
           throw new Error("PAST_DAY_EDIT_FORBIDDEN");
         }
 
@@ -292,6 +292,10 @@ export async function POST(req: Request) {
       timeout: 10000,
     });
 
+    if (finalBill && finalBill.completedAt) {
+      await syncSettlementForDate(finalBill.outletId, finalBill.completedAt);
+    }
+
     if (!finalBill) {
       return NextResponse.json(
         { error: { code: "INTERNAL_ERROR", message: "Failed to load finalized bill" } },
@@ -345,7 +349,7 @@ export async function POST(req: Request) {
       }
       if (error.message === "PAST_DAY_EDIT_FORBIDDEN") {
         return NextResponse.json(
-          { error: { code: "BAD_REQUEST", message: "Cannot edit bills from previous days" } },
+          { error: { code: "BAD_REQUEST", message: "Cannot edit bills created more than 24 hours ago" } },
           { status: 400 }
         );
       }

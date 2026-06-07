@@ -1,6 +1,6 @@
 "use client";
-
-import { useState } from "react";
+ 
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,14 +11,30 @@ export function OpenItemDialog({
   isOpen,
   onClose,
   onAdd,
+  initialName = "",
+  initialPrice,
+  initialGstRate,
+  isEditing = false,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (name: string, price: number, gstRate: number) => void;
+  initialName?: string;
+  initialPrice?: number;
+  initialGstRate?: number;
+  isEditing?: boolean;
 }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [gstRate, setGstRate] = useState("0");
+
+  useEffect(() => {
+    if (isOpen) {
+      setName(initialName);
+      setPrice(initialPrice !== undefined && initialPrice !== null ? initialPrice.toString() : "");
+      setGstRate(initialGstRate !== undefined && initialGstRate !== null ? initialGstRate.toString() : "0");
+    }
+  }, [isOpen, initialName, initialPrice, initialGstRate]);
 
   const handleAdd = () => {
     if (!name.trim()) return;
@@ -36,8 +52,10 @@ export function OpenItemDialog({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[425px] bg-[var(--bg-surface)]">
         <DialogHeader>
-          <DialogTitle>Add Open Item</DialogTitle>
-          <DialogDescription className="hidden">Add a custom item to the bill.</DialogDescription>
+          <DialogTitle>{isEditing ? "Edit Open Item" : "Add Open Item"}</DialogTitle>
+          <DialogDescription className="hidden">
+            {isEditing ? "Edit a custom item's details." : "Add a custom item to the bill."}
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
@@ -81,7 +99,7 @@ export function OpenItemDialog({
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleAdd} className="bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary-hover)]" disabled={!name.trim() || !price}>
-            Add Item
+            {isEditing ? "Save Changes" : "Add Item"}
           </Button>
         </DialogFooter>
       </DialogContent>

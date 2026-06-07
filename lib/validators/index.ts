@@ -100,7 +100,15 @@ export const AddLineItemSchema = z.object({
 }, { message: "Must provide either menuItemId or (itemName, basePrice, gstRate) for custom items." });
 
 export const UpdateLineItemSchema = z.object({
-  quantity: z.number().positive(),
+  quantity: z.number().positive().optional(),
+  itemName: z.string().min(1).max(150).optional(),
+  basePrice: z.number().nonnegative().optional(),
+  payments: z.array(
+    z.object({
+      mode: z.enum(["cash", "upi", "card", "online"]),
+      amount: z.number().positive(),
+    })
+  ).optional(),
 });
 
 export const CompleteBillSchema = z.object({

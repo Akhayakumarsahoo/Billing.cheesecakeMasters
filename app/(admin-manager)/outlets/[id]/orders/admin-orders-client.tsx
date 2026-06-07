@@ -7,8 +7,9 @@ import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DateRangeFilter } from "@/components/date-range-filter";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { OrderCardsSkeleton } from "@/components/ui-skeletons";
+import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
@@ -28,6 +29,15 @@ type SerializedLineItem = {
   unit: string;
   basePrice: string;
   gstRate: string;
+  menuItem?: {
+    id: string;
+    name: string;
+    sku: string | null;
+    basePrice: string;
+    unit: string;
+    categoryId: string;
+    gstSlab: { rate: string };
+  };
 };
 
 type SerializedBill = {
@@ -95,6 +105,53 @@ export function AdminOrdersClient({
   const [isEditingPayment, setIsEditingPayment] = useState(false);
   const [paymentBreakdown, setPaymentBreakdown] = useState<{mode: string, amount: string}[]>([]);
 
+  // Edit Open Item State
+  const [editingOpenItem, setEditingOpenItem] = useState<SerializedLineItem | null>(null);
+  const [editItemName, setEditItemName] = useState("");
+  const [editItemPrice, setEditItemPrice] = useState("");
+  const [pendingItemEdit, setPendingItemEdit] = useState<{ itemId: string; itemName: string; basePrice: string } | null>(null);
+
+  const recalculateBillTotals = (
+    lineItems: SerializedLineItem[],
+    discountType: string | null,
+    discountValueStr: string | null
+  ) => {
+    let subtotal = 0;
+    lineItems.forEach((item) => {
+      subtotal += parseFloat(item.basePrice) * parseFloat(item.quantity);
+    });
+
+    let discountAmount = 0;
+    if (discountType && discountValueStr) {
+      const val = parseFloat(discountValueStr);
+      if (discountType === "percentage") {
+        discountAmount = subtotal * (val / 100);
+      } else {
+        discountAmount = val;
+      }
+    }
+
+    const discountRatio = subtotal > 0 ? discountAmount / subtotal : 0;
+
+    let gstAmount = 0;
+    lineItems.forEach((item) => {
+      const lineBaseTotal = parseFloat(item.basePrice) * parseFloat(item.quantity);
+      const discountedLineBaseTotal = lineBaseTotal * (1 - discountRatio);
+      const lineGst = discountedLineBaseTotal * (parseFloat(item.gstRate) / 100);
+      gstAmount += lineGst;
+    });
+
+    const rawTotal = (subtotal - discountAmount) + gstAmount;
+    const grandTotal = Math.max(0, Math.round(rawTotal));
+    
+    return {
+      subtotal: subtotal.toFixed(2),
+      totalGst: gstAmount.toFixed(2),
+      discount: discountAmount.toFixed(2),
+      grandTotal: grandTotal.toFixed(2)
+    };
+  };
+
   const filteredBills = bills.filter(bill => 
     bill.billNumber.toLowerCase().includes(search.toLowerCase())
   );
@@ -155,34 +212,138 @@ export function AdminOrdersClient({
 
     setIsProcessing(selectedBill.id);
     try {
-      // Filter out zero amounts
       const payload = paymentBreakdown
         .map(p => ({ mode: p.mode, amount: parseFloat(p.amount) }))
         .filter(p => p.amount > 0);
 
-      const res = await fetch(`/api/bills/${selectedBill.id}/payment`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payments: payload })
-      });
+      if (pendingItemEdit) {
+        // Submit both the open item edit and new payments
+        const res = await fetch(`/api/bills/${selectedBill.id}/items/${pendingItemEdit.itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itemName: pendingItemEdit.itemName,
+            basePrice: parseFloat(pendingItemEdit.basePrice),
+            payments: payload,
+          })
+        });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to edit payments");
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error?.message || "Failed to update item and payments");
+        }
+
+        toast.success("Open item and payment modes updated successfully");
+        setPendingItemEdit(null);
+      } else {
+        // Standard payment breakdown update
+        const res = await fetch(`/api/bills/${selectedBill.id}/payment`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ payments: payload })
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Failed to edit payments");
+        }
+
+        toast.success("Payments updated successfully");
       }
-
-      toast.success("Payments updated successfully");
       
-      const newPaymentsStr = payload.map(p => ({ mode: p.mode, amount: p.amount.toString() }));
-
-      setBills(prev => prev.map(b => b.id === selectedBill.id ? { ...b, payments: newPaymentsStr } : b));
-      setSelectedBill(prev => prev?.id === selectedBill.id ? { ...prev, payments: newPaymentsStr } : prev);
       setIsEditingPayment(false);
+      setSelectedBill(null);
       router.refresh();
     } catch (err: any) {
-      toast.error(err.message || "Failed to edit payments");
+      toast.error(err.message || "Failed to save changes");
     } finally {
       setIsProcessing(null);
+    }
+  };
+
+  const startEditingOpenItem = (item: SerializedLineItem) => {
+    setEditingOpenItem(item);
+    setEditItemName(item.itemName);
+    setEditItemPrice(item.basePrice);
+  };
+
+  const saveOpenItemChanges = async () => {
+    if (!selectedBill || !editingOpenItem) return;
+
+    const updatedLineItems = selectedBill.lineItems.map(li => {
+      if (li.id === editingOpenItem.id) {
+        return {
+          ...li,
+          itemName: editItemName.trim(),
+          basePrice: editItemPrice,
+        };
+      }
+      return li;
+    });
+
+    const newTotals = recalculateBillTotals(updatedLineItems, selectedBill.discountType, selectedBill.discountValue);
+    const hasPriceChanged = Math.abs(parseFloat(newTotals.grandTotal) - parseFloat(selectedBill.grandTotal)) > 0.01;
+
+    if (hasPriceChanged) {
+      // Temporarily update UI state of selectedBill
+      const newBillState = {
+        ...selectedBill,
+        lineItems: updatedLineItems,
+        subtotal: newTotals.subtotal,
+        totalGst: newTotals.totalGst,
+        discount: newTotals.discount,
+        grandTotal: newTotals.grandTotal,
+      };
+      setSelectedBill(newBillState);
+
+      // Prefill payment breakdown inputs from current payments
+      const modes = ["cash", "upi", "card", "online"];
+      const breakdown = modes.map(mode => {
+        const existing = newBillState.payments.find(p => p.mode.toLowerCase() === mode);
+        return {
+          mode,
+          amount: existing ? existing.amount : "0"
+        };
+      });
+      setPaymentBreakdown(breakdown);
+
+      // Save pending state of item edits to commit with payments
+      setPendingItemEdit({
+        itemId: editingOpenItem.id,
+        itemName: editItemName.trim(),
+        basePrice: editItemPrice,
+      });
+
+      setEditingOpenItem(null);
+      setIsEditingPayment(true);
+      toast.info(`Grand total changed to ₹${parseFloat(newTotals.grandTotal).toFixed(2)}. Please adjust payment modes.`);
+    } else {
+      // Save directly since price didn't change
+      setIsProcessing(selectedBill.id);
+      try {
+        const res = await fetch(`/api/bills/${selectedBill.id}/items/${editingOpenItem.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itemName: editItemName.trim(),
+            basePrice: parseFloat(editItemPrice),
+          })
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error?.message || "Failed to update item");
+        }
+
+        toast.success("Open item name updated successfully");
+        setEditingOpenItem(null);
+        setSelectedBill(null);
+        router.refresh();
+      } catch (err: any) {
+        toast.error(err.message || "Failed to update item");
+      } finally {
+        setIsProcessing(null);
+      }
     }
   };
 
@@ -305,6 +466,7 @@ export function AdminOrdersClient({
           if (!open) {
             setSelectedBill(null);
             setIsEditingPayment(false);
+            setPendingItemEdit(null);
           }
         }}>
           <DialogContent className="max-w-md bg-[var(--bg-surface)] p-0 gap-0 overflow-hidden rounded-xl border-[var(--border-default)]">
@@ -364,7 +526,21 @@ export function AdminOrdersClient({
                     {selectedBill.lineItems.map(item => (
                       <div key={item.id} className="p-3 border-b border-[var(--border-subtle)] last:border-0 flex justify-between">
                         <div>
-                          <div className="text-sm font-medium text-[var(--text-primary)]">{item.itemName}</div>
+                          <div className="text-sm font-medium text-[var(--text-primary)] flex items-center gap-1.5">
+                            <span>{item.itemName}</span>
+                            {role === "admin" && selectedBill.status === "printed" && !item.menuItem && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditingOpenItem(item);
+                                }}
+                                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 rounded hover:bg-[var(--bg-hover)] flex-shrink-0"
+                                title="Edit open item name and price"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+                              </button>
+                            )}
+                          </div>
                           <div className="text-xs text-[var(--text-secondary)] mt-0.5">
                             {item.quantity} {item.unit} × ₹{item.basePrice}
                           </div>
@@ -470,7 +646,12 @@ export function AdminOrdersClient({
                   <>
                     <Button 
                       variant="outline" 
-                      onClick={() => setIsEditingPayment(false)}
+                      onClick={() => {
+                        setIsEditingPayment(false);
+                        setPendingItemEdit(null);
+                        setSelectedBill(null);
+                        router.refresh();
+                      }}
                       disabled={isProcessing !== null}
                     >
                       Cancel
@@ -495,13 +676,56 @@ export function AdminOrdersClient({
                   <Button 
                     variant="default" 
                     className="bg-[var(--text-primary)] text-[var(--bg-surface)] hover:bg-[var(--text-secondary)] ml-auto"
-                    onClick={() => setSelectedBill(null)}
+                    onClick={() => {
+                      setSelectedBill(null);
+                      setPendingItemEdit(null);
+                    }}
                   >
                     Okay
                   </Button>
                 )}
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {editingOpenItem && (
+        <Dialog open={!!editingOpenItem} onOpenChange={(open) => !open && setEditingOpenItem(null)}>
+          <DialogContent className="sm:max-w-[425px] bg-[var(--bg-surface)]">
+            <DialogHeader>
+              <DialogTitle>Edit Open Item</DialogTitle>
+              <DialogDescription className="hidden">Modify the custom open item's name and price.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Item Name</Label>
+                <Input 
+                  value={editItemName}
+                  onChange={(e) => setEditItemName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Price (₹)</Label>
+                <Input 
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editItemPrice}
+                  onChange={(e) => setEditItemPrice(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingOpenItem(null)}>Cancel</Button>
+              <Button 
+                onClick={saveOpenItemChanges} 
+                className="bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary-hover)]"
+                disabled={isProcessing !== null || !editItemName.trim() || !editItemPrice}
+              >
+                {isProcessing === selectedBill?.id ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
