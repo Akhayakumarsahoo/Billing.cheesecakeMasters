@@ -154,3 +154,10 @@ export const CreateSettlementSchema = z.object({
 
 export const UpdateSettlementSchema = CreateSettlementSchema.partial();
 
+// ── Walkaways ──────────────────────────────────────────────
+export const CreateWalkawaySchema = z.object({
+  reason: z.string().min(1).max(200),
+  customReason: z.string().max(500).optional().nullable(),
+});
+
+

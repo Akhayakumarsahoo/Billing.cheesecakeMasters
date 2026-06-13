@@ -5,6 +5,7 @@ import {
   Info,
   Wallet,
   Tag,
+  UserX,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -137,6 +138,54 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     else if (mode === "online") paymentBuckets.online = sum;
   }
 
+  // 2.1 Fetch Walkaway metrics
+  const walkawayCount = await prisma.walkaway.count({
+    where: {
+      createdAt: { gte: start, lte: end },
+    },
+  });
+
+  const walkawayReasons = await prisma.walkaway.groupBy({
+    by: ["reason"],
+    where: {
+      createdAt: { gte: start, lte: end },
+    },
+    _count: { id: true },
+  });
+
+  const reasonStats = {
+    "Price too high": 0,
+    "Desired item/flavor out of stock": 0,
+    "Long waiting time": 0,
+    "Bad customer service": 0,
+    "Just exploring/browsing": 0,
+    "Other": 0,
+  } as Record<string, number>;
+
+  for (const wr of walkawayReasons) {
+    if (wr.reason in reasonStats) {
+      reasonStats[wr.reason] = wr._count.id;
+    } else {
+      reasonStats["Other"] += wr._count.id;
+    }
+  }
+
+  const outletWalkaways = await prisma.walkaway.groupBy({
+    by: ["outletId"],
+    where: {
+      createdAt: { gte: start, lte: end },
+    },
+    _count: { id: true },
+  });
+
+  const walkawayMap: Record<string, number> = {};
+  for (const o of outlets) {
+    walkawayMap[o.id] = 0;
+  }
+  for (const ow of outletWalkaways) {
+    walkawayMap[ow.outletId] = ow._count.id;
+  }
+
   // 3. Fetch outlet-level grouping
   const outletGroups = await prisma.bill.groupBy({
     by: ["outletId"],
@@ -163,6 +212,7 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       revenue: Decimal;
       discount: Decimal;
       gstTotal: Decimal;
+      walkawayCount: number;
     }
   > = {};
 
@@ -174,6 +224,7 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       revenue: new Decimal(0),
       discount: new Decimal(0),
       gstTotal: new Decimal(0),
+      walkawayCount: walkawayMap[o.id] || 0,
     };
   }
 
@@ -192,7 +243,7 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     <>
 
       {/* Summary Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <StatCard
           icon={IndianRupee}
           label="Total Revenue"
@@ -223,32 +274,60 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
           value={`₹${formatINR(totalCashboxBalance.toNumber())}`}
           subtext="Consolidated cash in hand"
         />
+        <StatCard
+          icon={UserX}
+          label="Total Walkaways"
+          value={walkawayCount}
+          subtext="No purchase customers"
+        />
       </div>
 
-      {/* Payment Breakdown */}
-      <div className="mb-8">
-        <h2 className="text-lg font-medium text-[var(--text-primary)] mb-4">
-          Payment Breakdown
-        </h2>
-        <Card className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm max-w-md">
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              {[
-                { label: "Cash", value: paymentBuckets.cash },
-                { label: "Card", value: paymentBuckets.card },
-                { label: "UPI", value: paymentBuckets.upi },
-                { label: "Online (Delivery)", value: paymentBuckets.online },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex justify-between items-center">
-                  <span className="text-[var(--text-secondary)] font-medium">{label}</span>
-                  <span className="font-mono text-[var(--text-primary)]">
-                    ₹ {value.toLocaleString("en-IN")}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Breakdown grids */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div>
+          <h2 className="text-lg font-medium text-[var(--text-primary)] mb-4">
+            Payment Breakdown
+          </h2>
+          <Card className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm">
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {[
+                  { label: "Cash", value: paymentBuckets.cash },
+                  { label: "Card", value: paymentBuckets.card },
+                  { label: "UPI", value: paymentBuckets.upi },
+                  { label: "Online (Delivery)", value: paymentBuckets.online },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)] font-medium">{label}</span>
+                    <span className="font-mono text-[var(--text-primary)]">
+                      ₹ {value.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-medium text-[var(--text-primary)] mb-4">
+            Customer Walkaways Breakdown
+          </h2>
+          <Card className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm">
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {Object.entries(reasonStats).map(([label, value]) => (
+                  <div key={label} className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)] font-medium">{label}</span>
+                    <span className="font-mono text-[var(--text-primary)]">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Sales by Outlet Table */}
@@ -260,7 +339,7 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-[var(--border-default)]">
-                {["Outlet", "Bills", "Revenue", "Discount", "GST Total", "Cash Box"].map(
+                {["Outlet", "Bills", "Revenue", "Discount", "GST Total", "Cash Box", "Walkaways"].map(
                   (heading, i) => (
                     <TableHead
                       key={heading}
@@ -278,7 +357,7 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
               {outletStatsList.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="text-center py-8 text-[var(--text-muted)]"
                   >
                     No sales data found for the selected date range.
@@ -310,6 +389,9 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
                       <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
                         ₹{formatINR(cashboxMap[stat.id]?.toNumber() || 0)}
                       </TableCell>
+                      <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
+                        {stat.walkawayCount}
+                      </TableCell>
                     </ClickableRow>
                   ))}
 
@@ -332,6 +414,9 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
                     </TableCell>
                     <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right">
                       ₹{formatINR(outletStatsList.reduce((s, o) => s + (cashboxMap[o.id]?.toNumber() || 0), 0))}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right">
+                      {outletStatsList.reduce((s, o) => s + o.walkawayCount, 0)}
                     </TableCell>
                   </TableRow>
                 </>

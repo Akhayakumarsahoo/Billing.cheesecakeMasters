@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Receipt, Edit2, XCircle, CreditCard, Save, Info } from "lucide-react";
+import { Search, Receipt, Edit2, XCircle, CreditCard, Save, Info, Footprints } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -75,6 +75,7 @@ export function AdminOrdersClient({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { id: outletId } = useParams() as { id: string };
   const [bills, setBills] = useState(initialBills);
   const [search, setSearch] = useState("");
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
@@ -365,6 +366,14 @@ export function AdminOrdersClient({
             />
           </div>
           <DateRangeFilter />
+          <Button
+            variant="outline"
+            className="flex items-center gap-2 h-10 rounded-lg text-sm font-medium border-[var(--border-default)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-raised)] whitespace-nowrap"
+            onClick={() => router.push(`/outlets/${outletId}/walkaways`)}
+          >
+            <Footprints className="h-4 w-4 text-[var(--text-secondary)]" strokeWidth={1.5} />
+            <span>Walkaway Logs</span>
+          </Button>
         </div>
       </div>
 

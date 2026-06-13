@@ -50,6 +50,7 @@ model Outlet {
   bills          Bill[]
   billSequence   BillSequence?
   dailySettlements DailySettlement[]
+  walkaways        Walkaway[]
 
   @@map("outlets")
 }
@@ -323,4 +324,23 @@ model DailySettlement {
   @@unique([outletId, settlementDate])
   @@map("daily_settlements")
 }
+
+// ─────────────────────────────────────────
+// WALKWAYS
+// One row per customer walkaway.
+// ─────────────────────────────────────────
+
+model Walkaway {
+  id             String   @id @default(uuid())
+  outletId       String
+  outlet         Outlet   @relation(fields: [outletId], references: [id])
+  reason         String   // E.g., "Price too high", "Item unavailable", "Long wait time", "Bad customer service", "Just exploring", "Other"
+  customReason   String?  // Specific details if "Other" is chosen
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  createdByEmail String?
+
+  @@map("walkaways")
+}
+
 

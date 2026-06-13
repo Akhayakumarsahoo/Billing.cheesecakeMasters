@@ -1,8 +1,9 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function StatCardsSkeleton({ count = 4 }: { count?: number }) {
+  const lgColsClass = count === 6 ? "lg:grid-cols-3" : "lg:grid-cols-4";
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-${count} gap-4 mb-8`}>
+    <div className={`grid grid-cols-1 md:grid-cols-2 ${lgColsClass} gap-4 mb-8`}>
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
@@ -60,7 +61,7 @@ export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: nu
 export function DashboardSkeleton() {
   return (
     <div>
-      <StatCardsSkeleton count={4} />
+      <StatCardsSkeleton count={6} />
       <PaymentBreakdownSkeleton />
       <div className="mb-8">
         <Skeleton className="h-6 w-40 mb-4" />
@@ -73,7 +74,7 @@ export function DashboardSkeleton() {
 export function OutletDashboardSkeleton() {
   return (
     <div>
-      <StatCardsSkeleton count={4} />
+      <StatCardsSkeleton count={6} />
       <PaymentBreakdownSkeleton />
     </div>
   );

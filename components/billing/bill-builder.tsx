@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { PaymentDialog } from "./payment-dialog";
 import { OpenItemDialog } from "./open-item-dialog";
 import { DiscountDialog } from "./discount-dialog";
+import { WalkawayDialog } from "./walkaway-dialog";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -97,6 +98,7 @@ export function BillBuilder({
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [discountReason, setDiscountReason] = useState<string>("");
   const [isDiscountOpen, setIsDiscountOpen] = useState(false);
+  const [isWalkawayOpen, setIsWalkawayOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const [selectedPaymentMode, setSelectedPaymentMode] = useState<string>("cash");
@@ -372,6 +374,30 @@ export function BillBuilder({
     }
   };
 
+  const handleWalkawayConfirm = async (reason: string, customReason?: string) => {
+    const res = await fetch("/api/walkaways", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason, customReason }),
+    });
+
+    const result = await res.json();
+    if (!res.ok) {
+      throw new Error(result.error?.message || "Failed to log walkaway");
+    }
+
+    toast.success("Walkaway logged successfully");
+    setCart([]);
+    setCustomerName("");
+    setCustomerPhone("");
+    setEditingBillId(null);
+    setSelectedPaymentMode("cash");
+    setSplitAmounts({ cash: "", upi: "", card: "", online: "" });
+    setDiscountType(null);
+    setDiscountValue(0);
+    setDiscountReason("");
+  };
+
   const handlePaymentModeChange = (modeId: string) => {
     setSelectedPaymentMode(modeId);
     if (modeId === "part_payment") {
@@ -444,19 +470,32 @@ export function BillBuilder({
                 <UserPlus className="w-4 h-4" />
               </Button>
             )}
-            <Button
-              variant={discountType ? "default" : "outline"}
-              size="sm"
-              className={discountType ? "bg-[var(--state-success-border)] hover:bg-[var(--state-success-border)]/90 text-white border-0" : ""}
-              onClick={() => {
-                setIsCartDrawerOpen(false);
-                setTimeout(() => setIsDiscountOpen(true), 50);
-              }}
-              disabled={cart.length === 0}
-            >
-              <Tag className="w-3.5 h-3.5 mr-1" strokeWidth={1.5} />
-              {discountType ? `Discount (-₹${totals.discountAmount.toFixed(0)})` : "Discount"}
-            </Button>
+            {cart.length > 0 ? (
+              <Button
+                variant={discountType ? "default" : "outline"}
+                size="sm"
+                className={discountType ? "bg-[var(--state-success-border)] hover:bg-[var(--state-success-border)]/90 text-white border-0" : ""}
+                onClick={() => {
+                  setIsCartDrawerOpen(false);
+                  setTimeout(() => setIsDiscountOpen(true), 50);
+                }}
+              >
+                <Tag className="w-3.5 h-3.5 mr-1" strokeWidth={1.5} />
+                {discountType ? `Discount (-₹${totals.discountAmount.toFixed(0)})` : "Discount"}
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-[var(--state-error-text)] border-[var(--state-error-border)] hover:bg-[var(--state-error-bg)]"
+                onClick={() => {
+                  setIsCartDrawerOpen(false);
+                  setTimeout(() => setIsWalkawayOpen(true), 50);
+                }}
+              >
+                Log Walkaway
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -822,6 +861,12 @@ export function BillBuilder({
           setDiscountValue(val);
           setDiscountReason(reason);
         }}
+      />
+
+      <WalkawayDialog
+        isOpen={isWalkawayOpen}
+        onClose={() => setIsWalkawayOpen(false)}
+        onConfirm={handleWalkawayConfirm}
       />
     </div>
   );

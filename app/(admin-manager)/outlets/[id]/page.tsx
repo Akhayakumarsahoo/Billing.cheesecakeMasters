@@ -1,4 +1,4 @@
-import { IndianRupee, Percent, Receipt, Info, Wallet, Tag } from "lucide-react";
+import { IndianRupee, Percent, Receipt, Info, Wallet, Tag, UserX } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { Decimal } from "@/lib/db";
@@ -115,6 +115,40 @@ async function OutletDashboardContent({
     else if (mode === "online") paymentBuckets.online = sum;
   }
 
+  // 2.1 Fetch Walkaway metrics for this outlet
+  const walkawayCount = await prisma.walkaway.count({
+    where: {
+      outletId: id,
+      createdAt: { gte: start, lte: end },
+    },
+  });
+
+  const walkawayReasons = await prisma.walkaway.groupBy({
+    by: ["reason"],
+    where: {
+      outletId: id,
+      createdAt: { gte: start, lte: end },
+    },
+    _count: { id: true },
+  });
+
+  const reasonStats = {
+    "Price too high": 0,
+    "Desired item/flavor out of stock": 0,
+    "Long waiting time": 0,
+    "Bad customer service": 0,
+    "Just exploring/browsing": 0,
+    "Other": 0,
+  } as Record<string, number>;
+
+  for (const wr of walkawayReasons) {
+    if (wr.reason in reasonStats) {
+      reasonStats[wr.reason] = wr._count.id;
+    } else {
+      reasonStats["Other"] += wr._count.id;
+    }
+  }
+
   // Fetch latest active settlement closing cash balance
   const latestActiveSettlement = await prisma.dailySettlement.findFirst({
     where: { outletId: id, status: "active" },
@@ -126,7 +160,7 @@ async function OutletDashboardContent({
     <>
 
       {/* Summary Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <StatCard
           icon={IndianRupee}
           label="Total Revenue"
@@ -157,34 +191,62 @@ async function OutletDashboardContent({
           value={`₹${formatINR(currentCashBoxBalance)}`}
           subtext="Current drawer balance"
         />
+        <StatCard
+          icon={UserX}
+          label="Total Walkaways"
+          value={walkawayCount}
+          subtext="No purchase customers"
+        />
       </div>
 
-      {/* Payment Breakdown */}
-      <div className="mb-8">
-        <h2 className="text-lg font-medium text-[var(--text-primary)] mb-4">
-          Payment Breakdown
-        </h2>
-        <Card className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm max-w-md">
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              {[
-                { label: "Cash", value: paymentBuckets.cash },
-                { label: "Card", value: paymentBuckets.card },
-                { label: "UPI", value: paymentBuckets.upi },
-                { label: "Online (Delivery)", value: paymentBuckets.online },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex justify-between items-center">
-                  <span className="text-[var(--text-secondary)] font-medium">
-                    {label}
-                  </span>
-                  <span className="font-mono text-[var(--text-primary)]">
-                    ₹ {value.toLocaleString("en-IN")}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Breakdown grids */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div>
+          <h2 className="text-lg font-medium text-[var(--text-primary)] mb-4">
+            Payment Breakdown
+          </h2>
+          <Card className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm">
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {[
+                  { label: "Cash", value: paymentBuckets.cash },
+                  { label: "Card", value: paymentBuckets.card },
+                  { label: "UPI", value: paymentBuckets.upi },
+                  { label: "Online (Delivery)", value: paymentBuckets.online },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)] font-medium">
+                      {label}
+                    </span>
+                    <span className="font-mono text-[var(--text-primary)]">
+                      ₹ {value.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-medium text-[var(--text-primary)] mb-4">
+            Customer Walkaways Breakdown
+          </h2>
+          <Card className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm">
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {Object.entries(reasonStats).map(([label, value]) => (
+                  <div key={label} className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)] font-medium">{label}</span>
+                    <span className="font-mono text-[var(--text-primary)]">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </>
   );

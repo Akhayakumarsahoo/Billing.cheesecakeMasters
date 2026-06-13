@@ -12,6 +12,7 @@ import {
   Settings,
   ListOrdered,
   Coins,
+  BarChart3,
 } from "lucide-react";
 import {
   Sidebar,
@@ -60,11 +61,16 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
   const isMenuActive = isSpecificOutlet && pathname?.endsWith("/menu");
   const isOrdersActive = isSpecificOutlet && pathname?.endsWith("/orders");
   const isSettlementsActive = isSpecificOutlet && pathname?.includes("/settlements");
-  const isDashboardActive = pathname === "/" || (isSpecificOutlet && !isMenuActive && !isOrdersActive && !isSettlementsActive);
+  const isReportsActive = pathname?.endsWith("/reports");
+  const isDashboardActive = (pathname === "/" || (isSpecificOutlet && !isMenuActive && !isOrdersActive && !isSettlementsActive)) && !isReportsActive;
 
   const dashboardHref = currentOutletId && currentOutletId !== "all" 
     ? `/outlets/${currentOutletId}` 
     : "/dashboard";
+
+  const reportsHref = currentOutletId && currentOutletId !== "all"
+    ? `/outlets/${currentOutletId}/reports`
+    : "/reports";
 
   return (
     <Sidebar collapsible="icon">
@@ -117,6 +123,13 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
                   )}
                 </>
               )}
+
+              <SidebarMenuItem>
+                <SidebarMenuButton render={<Link href={reportsHref} />} isActive={isReportsActive} tooltip="Reports">
+                  <BarChart3 />
+                  <span>Reports</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {role === "admin" && (
                 <>

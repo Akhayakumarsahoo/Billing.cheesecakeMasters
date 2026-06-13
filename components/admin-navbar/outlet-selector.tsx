@@ -53,7 +53,11 @@ export function OutletSelector({ outlets }: OutletSelectorProps) {
       localStorage.removeItem("selectedOutletId");
       window.dispatchEvent(new Event("local-storage"));
       if (pathname?.startsWith("/outlets/") && pathname !== "/outlets") {
-        router.push("/dashboard");
+        if (pathname.endsWith("/reports")) {
+          router.push("/reports");
+        } else {
+          router.push("/dashboard");
+        }
       }
     } else {
       localStorage.setItem("selectedOutletId", val);
@@ -64,6 +68,8 @@ export function OutletSelector({ outlets }: OutletSelectorProps) {
         router.push(parts.join("/"));
       } else if (pathname === "/dashboard" || pathname === "/") {
         router.push(`/outlets/${val}`);
+      } else if (pathname === "/reports") {
+        router.push(`/outlets/${val}/reports`);
       }
     }
   };

@@ -2,7 +2,7 @@ import { getCurrentOutlet } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Decimal } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
-import { Receipt, Percent, Coins, Info, Tag } from "lucide-react";
+import { Receipt, Percent, Coins, Info, Tag, UserX } from "lucide-react";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import {
   Tooltip,
@@ -104,48 +104,115 @@ async function SalesContent({
     else if (mode === "online") paymentBuckets.online = sum;
   }
 
+  // Fetch Walkaway metrics for this outlet
+  const walkawayCount = await prisma.walkaway.count({
+    where: {
+      outletId: outlet.id,
+      createdAt: { gte: start, lte: end },
+    },
+  });
+
+  const walkawayReasons = await prisma.walkaway.groupBy({
+    by: ["reason"],
+    where: {
+      outletId: outlet.id,
+      createdAt: { gte: start, lte: end },
+    },
+    _count: { id: true },
+  });
+
+  const reasonStats = {
+    "Price too high": 0,
+    "Desired item/flavor out of stock": 0,
+    "Long waiting time": 0,
+    "Bad customer service": 0,
+    "Just exploring/browsing": 0,
+    "Other": 0,
+  } as Record<string, number>;
+
+  for (const wr of walkawayReasons) {
+    if (wr.reason in reasonStats) {
+      reasonStats[wr.reason] = wr._count.id;
+    } else {
+      reasonStats["Other"] += wr._count.id;
+    }
+  }
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-        {/* Total Sales + Payment Breakdown Card */}
-        <Card className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm col-span-1">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Coins className="h-5 w-5 text-[#2563eb]" strokeWidth={2} />
-              <span className="font-medium text-[var(--text-primary)]">
-                Total Sales
-              </span>
-            </div>
-            <div className="text-4xl font-bold font-mono text-[var(--text-primary)] mb-6">
-              ₹ {totalRevenue.toNumber().toLocaleString("en-IN", {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2,
-              })}
-            </div>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left/Middle Columns: Sales and Walkaway Breakdowns */}
+        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Total Sales + Payment Breakdown Card */}
+          <Card className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Coins className="h-5 w-5 text-[#2563eb]" strokeWidth={2} />
+                <span className="font-medium text-[var(--text-primary)]">
+                  Total Sales
+                </span>
+              </div>
+              <div className="text-4xl font-bold font-mono text-[var(--text-primary)] mb-6">
+                ₹ {totalRevenue.toNumber().toLocaleString("en-IN", {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 2,
+                })}
+              </div>
 
-            <div className="border-t border-[var(--border-subtle)] my-4" />
+              <div className="border-t border-[var(--border-subtle)] my-4" />
 
-            <div className="space-y-4 pt-2">
-              {[
-                { label: "Cash", value: paymentBuckets.cash },
-                { label: "Card", value: paymentBuckets.card },
-                { label: "UPI", value: paymentBuckets.upi },
-                { label: "Online (Delivery)", value: paymentBuckets.online },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex justify-between items-center">
-                  <span className="text-[var(--text-secondary)] font-medium">
-                    {label}
-                  </span>
-                  <span className="font-mono text-[var(--text-primary)]">
-                    ₹ {value.toLocaleString("en-IN")}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              <div className="space-y-4 pt-2">
+                {[
+                  { label: "Cash", value: paymentBuckets.cash },
+                  { label: "Card", value: paymentBuckets.card },
+                  { label: "UPI", value: paymentBuckets.upi },
+                  { label: "Online (Delivery)", value: paymentBuckets.online },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)] font-medium">
+                      {label}
+                    </span>
+                    <span className="font-mono text-[var(--text-primary)]">
+                      ₹ {value.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Bills count + GST cards */}
-        <div className="col-span-1 md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Customer Walkaways Breakdown Card */}
+          <Card className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <UserX className="h-5 w-5 text-[#dc2626]" strokeWidth={1.5} />
+                <span className="font-medium text-[var(--text-primary)]">
+                  Walkaway Reasons
+                </span>
+              </div>
+              <div className="text-4xl font-bold font-mono text-[var(--text-primary)] mb-6">
+                {walkawayCount}
+              </div>
+
+              <div className="border-t border-[var(--border-subtle)] my-4" />
+
+              <div className="space-y-4 pt-2">
+                {Object.entries(reasonStats).map(([label, value]) => (
+                  <div key={label} className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)] font-medium">
+                      {label}
+                    </span>
+                    <span className="font-mono text-[var(--text-primary)]">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column: Stat Cards Grid */}
+        <div className="lg:col-span-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <StatCard
             icon={Receipt}
             label="Bills Generated"
@@ -160,6 +227,11 @@ async function SalesContent({
             icon={Tag}
             label="Total Discount"
             value={`₹${totalDiscount.toFixed(2)}`}
+          />
+          <StatCard
+            icon={UserX}
+            label="Walkaways Logged"
+            value={walkawayCount}
           />
         </div>
       </div>

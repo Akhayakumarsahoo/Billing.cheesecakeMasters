@@ -18,14 +18,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { formatINR } from "@/lib/utils";
 
 interface SummaryData {
@@ -65,11 +57,13 @@ export function SettlementFormClient({
   const [isFetchingSummary, setIsFetchingSummary] = useState(false);
 
   // Form Fields
-  const [actualCash, setActualCash] = useState<string>(initialFormValues?.actualCash || "0");
-  const [actualUpi, setActualUpi] = useState<string>(initialFormValues?.actualUpi || "0");
-  const [actualCard, setActualCard] = useState<string>(initialFormValues?.actualCard || "0");
-  const [cashExpense, setCashExpense] = useState<string>(initialFormValues?.cashExpense || "0");
-  const [cashWithdraw, setCashWithdraw] = useState<string>(initialFormValues?.cashWithdraw || "0");
+  const [actualCash, setActualCash] = useState<string>(initialFormValues?.actualCash || "");
+  const [actualUpi, setActualUpi] = useState<string>(initialFormValues?.actualUpi || "");
+  const [actualCard, setActualCard] = useState<string>(initialFormValues?.actualCard || "");
+  const [cashExpense, setCashExpense] = useState<string>(initialFormValues?.cashExpense || "");
+  const [cashWithdraw, setCashWithdraw] = useState<string>(initialFormValues?.cashWithdraw || "");
+
+  const [closingCashInput, setClosingCashInput] = useState<string>("");
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -99,10 +93,15 @@ export function SettlementFormClient({
     fetchSummary();
   }, [date, isEdit, initialSummary.settlementDate]);
 
+  const safeParse = (val: string): number => {
+    const parsed = parseFloat(val);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   // Compute differences
   const getDifference = (actual: string, billed: string) => {
-    const act = parseFloat(actual || "0");
-    const bil = parseFloat(billed || "0");
+    const act = safeParse(actual);
+    const bil = safeParse(billed);
     return act - bil;
   };
 
@@ -111,19 +110,68 @@ export function SettlementFormClient({
   const cardDiff = getDifference(actualCard, summary.billedCard);
 
   // Compute Closing Cash
-  const opening = parseFloat(summary.openingCash || "0");
-  const actCashNum = parseFloat(actualCash || "0");
-  const expense = parseFloat(cashExpense || "0");
-  const withdraw = parseFloat(cashWithdraw || "0");
+  const opening = safeParse(summary.openingCash);
+  const actCashNum = safeParse(actualCash);
+  const expense = safeParse(cashExpense);
+  const withdraw = safeParse(cashWithdraw);
   const closingCash = opening + actCashNum - expense - withdraw;
+
+  // Synchronize closingCashInput when summary openingCash changes
+  useEffect(() => {
+    const openingVal = safeParse(summary.openingCash);
+    const actCashVal = safeParse(actualCash);
+    const expVal = safeParse(cashExpense);
+    const wthVal = safeParse(cashWithdraw);
+    setClosingCashInput((openingVal + actCashVal - expVal - wthVal).toString());
+  }, [summary.openingCash]);
 
   const handleInputChange = (
     value: string,
     setter: (val: string) => void
   ) => {
-    // Basic sanitization to allow only positive numbers or empty string
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
       setter(value);
+    }
+  };
+
+  // Synchronized inputs handlers
+  const handleActualCashChange = (val: string) => {
+    if (val === "" || /^-?\d*\.?\d*$/.test(val)) {
+      setActualCash(val);
+      const actNum = safeParse(val);
+      const newClosing = opening + actNum - expense - withdraw;
+      setClosingCashInput(newClosing.toString());
+    }
+  };
+
+  const handleExpenseChange = (val: string) => {
+    if (val === "" || /^\d*\.?\d*$/.test(val)) {
+      setCashExpense(val);
+      const expNum = safeParse(val);
+      const newClosing = opening + actCashNum - expNum - withdraw;
+      setClosingCashInput(newClosing.toString());
+    }
+  };
+
+  const handleWithdrawChange = (val: string) => {
+    if (val === "" || /^\d*\.?\d*$/.test(val)) {
+      setCashWithdraw(val);
+      const wthNum = safeParse(val);
+      const newClosing = opening + actCashNum - expense - wthNum;
+      setClosingCashInput(newClosing.toString());
+    }
+  };
+
+  const handleClosingCashChange = (val: string) => {
+    if (val === "" || /^-?\d*\.?\d*$/.test(val)) {
+      setClosingCashInput(val);
+      if (val === "") {
+        setActualCash("");
+        return;
+      }
+      const closingNum = safeParse(val);
+      const newActual = closingNum - opening + expense + withdraw;
+      setActualCash(newActual.toString());
     }
   };
 
@@ -133,13 +181,45 @@ export function SettlementFormClient({
     setError(null);
     setSuccess(null);
 
+    const parsedActualCash = parseFloat(actualCash || "0");
+    const parsedActualUpi = parseFloat(actualUpi || "0");
+    const parsedActualCard = parseFloat(actualCard || "0");
+    const parsedCashExpense = parseFloat(cashExpense || "0");
+    const parsedCashWithdraw = parseFloat(cashWithdraw || "0");
+
+    if (parsedActualCash < 0) {
+      setError("Actual Cash Received cannot be negative. Please adjust the Estimated Closing Balance or Cash Box Operations.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (parsedActualUpi < 0) {
+      setError("Actual UPI Received cannot be negative.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (parsedActualCard < 0) {
+      setError("Actual Card Received cannot be negative.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (parsedCashExpense < 0) {
+      setError("Cash Expense cannot be negative.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (parsedCashWithdraw < 0) {
+      setError("Cash Withdrawal / Remittance cannot be negative.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload = {
       settlementDate: date,
-      actualCash: parseFloat(actualCash || "0"),
-      actualUpi: parseFloat(actualUpi || "0"),
-      actualCard: parseFloat(actualCard || "0"),
-      cashExpense: parseFloat(cashExpense || "0"),
-      cashWithdraw: parseFloat(cashWithdraw || "0"),
+      actualCash: parsedActualCash,
+      actualUpi: parsedActualUpi,
+      actualCard: parsedActualCard,
+      cashExpense: parsedCashExpense,
+      cashWithdraw: parsedCashWithdraw,
     };
 
     try {
@@ -183,7 +263,7 @@ export function SettlementFormClient({
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
+    <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6 animate-in fade-in duration-300">
       {/* Back Header */}
       <div className="flex items-center gap-3">
         <Link
@@ -225,19 +305,18 @@ export function SettlementFormClient({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column — Config & Form Inputs */}
-        <div className="lg:col-span-7 space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
           <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl">
             <CardContent className="p-6 space-y-4">
-              <h2 className="text-base font-medium text-[var(--text-primary)] mb-2 flex items-center gap-2">
-                <Calendar className="h-4 w-4" strokeWidth={1.5} />
-                Settlement Period & Drawer
+              <h2 className="text-base font-medium text-[var(--text-primary)] mb-2 flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
+                <Wallet className="h-5 w-5 text-[var(--text-secondary)]" strokeWidth={1.5} />
+                Cash Drawer & Operations
               </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="settlementDate" className="text-sm text-[var(--text-secondary)]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
+                {/* Row 1: Settlement Date */}
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="settlementDate" className="text-sm text-[var(--text-secondary)] font-medium">
                     Settlement Date
                   </Label>
                   <Input
@@ -247,34 +326,25 @@ export function SettlementFormClient({
                     disabled={true}
                     onChange={(e) => setDate(e.target.value)}
                     max={new Date().toISOString().split("T")[0]}
-                    className="font-mono bg-[var(--bg-surface-raised)] border-[var(--border-default)]"
+                    className="font-mono h-10 bg-[var(--bg-surface-raised)] border-[var(--border-default)] cursor-not-allowed"
                   />
                 </div>
 
+                {/* Separator */}
+                <div className="sm:col-span-2 border-t border-[var(--border-subtle)] my-1" />
+
+                {/* Row 2: Opening Cash Balance & Actual Cash Received */}
                 <div className="space-y-2">
-                  <Label className="text-sm text-[var(--text-secondary)]">
+                  <Label className="text-sm text-[var(--text-secondary)] font-medium">
                     Opening Cash Balance
                   </Label>
                   <div className="h-10 px-3 flex items-center font-mono text-sm bg-[var(--bg-surface-raised)] border border-[var(--border-default)] rounded-md text-[var(--text-primary)]">
                     ₹ {formatINR(opening)}
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl">
-            <CardContent className="p-6 space-y-4">
-              <h2 className="text-base font-medium text-[var(--text-primary)] mb-2">
-                Actual Sales Receipts
-              </h2>
-              <p className="text-xs text-[var(--text-secondary)] -mt-2">
-                Enter the physical counts and payment statement figures received today.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="actualCash" className="text-sm text-[var(--text-primary)]">
+                  <Label htmlFor="actualCash" className="text-sm text-[var(--text-primary)] font-medium">
                     Actual Cash Received (₹)
                   </Label>
                   <Input
@@ -283,14 +353,19 @@ export function SettlementFormClient({
                     inputMode="decimal"
                     value={actualCash}
                     disabled={isSubmitting}
-                    onChange={(e) => handleInputChange(e.target.value, setActualCash)}
-                    className="font-mono text-sm bg-white border-[var(--border-default)]"
+                    onChange={(e) => handleActualCashChange(e.target.value)}
+                    className="font-mono text-sm h-10 bg-white border-[var(--border-default)]"
                     placeholder="0.00"
                   />
+                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] mt-1 px-1">
+                    <span>Billed: <strong className="font-mono text-[var(--text-primary)]">₹{formatINR(parseFloat(summary.billedCash))}</strong></span>
+                    <span>Diff: <span className={`${diffColorClass(cashDiff)} font-mono`}>{cashDiff !== 0 && diffSymbol(cashDiff)}₹{formatINR(cashDiff)}</span></span>
+                  </div>
                 </div>
 
+                {/* Row 3: Actual UPI Received & Actual Card Received */}
                 <div className="space-y-2">
-                  <Label htmlFor="actualUpi" className="text-sm text-[var(--text-primary)]">
+                  <Label htmlFor="actualUpi" className="text-sm text-[var(--text-primary)] font-medium">
                     Actual UPI Received (₹)
                   </Label>
                   <Input
@@ -300,13 +375,17 @@ export function SettlementFormClient({
                     value={actualUpi}
                     disabled={isSubmitting}
                     onChange={(e) => handleInputChange(e.target.value, setActualUpi)}
-                    className="font-mono text-sm bg-white border-[var(--border-default)]"
+                    className="font-mono text-sm h-10 bg-white border-[var(--border-default)]"
                     placeholder="0.00"
                   />
+                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] mt-1 px-1">
+                    <span>Billed: <strong className="font-mono text-[var(--text-primary)]">₹{formatINR(parseFloat(summary.billedUpi))}</strong></span>
+                    <span>Diff: <span className={`${diffColorClass(upiDiff)} font-mono`}>{upiDiff !== 0 && diffSymbol(upiDiff)}₹{formatINR(upiDiff)}</span></span>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="actualCard" className="text-sm text-[var(--text-primary)]">
+                  <Label htmlFor="actualCard" className="text-sm text-[var(--text-primary)] font-medium">
                     Actual Card Received (₹)
                   </Label>
                   <Input
@@ -316,26 +395,21 @@ export function SettlementFormClient({
                     value={actualCard}
                     disabled={isSubmitting}
                     onChange={(e) => handleInputChange(e.target.value, setActualCard)}
-                    className="font-mono text-sm bg-white border-[var(--border-default)]"
+                    className="font-mono text-sm h-10 bg-white border-[var(--border-default)]"
                     placeholder="0.00"
                   />
+                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] mt-1 px-1">
+                    <span>Billed: <strong className="font-mono text-[var(--text-primary)]">₹{formatINR(parseFloat(summary.billedCard))}</strong></span>
+                    <span>Diff: <span className={`${diffColorClass(cardDiff)} font-mono`}>{cardDiff !== 0 && diffSymbol(cardDiff)}₹{formatINR(cardDiff)}</span></span>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl">
-            <CardContent className="p-6 space-y-4">
-              <h2 className="text-base font-medium text-[var(--text-primary)] mb-2">
-                Cash Box Operations
-              </h2>
-              <p className="text-xs text-[var(--text-secondary)] -mt-2">
-                Log cash expenditures or remittances/withdrawals taken directly from the drawer today.
-              </p>
+                {/* Separator */}
+                <div className="sm:col-span-2 border-t border-[var(--border-subtle)] my-1" />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Row 4: Cash Expense & Cash Withdrawal */}
                 <div className="space-y-2">
-                  <Label htmlFor="cashExpense" className="text-sm text-[var(--text-primary)]">
+                  <Label htmlFor="cashExpense" className="text-sm text-[var(--text-primary)] font-medium">
                     Cash Expense (₹)
                   </Label>
                   <Input
@@ -344,14 +418,15 @@ export function SettlementFormClient({
                     inputMode="decimal"
                     value={cashExpense}
                     disabled={isSubmitting}
-                    onChange={(e) => handleInputChange(e.target.value, setCashExpense)}
-                    className="font-mono text-sm bg-white border-[var(--border-default)] text-[var(--state-error-text)]"
+                    onChange={(e) => handleExpenseChange(e.target.value)}
+                    className="font-mono text-sm h-10 bg-white border-[var(--border-default)] text-[var(--state-error-text)]"
                     placeholder="0.00"
                   />
+                  <p className="text-[11px] text-[var(--text-muted)] px-1">Log any cash expenditures paid directly from the drawer.</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="cashWithdraw" className="text-sm text-[var(--text-primary)]">
+                  <Label htmlFor="cashWithdraw" className="text-sm text-[var(--text-primary)] font-medium">
                     Cash Withdrawal / Remittance (₹)
                   </Label>
                   <Input
@@ -360,113 +435,52 @@ export function SettlementFormClient({
                     inputMode="decimal"
                     value={cashWithdraw}
                     disabled={isSubmitting}
-                    onChange={(e) => handleInputChange(e.target.value, setCashWithdraw)}
-                    className="font-mono text-sm bg-white border-[var(--border-default)] text-[var(--text-secondary)]"
+                    onChange={(e) => handleWithdrawChange(e.target.value)}
+                    className="font-mono text-sm h-10 bg-white border-[var(--border-default)] text-[var(--text-secondary)]"
+                    placeholder="0.00"
+                  />
+                  <p className="text-[11px] text-[var(--text-muted)] px-1">Log any cash removed for deposit, remittance, or bank transfer.</p>
+                </div>
+
+                {/* Separator */}
+                <div className="sm:col-span-2 border-t border-[var(--border-subtle)] my-1" />
+
+                {/* Row 5: Estimated Closing Balance */}
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="closingCash" className="text-sm font-semibold text-[var(--text-primary)]">
+                    Estimated Closing Balance (₹)
+                  </Label>
+                  <Input
+                    id="closingCash"
+                    type="text"
+                    inputMode="decimal"
+                    value={closingCashInput}
+                    disabled={isSubmitting}
+                    onChange={(e) => handleClosingCashChange(e.target.value)}
+                    className="font-mono text-sm h-10 bg-white border-[var(--border-default)] font-bold text-lg"
                     placeholder="0.00"
                   />
                 </div>
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Right Column — Reconciliation Comparative Table & Live Balances */}
-        <div className="lg:col-span-5 space-y-6">
-          <Card className={`bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl overflow-hidden transition-opacity ${isFetchingSummary ? "opacity-50 pointer-events-none" : ""}`}>
-            <div className="p-5 border-b border-[var(--border-default)] bg-[var(--bg-surface-raised)] flex items-center justify-between">
-              <span className="font-medium text-[var(--text-primary)]">Reconciliation Difference</span>
-              <span className="font-mono text-xs text-[var(--text-secondary)] bg-[var(--bg-hover)] px-2 py-0.5 rounded border border-[var(--border-default)]">
-                {date}
-              </span>
-            </div>
-
-            <div className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="font-medium text-xs">Payment Mode</TableHead>
-                    <TableHead className="font-medium text-xs text-right">Billed</TableHead>
-                    <TableHead className="font-medium text-xs text-right">Actual</TableHead>
-                    <TableHead className="font-medium text-xs text-right">Difference</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {[
-                    { mode: "Cash", billed: summary.billedCash, actual: actualCash, diff: cashDiff },
-                    { mode: "UPI", billed: summary.billedUpi, actual: actualUpi, diff: upiDiff },
-                    { mode: "Card", billed: summary.billedCard, actual: actualCard, diff: cardDiff },
-                  ].map((row) => (
-                    <TableRow key={row.mode}>
-                      <TableCell className="font-medium text-xs text-[var(--text-primary)]">
-                        {row.mode}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-right text-[var(--text-secondary)]">
-                        ₹{formatINR(parseFloat(row.billed))}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-right text-[var(--text-primary)]">
-                        ₹{formatINR(parseFloat(row.actual || "0"))}
-                      </TableCell>
-                      <TableCell className={`font-mono text-xs text-right ${diffColorClass(row.diff)}`}>
-                        {row.diff !== 0 && diffSymbol(row.diff)}₹{formatINR(row.diff)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </Card>
-
-          {/* Running Balance Card */}
-          <Card className={`bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl ${isFetchingSummary ? "opacity-50" : ""}`}>
-            <CardContent className="p-6 space-y-6">
-              <h2 className="text-base font-medium text-[var(--text-primary)] flex items-center gap-2">
-                <Wallet className="h-4 w-4" strokeWidth={1.5} />
-                Closing Cash Preview
-              </h2>
-
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between items-center text-[var(--text-secondary)]">
-                  <span>Opening Cash:</span>
-                  <span className="font-mono">₹{formatINR(opening)}</span>
-                </div>
-                <div className="flex justify-between items-center text-[var(--text-secondary)]">
-                  <span>(+) Actual Cash Received:</span>
-                  <span className="font-mono text-[var(--text-primary)]">₹{formatINR(actCashNum)}</span>
-                </div>
-                <div className="flex justify-between items-center text-[var(--text-secondary)]">
-                  <span>(−) Cash Expenditure:</span>
-                  <span className="font-mono text-[var(--state-error-text)]">₹{formatINR(expense)}</span>
-                </div>
-                <div className="flex justify-between items-center text-[var(--text-secondary)]">
-                  <span>(−) Cash Remitted / Withdrawn:</span>
-                  <span className="font-mono">₹{formatINR(withdraw)}</span>
-                </div>
-
-                <div className="border-t border-[var(--border-default)] pt-4 mt-2 flex justify-between items-center text-[var(--text-primary)] font-medium">
-                  <span className="text-sm">Estimated Closing Balance:</span>
-                  <span className="font-mono text-xl font-bold">
-                    ₹{formatINR(closingCash)}
-                  </span>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                disabled={isSubmitting || isFetchingSummary || (summary.exists && !isEdit)}
-                className="w-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white h-12 rounded-lg text-sm font-medium flex justify-center items-center gap-2 mt-4"
-              >
-                <Save className="h-4 w-4" strokeWidth={1.5} />
-                {isSubmitting
-                  ? "Saving Settlement..."
-                  : isEdit
-                  ? "Save Modified Settlement"
-                  : summary.exists
-                  ? "Settlement Already Exists"
-                  : "Save Settlement"}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+          <div className="pt-2">
+            <Button
+              type="submit"
+              disabled={isSubmitting || isFetchingSummary || (summary.exists && !isEdit)}
+              className="w-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white h-12 rounded-lg text-sm font-medium flex justify-center items-center gap-2"
+            >
+              <Save className="h-4 w-4" strokeWidth={1.5} />
+              {isSubmitting
+                ? "Saving Settlement..."
+                : isEdit
+                ? "Save Modified Settlement"
+                : summary.exists
+                ? "Settlement Already Exists"
+                : "Save Settlement"}
+            </Button>
+          </div>
       </form>
     </div>
   );

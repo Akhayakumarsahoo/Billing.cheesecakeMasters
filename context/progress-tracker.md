@@ -13,6 +13,53 @@ change.
 
 ## Completed
 
+- **Walkaway Logs Management**
+  - Added the "Walkaway Logs" navigation button inside the header of [admin-orders-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/orders/admin-orders-client.tsx) routing to `/outlets/[id]/walkaways`.
+  - Implemented the `/outlets/[id]/walkaways` server page ([page.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/walkaways/page.tsx)) enforcing role check (admin/manager only), defaulting to today's local date redirect when search parameters are absent, and fetching and serializing logs.
+  - Created the dynamic client component [walkaways-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/walkaways/walkaways-client.tsx) displaying the logs audit table, search input, date range filters, deletion capabilities (directly deleting walkaway records from the database), and a popup edit modal matching the POS walkaway modal style.
+  - Confirmed successful compilation (`npx tsc --noEmit`) and Turbopack production build (`npm run build`).
+
+- **Daily Settlement Closing Cash Editing**
+  - Converted the static closing cash display label into an interactive `<Input>` inside the Closing Cash Preview layout card in both POS and Admin forms ([settlement-form-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/pos/settlement/new/settlement-form-client.tsx) and [admin-settlement-form-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/settlements/admin-settlement-form-client.tsx)).
+  - Restructured the daily settlement layout in both POS and Admin forms: consolidated all inputs into a single "Cash Drawer & Operations" Card, and transitioned to a clean, centered single-column form layout (`max-w-2xl mx-auto`) by removing the separate right-side "Reconciliation Difference" table card and its unused table components/imports. Arranged the fields sequentially: Settlement Date (full-width), Opening Cash Balance & Actual Cash Received (side-by-side on Row 2), Actual UPI & Actual Card (side-by-side on Row 3), Cash Expense & Cash Withdrawal (side-by-side on Row 4), and Estimated Closing Balance (full-width on Row 5) separated by horizontal dividing lines.
+  - Aligned all input heights to `h-10` and redesigned the billed sales and difference metrics display to show in a clean split horizontal footer row (`Billed: ₹X` | `Diff: ₹Y`) directly below their respective inputs (Actual Cash, UPI, Card), preventing text wrapping, squishing, and label misalignment.
+  - Implemented synchronized state `closingCashInput` and synchronized `onChange` handlers for `actualCash`, `cashExpense`, `cashWithdraw`, and `closingCashInput`.
+  - Calculated and updated the cashier's `actualCash` (today's cash) dynamically when estimated closing cash is modified, according to: `actualCash = closingCash - opening + expense + withdraw`, without modifying the expense or withdrawal amounts. Also ensured clearing actual cash, expenses, or withdrawals does not blank out the estimated closing cash, but instead correctly parses cleared inputs as 0 to recalculate closing cash balance.
+  - Initialized all input fields (Actual Cash, UPI, Card, Expenses, and Withdrawals) to empty strings `""` by default instead of pre-filling them with `"0"` when creating a new daily settlement.
+  - Allowed negative numbers to be typed temporarily inside the input regex to prevent inputs from freezing during derivation, using `safeParse` to prevent `NaN` values from propagating.
+  - Added client-side validation checks on submission to display clean warnings if calculated cash balances are negative, preventing invalid entries.
+  - Verified compilation (`npx tsc --noEmit`) and production build (`npm run build`) pass successfully.
+
+- **Menu Item Selector Text Display Fix**
+  - Resolved Base UI Select trigger displaying raw item UUID instead of the menu item's name inside [reports-client.tsx](file:///c:/Users/User/Desktop/billCCM/components/reports/reports-client.tsx) by explicitly computing and passing the selected item name (with SKU) as a child to the `<SelectValue>` component.
+
+- **Dashboard Layout Grid Optimization**
+  - Updated the metrics grid layout for both the global dashboard ([page.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/dashboard/page.tsx)) and the outlet-specific dashboard ([page.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/page.tsx)) to render in a 3-column layout (`lg:grid-cols-3` instead of `lg:grid-cols-6`).
+  - Solved text wrapping, metric truncation, and squishing of the 6 summary cards on desktop viewports.
+  - Adjusted `StatCardsSkeleton` in [ui-skeletons.tsx](file:///c:/Users/User/Desktop/billCCM/components/ui-skeletons.tsx) to use statically analysable columns (3-columns for 6 cards, 4-columns for 4 cards) so Tailwind CSS can compile them correctly.
+  - Aligned both `DashboardSkeleton` and `OutletDashboardSkeleton` counts to 6 to match the actual card list.
+
+- **Centralized Reports Page**
+  - Added "Reports" navigation link on the admin/manager left sidebar located below "Menu" / "Daily Settlement".
+  - Configured `OutletSelector` in [outlet-selector.tsx](file:///c:/Users/User/Desktop/billCCM/components/admin-navbar/outlet-selector.tsx) to handle transitions between `/reports` and `/outlets/[id]/reports` on outlet selection updates.
+  - Implemented `/reports` server route in [page.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/reports/page.tsx) grouping daily sales per active outlet in a day-by-day table, with a 31-day limit check.
+  - Implemented `/outlets/[id]/reports` server route in [page.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/reports/page.tsx) querying and serializing details for detailed item sales ranking, discounts, walkaways, and customer contacts logs.
+  - Created client-side `<ReportsClient>` UI component in [reports-client.tsx](file:///c:/Users/User/Desktop/billCCM/components/reports/reports-client.tsx) supporting:
+    - Day-by-day cross-tabulated sales table (HQ consolidated view) with a warning banner.
+    - Outlet item-wise sales stats (quantity, amount, avg rate) and ranking table sorted by quantity sold (high to low).
+    - Discount report log detailing billed subtotal, discount type/value/amount, grand total, and reason.
+    - Walkaway reason audit log with cashier emails.
+    - Customer directory log mapping contact numbers to bills.
+    - A detailed, read-only pop-up dialog modal for invoice receipt details accessible by clicking bill numbers.
+  - Verified successful compilation (`npx tsc --noEmit`) and successful Next.js production build (`npm run build`).
+
+- **Customer Walkaway Reason Logging**
+  - Added the `Walkaway` database model to Prisma schema representing customer walkaways, ran database migration, and generated the updated client types.
+  - Implemented backend API route `POST /api/walkaways` that enforces outlet authorization and logs the walkaway reason with the outlet's identifier and creator email.
+  - Created the `<WalkawayDialog>` frontend modal component featuring predefined options ("Price too high", "Desired item out of stock", "Long waiting time", etc.) and custom specify inputs.
+  - Integrated `<WalkawayDialog>` into `<BillBuilder>` client POS page with dynamic cart-state conditional visibility (hiding the "Discount" button when cart is empty and showing "Log Walkaway" button instead, which then resets cart and POS states on success).
+  - Updated the Admin sales dashboard, specific outlet details page, and cashier sales summary page to display "Total Walkaways" counters, reason breakdown charts, and table column groupings.
+
 - **24-Hour Bill Edits and Open Item Modifications**
   - Updated all time check logic (`checkout`, `cancel`, and `reset` API routes) to support a 24-hour window from bill creation for POS edits/cancellations.
   - Implemented backend item modification route `PATCH /api/bills/[id]/items/[itemId]` to permit Admins to edit open item names and prices on printed bills.
