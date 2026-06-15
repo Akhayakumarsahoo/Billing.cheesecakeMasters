@@ -141,6 +141,23 @@ export function DateRangeFilter() {
 
   const handleShortcutClick = (key: string, from: Date, to: Date) => {
     setDraft({ from, to });
+
+    const diffDays = Math.ceil(
+      (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (diffDays > 62) {
+      toast.error("Date range cannot exceed 62 days");
+      return;
+    }
+
+    setOpen(false);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("from", toLocalDateString(from));
+    params.set("to", toLocalDateString(to));
+    router.push(`${pathname}?${params.toString()}`);
+    router.refresh();
   };
 
   /* Apply the draft range and navigate */

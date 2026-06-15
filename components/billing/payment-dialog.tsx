@@ -22,7 +22,6 @@ export function PaymentDialog({
   onClose,
   grandTotal,
   onConfirm,
-  isProcessing,
   splitAmounts,
   setSplitAmounts,
 }: {
@@ -30,7 +29,6 @@ export function PaymentDialog({
   onClose: () => void;
   grandTotal: number;
   onConfirm: (payments: { mode: string; amount: number }[]) => void;
-  isProcessing: boolean;
   splitAmounts: Record<string, string>;
   setSplitAmounts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }) {
@@ -144,17 +142,16 @@ export function PaymentDialog({
           <Button 
             variant="outline" 
             onClick={onClose} 
-            disabled={isProcessing}
             className="w-full sm:w-auto"
           >
             Cancel
           </Button>
           <Button 
             onClick={handleConfirm} 
-            disabled={isProcessing || !isValid}
+            disabled={!isValid}
             className="w-full sm:w-auto bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary-hover)]"
           >
-            {isProcessing ? "Saving..." : "Save & Complete Bill"}
+            Save & Complete Bill
           </Button>
         </DialogFooter>
       </DialogContent>

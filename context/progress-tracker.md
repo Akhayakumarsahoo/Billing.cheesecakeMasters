@@ -13,6 +13,31 @@ change.
 
 ## Completed
 
+- **Cart Walkaway Button Removal**
+  - Removed the redundant "Log Walkaway" button from the active POS cart drawer header actions in [bill-builder.tsx](file:///c:/Users/User/Desktop/billCCM/components/billing/bill-builder.tsx), as it is now permanently accessible from the top-level POS panel.
+
+- **Daily Settlement Redirection Optimization**
+  - Updated both cashier [settlement-form-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/pos/settlement/new/settlement-form-client.tsx) and manager [admin-settlement-form-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/settlements/admin-settlement-form-client.tsx) daily settlement forms to immediately redirect to the settlements history list upon clicking "Save Settlement".
+  - Replaced the delayed local success alert block and `setTimeout` timer with a global success toast notification via `toast.success` from Sonner, removing unnecessary wait time for POS cashiers.
+  - Cleaned up unused lucide-react icon imports.
+
+- **POS Search Bar Removal and Shortcut Placement**
+  - Removed the search bar from the top of the main left POS panel inside [bill-builder.tsx](file:///c:/Users/User/Desktop/billCCM/components/billing/bill-builder.tsx).
+  - Positioned the "Log Walkaway" (walkway customer) and "Open Item" buttons side-by-side at the top of the POS left panel where the search bar was, providing immediate accessibility for common cashier operational actions.
+  - Removed the unused `search` state and refactored the item category filter list to skip search term evaluation, reducing re-renders.
+
+- **Date Range Filter Instant Apply**
+  - Updated the shared [date-range-filter.tsx](file:///c:/Users/User/Desktop/billCCM/components/date-range-filter.tsx) component to immediately apply the selected date range and navigate on clicking predefined date range shortcut buttons (Today, Yesterday, Last 7 days, etc.), bypassing the need to click "Apply" or "Confirm" manually.
+
+- **Background Bill Saving**
+  - Updated the billing checkout process inside [bill-builder.tsx](file:///c:/Users/User/Desktop/billCCM/components/billing/bill-builder.tsx) to execute checkout network requests in the background asynchronously.
+  - Implemented immediate client-side cart clearing and state resetting (including customer details, discounts, and payment methods) on clicking "Save Bill" or confirming payment, preventing cashiers from being blocked or delayed.
+  - Replaced the blocking overlay and button disable logic of `isProcessing`.
+  - Configured Sonner `toast.promise` to display non-blocking progress at the corner of the screen ("Saving bill in background..."), updating to success showing the saved bill number.
+  - Added an interactive **"Restore Cart"** action to the toast failure handler that recovers all cart items, discounts, customer info, and payment split configurations in the event of a network or server error, preventing any data loss.
+  - Removed the unused `isProcessing` state prop and button-disabling layout rules from [payment-dialog.tsx](file:///c:/Users/User/Desktop/billCCM/components/billing/payment-dialog.tsx).
+  - Verified successful compilation (`npx tsc --noEmit`) and production build (`npm run build`).
+
 - **Walkaway Logs Management**
   - Added the "Walkaway Logs" navigation button inside the header of [admin-orders-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/orders/admin-orders-client.tsx) routing to `/outlets/[id]/walkaways`.
   - Implemented the `/outlets/[id]/walkaways` server page ([page.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/walkaways/page.tsx)) enforcing role check (admin/manager only), defaulting to today's local date redirect when search parameters are absent, and fetching and serializing logs.

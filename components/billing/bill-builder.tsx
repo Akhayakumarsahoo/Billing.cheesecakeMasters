@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect } from "react";
 import {
-  Search,
   Plus,
   Minus,
   Trash2,
@@ -79,13 +78,11 @@ export function BillBuilder({
   menuItems: SerializedMenuItem[];
 }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const [isOpenItemOpen, setIsOpenItemOpen] = useState(false);
   const [editingBillId, setEditingBillId] = useState<string | null>(null);
@@ -157,14 +154,11 @@ export function BillBuilder({
 
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
-      const matchesSearch =
-        item.name.toLowerCase().includes(search.toLowerCase()) ||
-        (item.sku && item.sku.toLowerCase().includes(search.toLowerCase()));
       const matchesCategory =
         activeCategory === "all" || item.categoryId === activeCategory;
-      return matchesSearch && matchesCategory;
+      return matchesCategory;
     });
-  }, [menuItems, search, activeCategory]);
+  }, [menuItems, activeCategory]);
 
   const groupedItems = useMemo(() => {
     const groups: {
@@ -313,36 +307,58 @@ export function BillBuilder({
     }
   };
 
-  const handleComplete = async (
+  const handleComplete = (
     payments: { mode: string; amount: number }[],
   ) => {
     if (cart.length === 0) return;
-    setIsProcessing(true);
 
-    try {
-      const payload = {
-        editingBillId: editingBillId || undefined,
-        customerName: customerName || undefined,
-        customerPhone: customerPhone || undefined,
-        lineItems: cart.map((item) => {
-          return item.menuItem.isCustom
-            ? {
-                itemName: item.menuItem.name,
-                basePrice: parseFloat(item.menuItem.basePrice),
-                gstRate: parseFloat(item.menuItem.gstSlab.rate),
-                quantity: item.quantity,
-              }
-            : {
-                menuItemId: item.menuItem.id,
-                quantity: item.quantity,
-              };
-        }),
-        payments: payments.filter((p) => p.amount > 0),
-        discountType: discountType || undefined,
-        discountValue: discountValue > 0 ? discountValue : undefined,
-        discountReason: discountReason || undefined,
-      };
+    // Snapshot current state for background execution and potential restore
+    const backupCart = [...cart];
+    const backupCustomerName = customerName;
+    const backupCustomerPhone = customerPhone;
+    const backupEditingBillId = editingBillId;
+    const backupSelectedPaymentMode = selectedPaymentMode;
+    const backupSplitAmounts = { ...splitAmounts };
+    const backupDiscountType = discountType;
+    const backupDiscountValue = discountValue;
+    const backupDiscountReason = discountReason;
 
+    // Immediately reset UI state so cashier can service next customer without waiting
+    setCart([]);
+    setCustomerName("");
+    setCustomerPhone("");
+    setEditingBillId(null);
+    setIsPaymentOpen(false);
+    setSelectedPaymentMode("cash");
+    setSplitAmounts({ cash: "", upi: "", card: "", online: "" });
+    setDiscountType(null);
+    setDiscountValue(0);
+    setDiscountReason("");
+
+    const payload = {
+      editingBillId: backupEditingBillId || undefined,
+      customerName: backupCustomerName || undefined,
+      customerPhone: backupCustomerPhone || undefined,
+      lineItems: backupCart.map((item) => {
+        return item.menuItem.isCustom
+          ? {
+              itemName: item.menuItem.name,
+              basePrice: parseFloat(item.menuItem.basePrice),
+              gstRate: parseFloat(item.menuItem.gstSlab.rate),
+              quantity: item.quantity,
+            }
+          : {
+              menuItemId: item.menuItem.id,
+              quantity: item.quantity,
+            };
+      }),
+      payments: payments.filter((p) => p.amount > 0),
+      discountType: backupDiscountType || undefined,
+      discountValue: backupDiscountValue > 0 ? backupDiscountValue : undefined,
+      discountReason: backupDiscountReason || undefined,
+    };
+
+    const checkoutPromise = (async () => {
       const res = await fetch("/api/bills/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -353,25 +369,43 @@ export function BillBuilder({
       if (!res.ok) {
         throw new Error(result.error?.message || "Checkout failed");
       }
+      return result.data;
+    })();
 
-      toast.success("Bill completed successfully");
-      setCart([]);
-      setCustomerName("");
-      setCustomerPhone("");
-      setEditingBillId(null);
-      setIsPaymentOpen(false);
-      setSelectedPaymentMode("cash");
-      setSplitAmounts({ cash: "", upi: "", card: "", online: "" });
-      setDiscountType(null);
-      setDiscountValue(0);
-      setDiscountReason("");
-      
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      toast.error(msg || "Something went wrong while saving");
-    } finally {
-      setIsProcessing(false);
-    }
+    toast.promise(checkoutPromise, {
+      loading: "Saving bill in background...",
+      success: (data: any) => {
+        router.refresh();
+        return `Bill ${data.billNumber} saved successfully`;
+      },
+      error: (err: any) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        return (
+          <div className="flex flex-col gap-1.5">
+            <span className="font-semibold text-[var(--state-error-text)]">Failed to save bill</span>
+            <span className="text-xs text-[var(--text-secondary)]">{msg}</span>
+            <button
+              type="button"
+              className="mt-1 h-7 px-2.5 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-xs font-medium border border-[var(--border-default)] hover:border-[var(--border-strong)] text-[var(--text-primary)] transition-colors self-start cursor-pointer"
+              onClick={() => {
+                setCart(backupCart);
+                setCustomerName(backupCustomerName);
+                setCustomerPhone(backupCustomerPhone);
+                setEditingBillId(backupEditingBillId);
+                setSelectedPaymentMode(backupSelectedPaymentMode);
+                setSplitAmounts(backupSplitAmounts);
+                setDiscountType(backupDiscountType);
+                setDiscountValue(backupDiscountValue);
+                setDiscountReason(backupDiscountReason);
+                toast.info("Cart and inputs restored");
+              }}
+            >
+              Restore Cart
+            </button>
+          </div>
+        );
+      },
+    });
   };
 
   const handleWalkawayConfirm = async (reason: string, customReason?: string) => {
@@ -470,7 +504,7 @@ export function BillBuilder({
                 <UserPlus className="w-4 h-4" />
               </Button>
             )}
-            {cart.length > 0 ? (
+            {cart.length > 0 && (
               <Button
                 variant={discountType ? "default" : "outline"}
                 size="sm"
@@ -482,18 +516,6 @@ export function BillBuilder({
               >
                 <Tag className="w-3.5 h-3.5 mr-1" strokeWidth={1.5} />
                 {discountType ? `Discount (-₹${totals.discountAmount.toFixed(0)})` : "Discount"}
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-[var(--state-error-text)] border-[var(--state-error-border)] hover:bg-[var(--state-error-bg)]"
-                onClick={() => {
-                  setIsCartDrawerOpen(false);
-                  setTimeout(() => setIsWalkawayOpen(true), 50);
-                }}
-              >
-                Log Walkaway
               </Button>
             )}
             <Button
@@ -716,7 +738,7 @@ export function BillBuilder({
                 <button
                   key={mode.id}
                   type="button"
-                  disabled={cart.length === 0 || isProcessing}
+                  disabled={cart.length === 0}
                   onClick={() => handlePaymentModeChange(mode.id)}
                   className={`flex items-center gap-2 px-3 h-10 border rounded-lg text-xs font-medium transition-colors cursor-pointer select-none disabled:opacity-50 disabled:pointer-events-none ${
                     isSelected
@@ -737,10 +759,10 @@ export function BillBuilder({
 
         <Button
           className="w-full h-11 text-sm bg-accent-primary hover:bg-accent-primary-hover text-white rounded-lg font-medium"
-          disabled={cart.length === 0 || isProcessing}
+          disabled={cart.length === 0}
           onClick={handleSaveBill}
         >
-          {isProcessing ? "Saving..." : "Save Bill"}
+          Save Bill
         </Button>
       </div>
     </div>
@@ -751,14 +773,23 @@ export function BillBuilder({
       {/* Left Column: Menu Items */}
       <div className="flex-1 flex flex-col min-w-0 lg:border-r border-[var(--border-default)] relative">
         <div className="p-4 border-b border-[var(--border-default)] bg-[var(--bg-surface)] shrink-0">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
-            <Input
-              placeholder="Search items by name or SKU..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-12 rounded-lg bg-[var(--bg-surface)]"
-            />
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              type="button"
+              className="flex-1 h-12 text-sm text-[var(--state-error-text)] border-[var(--state-error-border)] hover:bg-[var(--state-error-bg)] hover:text-[var(--state-error-text)] rounded-lg font-medium"
+              onClick={() => setIsWalkawayOpen(true)}
+            >
+              Log Walkaway
+            </Button>
+            <Button
+              variant="outline"
+              type="button"
+              className="flex-1 h-12 text-sm border-[var(--border-default)] hover:bg-[var(--bg-hover)] rounded-lg font-medium"
+              onClick={() => setIsOpenItemOpen(true)}
+            >
+              Open Item
+            </Button>
           </div>
         </div>
 
@@ -830,14 +861,13 @@ export function BillBuilder({
       </div>
 
       <PaymentDialog
-        isOpen={isPaymentOpen}
-        onClose={() => setIsPaymentOpen(false)}
-        grandTotal={totals.grandTotal}
-        onConfirm={handleComplete}
-        isProcessing={isProcessing}
-        splitAmounts={splitAmounts}
-        setSplitAmounts={setSplitAmounts}
-      />
+          isOpen={isPaymentOpen}
+          onClose={() => setIsPaymentOpen(false)}
+          grandTotal={totals.grandTotal}
+          onConfirm={handleComplete}
+          splitAmounts={splitAmounts}
+          setSplitAmounts={setSplitAmounts}
+        />
 
       <OpenItemDialog
         isOpen={isOpenItemOpen}

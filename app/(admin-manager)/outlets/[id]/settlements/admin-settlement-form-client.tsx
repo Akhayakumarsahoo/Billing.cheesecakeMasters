@@ -6,17 +6,15 @@ import { useRouter } from "next/navigation";
 import {
   Wallet,
   ArrowLeft,
-  Calendar,
   Save,
-  Info,
   AlertCircle,
-  CheckCircle2,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatINR, getLocalDateString } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface SummaryData {
   settlementDate: string;
@@ -68,7 +66,6 @@ export function AdminSettlementFormClient({
   const [closingCashInput, setClosingCashInput] = useState<string>("");
 
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Date boundaries
@@ -189,7 +186,6 @@ export function AdminSettlementFormClient({
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
-    setSuccess(null);
 
     const parsedActualCash = parseFloat(actualCash || "0");
     const parsedActualUpi = parseFloat(actualUpi || "0");
@@ -249,12 +245,9 @@ export function AdminSettlementFormClient({
         throw new Error(json.error?.message || `Failed to ${isEdit ? "update" : "create"} settlement`);
       }
 
-      setSuccess(`Daily settlement for ${date} successfully saved.`);
+      toast.success(`Daily settlement for ${date} successfully saved.`);
+      router.push(`/outlets/${outletId}/settlements`);
       router.refresh();
-
-      setTimeout(() => {
-        router.push(`/outlets/${outletId}/settlements`);
-      }, 1500);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
       setIsSubmitting(false);
@@ -308,12 +301,7 @@ export function AdminSettlementFormClient({
         </div>
       )}
 
-      {success && (
-        <div className="bg-[var(--state-success-bg)] border border-[var(--state-success-border)] rounded-xl p-4 text-sm text-[var(--state-success-text)] flex items-start gap-3">
-          <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
-          <span>{success}</span>
-        </div>
-      )}
+
 
       <form onSubmit={handleSubmit} className="space-y-6">
           <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl">
