@@ -13,8 +13,20 @@ change.
 
 ## Completed
 
-- **Cart Walkaway Button Removal**
-  - Removed the redundant "Log Walkaway" button from the active POS cart drawer header actions in [bill-builder.tsx](file:///c:/Users/User/Desktop/billCCM/components/billing/bill-builder.tsx), as it is now permanently accessible from the top-level POS panel.
+- **Consolidated Dashboard Default Outlet Selection**
+  - Updated [outlet-selector.tsx](file:///c:/Users/User/Desktop/billCCM/components/admin-navbar/outlet-selector.tsx) to automatically reset the selected outlet to "All Outlets" (`all`) and clear any stored selections from `localStorage` when navigating to or landing on any global page (such as `/dashboard`, `/reports`, `/users`, etc.).
+  - This solves the issue where logging back in (which lands on the consolidated dashboard) would display a specific outlet name from a stale previous session.
+  - Verified successful type check compilation (`npx tsc --noEmit`).
+
+- **Daily Settlement History Short/Excess Symbols Refinement**
+  - Modified [settlement-history-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/pos/settlement/settlement-history-client.tsx) (POS) and [admin-settlement-history-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/settlements/admin-settlement-history-client.tsx) (Admin/Manager) to refine the Short/Excess column display.
+  - Implemented check (`Check`) or cross (`X`) symbols when the net mismatch difference is `0`:
+    - Shows a green checkmark icon when there is no difference in any payment method (Cash, UPI, Card).
+    - Shows a red cross icon and styles the text with `text-[var(--state-error-text)] font-semibold` when the net difference is zero but individual methods have offsetting discrepancies (e.g. +₹100 cash and -₹100 UPI).
+  - Verified successful compilation (`npx tsc --noEmit`) and successful Next.js production build (`npm run build`).
+
+- **Cart Action Buttons Cleanup**
+  - Removed the redundant "Log Walkaway" and "Open Item" buttons from the active POS cart drawer header actions in [bill-builder.tsx](file:///c:/Users/User/Desktop/billCCM/components/billing/bill-builder.tsx), as they are now permanently accessible from the top-level POS panel.
 
 - **Daily Settlement Redirection Optimization**
   - Updated both cashier [settlement-form-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/pos/settlement/new/settlement-form-client.tsx) and manager [admin-settlement-form-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/settlements/admin-settlement-form-client.tsx) daily settlement forms to immediately redirect to the settlements history list upon clicking "Save Settlement".

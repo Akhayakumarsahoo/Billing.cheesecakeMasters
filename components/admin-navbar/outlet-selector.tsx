@@ -31,13 +31,10 @@ export function OutletSelector({ outlets }: OutletSelectorProps) {
         localStorage.setItem("selectedOutletId", parts[2]);
       }
     } else {
-      // Restore from local storage if available
-      const stored = localStorage.getItem("selectedOutletId");
-      if (stored && outlets.find((o) => o.id === stored)) {
-        setCurrentOutletId(stored);
-      } else {
-        setCurrentOutletId("all");
-      }
+      // Any global page (like /dashboard, /reports, /users) should show "All Outlets" and clear local storage selection
+      setCurrentOutletId("all");
+      localStorage.removeItem("selectedOutletId");
+      window.dispatchEvent(new Event("local-storage"));
     }
   }, [pathname, outlets]);
 

@@ -518,17 +518,6 @@ export function BillBuilder({
                 {discountType ? `Discount (-₹${totals.discountAmount.toFixed(0)})` : "Discount"}
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsCartDrawerOpen(false);
-                // Small delay to ensure the drawer's focus trap is fully released before dialog mounts
-                setTimeout(() => setIsOpenItemOpen(true), 50);
-              }}
-            >
-              Open Item
-            </Button>
           </div>
         </div>
 

@@ -16,6 +16,7 @@ import {
   Calendar,
   AlertTriangle,
   Check,
+  X,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -314,6 +315,10 @@ export function AdminSettlementHistoryClient({
                     );
                     const actualCashVal = parseFloat(s.actualCash);
                     const billedCashVal = parseFloat(s.billedCash);
+                    const cashDiff = actualCashVal - billedCashVal;
+                    const upiDiff = parseFloat(s.actualUpi) - parseFloat(s.billedUpi);
+                    const cardDiff = parseFloat(s.actualCard) - parseFloat(s.billedCard);
+                    const hasNoDiff = cashDiff === 0 && upiDiff === 0 && cardDiff === 0;
 
                     const totalBilled = parseFloat(s.billedCash) + parseFloat(s.billedUpi) + parseFloat(s.billedCard);
                     const totalActual = parseFloat(s.actualCash) + parseFloat(s.actualUpi) + parseFloat(s.actualCard);
@@ -380,13 +385,18 @@ export function AdminSettlementHistoryClient({
                                 ? "text-[var(--state-success-text)] font-semibold"
                                 : totalDiff < 0
                                 ? "text-[var(--state-error-text)] font-semibold"
+                                : !hasNoDiff
+                                ? "text-[var(--state-error-text)] font-semibold"
                                 : "text-[var(--text-secondary)]"
                             }`}
                             title="Click to view mismatches breakdown"
                           >
                             {totalDiff > 0 ? `+₹${formatINR(totalDiff)}` : totalDiff < 0 ? `-₹${formatINR(Math.abs(totalDiff))}` : "₹0.00"}
-                            {totalDiff === 0 && (
+                            {totalDiff === 0 && hasNoDiff && (
                               <Check className="h-4 w-4 text-[var(--state-success-border)] inline-block shrink-0" strokeWidth={2.5} />
+                            )}
+                            {totalDiff === 0 && !hasNoDiff && (
+                              <X className="h-4 w-4 text-[var(--state-error-border)] inline-block shrink-0" strokeWidth={2.5} />
                             )}
                           </button>
                         </TableCell>
@@ -462,6 +472,11 @@ export function AdminSettlementHistoryClient({
                     : isWithin24Hours(s.createdAt)
                 );
                 const actualCashVal = parseFloat(s.actualCash);
+                const billedCashVal = parseFloat(s.billedCash);
+                const cashDiff = actualCashVal - billedCashVal;
+                const upiDiff = parseFloat(s.actualUpi) - parseFloat(s.billedUpi);
+                const cardDiff = parseFloat(s.actualCard) - parseFloat(s.billedCard);
+                const hasNoDiff = cashDiff === 0 && upiDiff === 0 && cardDiff === 0;
 
                 const totalBilled = parseFloat(s.billedCash) + parseFloat(s.billedUpi) + parseFloat(s.billedCard);
                 const totalActual = parseFloat(s.actualCash) + parseFloat(s.actualUpi) + parseFloat(s.actualCard);
@@ -557,13 +572,18 @@ export function AdminSettlementHistoryClient({
                               ? "text-[var(--state-success-text)] font-semibold"
                               : totalDiff < 0
                               ? "text-[var(--state-error-text)] font-semibold"
+                              : !hasNoDiff
+                              ? "text-[var(--state-error-text)] font-semibold"
                               : "text-[var(--text-secondary)]"
                           }`}
                           title="Click to view mismatches breakdown"
                         >
                           {totalDiff > 0 ? `+₹${formatINR(totalDiff)}` : totalDiff < 0 ? `-₹${formatINR(Math.abs(totalDiff))}` : "₹0.00"}
-                          {totalDiff === 0 && (
+                          {totalDiff === 0 && hasNoDiff && (
                             <Check className="h-3.5 w-3.5 text-[var(--state-success-border)] inline-block shrink-0" strokeWidth={2.5} />
+                          )}
+                          {totalDiff === 0 && !hasNoDiff && (
+                            <X className="h-3.5 w-3.5 text-[var(--state-error-border)] inline-block shrink-0" strokeWidth={2.5} />
                           )}
                         </button>
                       </div>
