@@ -95,6 +95,13 @@ No file uploads, images, or PDFs. If bill PDF export is added in a future versio
 
 Short-lived cache for menu item search, bill history lists, and dashboard aggregates. Cache is treated as stale-on-focus. No sensitive data persisted to `localStorage` or `sessionStorage`.
 
+### PWA Caching — Custom Service Worker
+
+A custom Service Worker (`public/sw.js`) intercepts network requests to implement local UI caching:
+- **Cache-First**: Applied to all static assets (`/_next/static/*`), fonts, local images, and icons. This speeds up consecutive application loads by serving these static files locally instead of executing network calls.
+- **Network-First**: Applied to navigation requests (HTML documents). The service worker attempts to load the latest HTML from the network, but falls back to the cache if the user is offline or experiencing network drops, ensuring fast and robust offline-capable loads.
+- **Bypass**: Clerk authentication requests, server-side auth sync, and `/api/*` data mutation and checkout endpoints are entirely excluded from caching to maintain transaction consistency and correct authorization state.
+
 ### No Redis / external cache in V1
 
 Dashboard aggregates served from PostgreSQL views at read time. At 2–5 outlets and retail-scale transaction volume, view query latency is acceptable without an additional cache layer.

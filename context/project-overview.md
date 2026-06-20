@@ -130,6 +130,7 @@ This application is a centralized, web-based billing system for a single retail 
 - Immutable bill records — no hard deletes on bills, line items, or payments
 - Outlet POS bill history with filters and daily sales summary page
 - Admin/manager dashboard with all-outlet and per-outlet views, outlet selector
+- Progressive Web App (PWA) installation manifest and custom Service Worker caching (UI shell and static assets)
 - shadcn/ui component library
 - Next.js full-stack application with Prisma ORM and Clerk auth
 - PostgreSQL (Supabase or Neon)

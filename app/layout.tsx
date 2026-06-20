@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
+import PWARegister from "@/components/layout/pwa-register";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,9 +18,23 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Cheesecake Masters",
   description: "Cheesecake Masters",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Cheesecake Masters",
+  },
   icons: {
     icon: "/favicon.svg",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#111110",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -42,6 +57,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       >
         <body className="min-h-full flex flex-col">
+          <PWARegister />
           {children}
           <Toaster />
         </body>
@@ -49,3 +65,4 @@ export default function RootLayout({
     </ClerkProvider>
   );
 }
+

@@ -85,6 +85,7 @@ This application is a centralized, web-based billing system for a retail busines
 - Bill-level discounts (percentage or fixed amount type, with reasons, stored and reported)
 - Draft bill cancellation
 - HQ consolidated dashboard (total sales, per-outlet breakdown, GST by slab, payment mode summary)
+- Progressive Web App (PWA) installation manifest and custom Service Worker caching (UI shell and static assets)
 - PostgreSQL schema with views for all dashboard queries
 - Next.js full-stack application with API routes for all billing operations
 

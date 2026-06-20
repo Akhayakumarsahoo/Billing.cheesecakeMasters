@@ -13,6 +13,14 @@ change.
 
 ## Completed
 
+- **PWA and UI Caching Implementation**
+  - Configured the existing vector icon ([favicon.svg](file:///c:/Users/User/Desktop/billCCM/public/favicon.svg)) directly in the manifest to act as the PWA installation and branding icon.
+  - Added a Progressive Web App (PWA) manifest file ([manifest.json](file:///c:/Users/User/Desktop/billCCM/public/manifest.json)) defining app configuration, styling parameters, and display mode (standalone).
+  - Implemented a custom service worker ([sw.js](file:///c:/Users/User/Desktop/billCCM/public/sw.js)) caching Next.js static bundles and other assets (cache-first), HTML pages (network-first, falling back to cache when offline), and bypassing Clerk endpoints and real-time backend API routes.
+  - Implemented the registration client component ([pwa-register.tsx](file:///c:/Users/User/Desktop/billCCM/components/layout/pwa-register.tsx)) checking support and registering the service worker on mount, prompting users via an interactive Sonner toast to update when a new version of the service worker is available.
+  - Configured the global App Router layout ([layout.tsx](file:///c:/Users/User/Desktop/billCCM/app/layout.tsx)) to render `<PWARegister />` globally, and injected metadata properties for manifest, apple mobile web app capability, and viewport settings (disabling pinch-zoom for a native app feel).
+  - Verified successful compilation (`npx tsc --noEmit`) and successful Next.js production build (`npm run build`).
+
 - **Outlet Bill Cancellation Authorization Fix**
   - Updated the bill cancellation API endpoint ([route.ts](file:///c:/Users/User/Desktop/billCCM/app/api/bills/[id]/cancel/route.ts)) to allow authenticated Outlets to bypass the admin/manager user role check.
   - Resolved the issue where the Clerk user associated with the POS session resolved to a database User row with role `outlet`, which triggered the `FORBIDDEN` (403) response inside the user role verification guard.
