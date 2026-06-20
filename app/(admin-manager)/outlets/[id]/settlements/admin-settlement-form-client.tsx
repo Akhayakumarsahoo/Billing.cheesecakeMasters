@@ -100,6 +100,18 @@ export function AdminSettlementFormClient({
     fetchSummary();
   }, [date, isEdit, initialSummary.settlementDate, outletId]);
 
+  // Reset form inputs when date changes (creation mode only)
+  useEffect(() => {
+    if (!isEdit) {
+      setClosingCashInput("");
+      setActualCash("");
+      setActualUpi("");
+      setActualCard("");
+      setCashExpense("");
+      setCashWithdraw("");
+    }
+  }, [date, isEdit]);
+
   const safeParse = (val: string): number => {
     const parsed = parseFloat(val);
     return isNaN(parsed) ? 0 : parsed;
@@ -123,14 +135,16 @@ export function AdminSettlementFormClient({
   const withdraw = safeParse(cashWithdraw);
   const closingCash = opening + actCashNum - expense - withdraw;
 
-  // Synchronize closingCashInput when summary openingCash changes
+  // Synchronize closingCashInput when summary openingCash changes (edit mode only)
   useEffect(() => {
-    const openingVal = safeParse(summary.openingCash);
-    const actCashVal = safeParse(actualCash);
-    const expVal = safeParse(cashExpense);
-    const wthVal = safeParse(cashWithdraw);
-    setClosingCashInput((openingVal + actCashVal - expVal - wthVal).toString());
-  }, [summary.openingCash]);
+    if (isEdit) {
+      const openingVal = safeParse(summary.openingCash);
+      const actCashVal = safeParse(actualCash);
+      const expVal = safeParse(cashExpense);
+      const wthVal = safeParse(cashWithdraw);
+      setClosingCashInput((openingVal + actCashVal - expVal - wthVal).toString());
+    }
+  }, [summary.openingCash, isEdit]);
 
   const handleInputChange = (
     value: string,
@@ -154,18 +168,22 @@ export function AdminSettlementFormClient({
   const handleExpenseChange = (val: string) => {
     if (val === "" || /^\d*\.?\d*$/.test(val)) {
       setCashExpense(val);
+      if (closingCashInput === "") return;
       const expNum = safeParse(val);
-      const newClosing = opening + actCashNum - expNum - withdraw;
-      setClosingCashInput(newClosing.toString());
+      const closingNum = safeParse(closingCashInput);
+      const newActual = closingNum - opening + expNum + withdraw;
+      setActualCash(newActual.toString());
     }
   };
 
   const handleWithdrawChange = (val: string) => {
     if (val === "" || /^\d*\.?\d*$/.test(val)) {
       setCashWithdraw(val);
+      if (closingCashInput === "") return;
       const wthNum = safeParse(val);
-      const newClosing = opening + actCashNum - expense - wthNum;
-      setClosingCashInput(newClosing.toString());
+      const closingNum = safeParse(closingCashInput);
+      const newActual = closingNum - opening + expense + wthNum;
+      setActualCash(newActual.toString());
     }
   };
 
@@ -194,7 +212,7 @@ export function AdminSettlementFormClient({
     const parsedCashWithdraw = parseFloat(cashWithdraw || "0");
 
     if (parsedActualCash < 0) {
-      setError("Actual Cash Received cannot be negative. Please adjust the Estimated Closing Balance or Cash Box Operations.");
+      setError("Estimated today's cash received cannot be negative. Please adjust the Closing cash balance or Cash Box Operations.");
       setIsSubmitting(false);
       return;
     }
@@ -332,7 +350,7 @@ export function AdminSettlementFormClient({
                 {/* Separator */}
                 <div className="sm:col-span-2 border-t border-[var(--border-subtle)] my-1" />
 
-                {/* Row 2: Opening Cash Balance & Actual Cash Received */}
+                {/* Row 2: Opening Cash Balance & Estimated today's cash received */}
                 <div className="space-y-2">
                   <Label className="text-sm text-[var(--text-secondary)] font-medium">
                     Opening Cash Balance
@@ -343,17 +361,16 @@ export function AdminSettlementFormClient({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="actualCash" className="text-sm text-[var(--text-primary)] font-medium">
-                    Actual Cash Received (₹)
+                  <Label htmlFor="actualCash" className="text-sm text-[var(--text-secondary)] font-medium">
+                    Estimated today's cash received (₹)
                   </Label>
                   <Input
                     id="actualCash"
                     type="text"
                     inputMode="decimal"
                     value={actualCash}
-                    disabled={isSubmitting}
-                    onChange={(e) => handleActualCashChange(e.target.value)}
-                    className="font-mono text-sm h-10 bg-white border-[var(--border-default)]"
+                    disabled={true}
+                    className="font-mono text-sm h-10 bg-[var(--bg-surface-raised)] border-[var(--border-default)] cursor-not-allowed"
                     placeholder="0.00"
                   />
                   <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] mt-1 px-1">
@@ -444,10 +461,10 @@ export function AdminSettlementFormClient({
                 {/* Separator */}
                 <div className="sm:col-span-2 border-t border-[var(--border-subtle)] my-1" />
 
-                {/* Row 5: Estimated Closing Balance */}
+                {/* Row 5: Closing cash balance */}
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="closingCash" className="text-sm font-medium text-[var(--text-primary)]">
-                    Estimated Closing Balance (₹)
+                    Closing cash balance (₹)
                   </Label>
                   <Input
                     id="closingCash"
