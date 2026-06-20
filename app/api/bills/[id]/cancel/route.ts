@@ -13,7 +13,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Unauthorized" } }, { status: 401 });
     }
 
-    if (user && user.role !== "admin" && user.role !== "manager") {
+    if (!outlet && user && user.role !== "admin" && user.role !== "manager") {
       return NextResponse.json({ error: { code: "FORBIDDEN", message: "Forbidden" } }, { status: 403 });
     }
 

@@ -13,13 +13,19 @@ change.
 
 ## Completed
 
+- **Outlet Bill Cancellation Authorization Fix**
+  - Updated the bill cancellation API endpoint ([route.ts](file:///c:/Users/User/Desktop/billCCM/app/api/bills/[id]/cancel/route.ts)) to allow authenticated Outlets to bypass the admin/manager user role check.
+  - Resolved the issue where the Clerk user associated with the POS session resolved to a database User row with role `outlet`, which triggered the `FORBIDDEN` (403) response inside the user role verification guard.
+  - Verified successful type check compilation (`npx tsc --noEmit`) and successful Next.js production build (`npm run build`).
+
 - **Daily Settlement Cash Calculation Restructuring**
-  - Updated both cashier [settlement-form-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/pos/settlement/new/settlement-form-client.tsx) and manager/admin [admin-settlement-form-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/settlements/admin-settlement-form-client.tsx) daily settlement forms to make the "Actual Cash Received" input field non-editable (disabled and styled to match other read-only fields).
-  - Derived "Actual Cash Received" dynamically from "Closing cash balance", opening cash balance, cash expenses, and cash withdrawals: `actualCash = closingCash - opening + expense + withdraw`.
-  - Updated handlers (`handleExpenseChange` and `handleWithdrawChange`) to compute the actual cash based on the user-entered closing balance.
+  - Updated both cashier [settlement-form-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/pos/settlement/new/settlement-form-client.tsx) and manager/admin [admin-settlement-form-client.tsx](file:///c:/Users/User/Desktop/billCCM/app/(admin-manager)/outlets/[id]/settlements/admin-settlement-form-client.tsx) daily settlement forms to make the "Estimated today's cash received" input field non-editable (disabled and styled to match other read-only fields).
+  - Derived "Estimated today's cash received" dynamically from "Closing cash balance", opening cash balance, cash expenses, and cash withdrawals: `actualCash = closingCash - opening + expense + withdraw`.
+  - Updated handlers (`handleExpenseChange` and `handleWithdrawChange`) to compute the estimated actual cash based on the user-entered closing balance.
   - Restricted the automatic synchronization of estimated closing cash based on opening cash to edit mode only, leaving fields empty on fresh creation to await user input.
   - Added a reset hook in the Admin panel to wipe form states when switching dates in creation mode.
   - Renamed the label and reference text from "Estimated Closing Balance" to "Closing cash balance" across UI input labels, comments, and validation error messages.
+  - Renamed the label and reference text from "Actual Cash Received" to "Estimated today's cash received" across UI input labels, comments, and validation error messages.
   - Verified successful type check compilation (`npx tsc --noEmit`) and successful Next.js production build (`npm run build`).
 
 - **Consolidated Dashboard Default Outlet Selection**
