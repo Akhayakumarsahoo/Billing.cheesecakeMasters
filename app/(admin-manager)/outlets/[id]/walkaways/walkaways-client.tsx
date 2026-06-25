@@ -33,7 +33,7 @@ const PREDEFINED_REASONS = [
   "Price too high",
   "Desired item/flavor out of stock",
   "Long waiting time",
-  "Bad customer service",
+  "Will return later",
   "Just exploring/browsing",
   "Other",
 ];

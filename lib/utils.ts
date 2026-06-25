@@ -92,3 +92,13 @@ export function bucketPayments(
 
   return buckets;
 }
+
+/** Formats a payment mode technical key (e.g. "online", "upi", "card") into its user-friendly display string. */
+export function formatPaymentMode(mode: string): string {
+  const m = mode.toLowerCase();
+  if (m === "online") return "Delivery";
+  if (m === "upi") return "UPI";
+  if (m === "card") return "Card";
+  if (m === "cash") return "Cash";
+  return mode;
+}

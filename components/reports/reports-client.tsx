@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatINR } from "@/lib/utils";
+import { formatINR, formatPaymentMode } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -796,7 +796,7 @@ export function ReportsClient({
                 <div className="bg-[var(--bg-surface)] rounded-lg border border-[var(--border-default)] overflow-hidden">
                   {selectedBill.payments.map((p, i) => (
                     <div key={i} className="p-3 border-b border-[var(--border-subtle)] last:border-0 flex justify-between">
-                      <div className="text-sm text-[var(--text-primary)] capitalize">{p.mode}</div>
+                      <div className="text-sm text-[var(--text-primary)]">{formatPaymentMode(p.mode)}</div>
                       <div className="text-sm font-mono text-[var(--text-primary)]">{formatPrice(p.amount)}</div>
                     </div>
                   ))}

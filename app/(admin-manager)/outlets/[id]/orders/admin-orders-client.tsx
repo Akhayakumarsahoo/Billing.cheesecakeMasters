@@ -10,6 +10,7 @@ import { DateRangeFilter } from "@/components/date-range-filter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { OrderCardsSkeleton } from "@/components/ui-skeletons";
 import { Label } from "@/components/ui/label";
+import { formatPaymentMode } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
@@ -444,8 +445,8 @@ export function AdminOrdersClient({
                     )}
                     <div className="flex justify-between text-sm">
                       <span className="text-[var(--text-secondary)]">Payment</span>
-                      <span className="font-medium text-[var(--text-primary)] capitalize">
-                        {bill.payments.length > 0 ? bill.payments.map(p => p.mode).join(", ") : "-"}
+                      <span className="font-medium text-[var(--text-primary)]">
+                        {bill.payments.length > 0 ? bill.payments.map(p => formatPaymentMode(p.mode)).join(", ") : "-"}
                       </span>
                     </div>
                   </div>
@@ -501,7 +502,7 @@ export function AdminOrdersClient({
                 <div className="bg-[var(--bg-surface)] rounded-lg border border-[var(--border-default)] p-4 space-y-4">
                   {paymentBreakdown.map((p, i) => (
                     <div key={i} className="flex items-center justify-between gap-4">
-                      <span className="text-sm font-medium capitalize text-[var(--text-primary)] w-20">{p.mode}</span>
+                      <span className="text-sm font-medium text-[var(--text-primary)] w-20">{formatPaymentMode(p.mode)}</span>
                       <Input 
                         type="number" 
                         min="0"
@@ -567,7 +568,7 @@ export function AdminOrdersClient({
                   <div className="bg-[var(--bg-surface)] rounded-lg border border-[var(--border-default)] overflow-hidden">
                     {selectedBill.payments.map((p, i) => (
                       <div key={i} className="p-3 border-b border-[var(--border-subtle)] last:border-0 flex justify-between">
-                        <div className="text-sm text-[var(--text-primary)] capitalize">{p.mode}</div>
+                        <div className="text-sm text-[var(--text-primary)]">{formatPaymentMode(p.mode)}</div>
                         <div className="text-sm font-mono text-[var(--text-primary)]">₹{p.amount}</div>
                       </div>
                     ))}

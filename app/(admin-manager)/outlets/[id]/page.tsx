@@ -136,7 +136,7 @@ async function OutletDashboardContent({
     "Price too high": 0,
     "Desired item/flavor out of stock": 0,
     "Long waiting time": 0,
-    "Bad customer service": 0,
+    "Will return later": 0,
     "Just exploring/browsing": 0,
     "Other": 0,
   } as Record<string, number>;
@@ -212,7 +212,7 @@ async function OutletDashboardContent({
                   { label: "Cash", value: paymentBuckets.cash },
                   { label: "Card", value: paymentBuckets.card },
                   { label: "UPI", value: paymentBuckets.upi },
-                  { label: "Online (Delivery)", value: paymentBuckets.online },
+                  { label: "Delivery", value: paymentBuckets.online },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex justify-between items-center">
                     <span className="text-[var(--text-secondary)] font-medium">

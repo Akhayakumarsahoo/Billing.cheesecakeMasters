@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { formatPaymentMode } from "@/lib/utils";
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { OrderCardsSkeleton } from "@/components/ui-skeletons";
@@ -297,8 +298,8 @@ export function OrdersClient({
                     )}
                     <div className="flex justify-between text-sm">
                       <span className="text-[var(--text-secondary)]">Payment</span>
-                      <span className="font-medium text-[var(--text-primary)] capitalize">
-                        {bill.payments.length > 0 ? bill.payments.map(p => p.mode).join(", ") : "-"}
+                      <span className="font-medium text-[var(--text-primary)]">
+                        {bill.payments.length > 0 ? bill.payments.map(p => formatPaymentMode(p.mode)).join(", ") : "-"}
                       </span>
                     </div>
                   </div>
@@ -367,7 +368,7 @@ export function OrdersClient({
                 <div className="bg-[var(--bg-surface)] rounded-lg border border-[var(--border-default)] overflow-hidden">
                   {selectedBill.payments.map((p, i) => (
                     <div key={i} className="p-3 border-b border-[var(--border-subtle)] last:border-0 flex justify-between">
-                      <div className="text-sm text-[var(--text-primary)] capitalize">{p.mode}</div>
+                      <div className="text-sm text-[var(--text-primary)]">{formatPaymentMode(p.mode)}</div>
                       <div className="text-sm font-mono text-[var(--text-primary)]">₹{p.amount}</div>
                     </div>
                   ))}

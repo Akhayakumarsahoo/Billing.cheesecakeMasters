@@ -13,6 +13,16 @@ change.
 
 ## Completed
 
+- **Walkaway Reason Naming (Bad customer service → Will return later)**
+  - Replaced the customer walkaway reason "Bad customer service" with "Will return later" across all related views, component dropdown lists, and the database schema comment to better represent the customer's intent to return later.
+  - Aligned dashboard charts, statistics maps, and search tables to use the new reason value.
+
+- **Payment Method Naming Alignment (Online → Delivery)**
+  - Updated payment mode display names from "Online" to "Delivery" across the POS cart drawer payment method selector and the standard checkout interfaces.
+  - Aligned display metrics and charts on the global dashboard, outlet-specific dashboards, and cashier sales summary screen to display "Delivery" instead of "Online (Delivery)".
+  - Added a `formatPaymentMode` utility helper to centralize formatting of backend keys (`online`, `upi`, `card`, `cash`) into professional display labels, integrating it within the Order History (POS & Admin) and detailed Reports pages.
+  - Verified compilation (`npx tsc --noEmit`) and Turbopack production builds compile with zero errors.
+
 - **PWA and UI Caching Implementation**
   - Configured the existing vector icon ([favicon.svg](file:///c:/Users/User/Desktop/billCCM/public/favicon.svg)) directly in the manifest to act as the PWA installation and branding icon.
   - Added a Progressive Web App (PWA) manifest file ([manifest.json](file:///c:/Users/User/Desktop/billCCM/public/manifest.json)) defining app configuration, styling parameters, and display mode (standalone).

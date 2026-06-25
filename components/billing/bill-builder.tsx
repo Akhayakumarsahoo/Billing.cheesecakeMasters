@@ -66,7 +66,7 @@ const paymentModes = [
   { id: "cash", name: "Cash", icon: Banknote },
   { id: "upi", name: "UPI", icon: Smartphone },
   { id: "card", name: "Card", icon: CreditCard },
-  { id: "online", name: "Online", icon: Receipt },
+  { id: "online", name: "Delivery", icon: Receipt },
   { id: "part_payment", name: "Part Payment", icon: SplitSquareHorizontal },
 ];
 

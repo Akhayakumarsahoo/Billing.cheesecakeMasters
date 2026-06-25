@@ -334,7 +334,7 @@ model Walkaway {
   id             String   @id @default(uuid())
   outletId       String
   outlet         Outlet   @relation(fields: [outletId], references: [id])
-  reason         String   // E.g., "Price too high", "Item unavailable", "Long wait time", "Bad customer service", "Just exploring", "Other"
+  reason         String   // E.g., "Price too high", "Item unavailable", "Long wait time", "Will return later", "Just exploring", "Other"
   customReason   String?  // Specific details if "Other" is chosen
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
