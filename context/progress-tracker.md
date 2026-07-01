@@ -11,6 +11,21 @@ change.
 
 - Testing and Verification
 
+- **Sales Dashboard Outlet Checklist Filter**
+  - Refactored the dashboard page component `app/(admin-manager)/dashboard/page.tsx` to query sales, walkaways, walkaway reasons, and payment breakdowns grouped per outlet.
+  - Implemented the `DashboardClient` component containing an interactive checklist card using capsule toggles with active checkmarks.
+  - Placed a modern "Filter Outlets" toggler button next to the Date selector in the main header, collapsing/expanding the filter checklist card to keep the dashboard uncluttered.
+  - Created client-side aggregation calculations that instantly re-compute total revenue, bills count, GST collected, discounts, cashbox balances, walkaway categories, payment mode buckets, and table details for selected outlets.
+
+- **Daily Settlement Expense Reason & Withdrawal By Fields**
+  - Added optional string columns `expenseReason` and `withdrawBy` to the `DailySettlement` model in the Prisma schema and synchronized with the PostgreSQL database.
+  - Updated Zod validation schemas (`CreateSettlementSchema` / `UpdateSettlementSchema`) to validate the new input fields.
+  - Implemented the UI inputs for "Reason for Expense" and "Withdrawal by (Person Name)" inside both POS and Admin daily settlement forms (`settlement-form-client.tsx` & `admin-settlement-form-client.tsx`), removing all placeholder text templates and input descriptive instructions.
+  - Removed "Estimated today's cash received (₹)" field from the outlet level POS form client (kept it computed in background).
+  - Removed "Actual UPI Received" and "Actual Card Received" inputs from the outlet level POS form client, defaulting and auto-reconciling their submissions directly to the system billed amounts.
+  - Removed UPI and Card rows from the detailed breakdown dialog table at the outlet level, focusing calculations and visual reconciliations entirely on Cash drawer balances.
+  - Added visual metadata info blocks inside the mismatch breakdown dialog in both POS and Admin history views (`settlement-history-client.tsx` & `admin-settlement-history-client.tsx`) to show expense reason and withdrawer details when present.
+
 - **Inventory Detail Page Name Selector**
   - Replaced the static inventory name display on the inventory details page (`/inventory/[id]`) with a select dropdown selector.
   - Fetched all active and inactive inventories in the server-side page component for Admin and Manager users, while keeping the single scoped inventory fallback for `storeroom` employees.

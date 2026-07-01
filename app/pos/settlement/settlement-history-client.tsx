@@ -65,6 +65,8 @@ export interface SerializedSettlement {
   updatedAt: string;
   createdByName?: string | null;
   modifiedByName?: string | null;
+  expenseReason?: string | null;
+  withdrawBy?: string | null;
 }
 
 interface SettlementHistoryClientProps {
@@ -307,13 +309,11 @@ export function SettlementHistoryClient({
                     const actualCashVal = parseFloat(s.actualCash);
                     const billedCashVal = parseFloat(s.billedCash);
                     const cashDiff = actualCashVal - billedCashVal;
-                    const upiDiff = parseFloat(s.actualUpi) - parseFloat(s.billedUpi);
-                    const cardDiff = parseFloat(s.actualCard) - parseFloat(s.billedCard);
-                    const hasNoDiff = cashDiff === 0 && upiDiff === 0 && cardDiff === 0;
+                    const hasNoDiff = cashDiff === 0;
 
-                    const totalBilled = parseFloat(s.billedCash) + parseFloat(s.billedUpi) + parseFloat(s.billedCard);
-                    const totalActual = parseFloat(s.actualCash) + parseFloat(s.actualUpi) + parseFloat(s.actualCard);
-                    const totalDiff = totalActual - totalBilled;
+                    const totalBilled = parseFloat(s.billedCash);
+                    const totalActual = parseFloat(s.actualCash);
+                    const totalDiff = cashDiff;
 
                     return (
                       <TableRow key={s.id} className={idx % 2 === 1 ? "bg-[var(--bg-surface-raised)]" : ""}>
@@ -457,13 +457,11 @@ export function SettlementHistoryClient({
                 const actualCashVal = parseFloat(s.actualCash);
                 const billedCashVal = parseFloat(s.billedCash);
                 const cashDiff = actualCashVal - billedCashVal;
-                const upiDiff = parseFloat(s.actualUpi) - parseFloat(s.billedUpi);
-                const cardDiff = parseFloat(s.actualCard) - parseFloat(s.billedCard);
-                const hasNoDiff = cashDiff === 0 && upiDiff === 0 && cardDiff === 0;
+                const hasNoDiff = cashDiff === 0;
 
-                const totalBilled = parseFloat(s.billedCash) + parseFloat(s.billedUpi) + parseFloat(s.billedCard);
-                const totalActual = parseFloat(s.actualCash) + parseFloat(s.actualUpi) + parseFloat(s.actualCard);
-                const totalDiff = totalActual - totalBilled;
+                const totalBilled = parseFloat(s.billedCash);
+                const totalActual = parseFloat(s.actualCash);
+                const totalDiff = cashDiff;
 
                 return (
                   <div key={s.id} className="p-4 space-y-3">
@@ -745,15 +743,9 @@ export function SettlementHistoryClient({
             const upiD = getDiffForMode(breakdownSettlement.actualUpi, breakdownSettlement.billedUpi);
             const cardD = getDiffForMode(breakdownSettlement.actualCard, breakdownSettlement.billedCard);
 
-            const totBilled = parseFloat(breakdownSettlement.billedCash) +
-                              parseFloat(breakdownSettlement.billedUpi) +
-                              parseFloat(breakdownSettlement.billedCard);
-
-            const totActual = parseFloat(breakdownSettlement.actualCash) +
-                              parseFloat(breakdownSettlement.actualUpi) +
-                              parseFloat(breakdownSettlement.actualCard);
-
-            const totDiff = totActual - totBilled;
+            const totBilled = parseFloat(breakdownSettlement.billedCash);
+            const totActual = parseFloat(breakdownSettlement.actualCash);
+            const totDiff = cashD;
 
             const diffColorClass = (diff: number) => {
               if (diff > 0) return "text-[var(--state-success-text)] font-semibold";
@@ -781,8 +773,6 @@ export function SettlementHistoryClient({
                     <TableBody>
                       {[
                         { mode: "Cash", billed: breakdownSettlement.billedCash, actual: breakdownSettlement.actualCash, diff: cashD },
-                        { mode: "UPI", billed: breakdownSettlement.billedUpi, actual: breakdownSettlement.actualUpi, diff: upiD },
-                        { mode: "Card", billed: breakdownSettlement.billedCard, actual: breakdownSettlement.actualCard, diff: cardD },
                       ].map((row) => (
                         <TableRow key={row.mode}>
                           <TableCell className="font-medium text-xs text-[var(--text-primary)]">
@@ -802,23 +792,6 @@ export function SettlementHistoryClient({
                           </TableCell>
                         </TableRow>
                       ))}
-                      <TableRow className="bg-[var(--bg-surface-raised)] font-semibold border-t border-[var(--border-default)]">
-                        <TableCell className="text-xs text-[var(--text-primary)] font-bold">
-                          Total
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-right text-[var(--text-primary)]">
-                          ₹{formatINR(totBilled)}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-right text-[var(--text-primary)] font-bold">
-                          ₹{formatINR(totActual)}
-                        </TableCell>
-                        <TableCell className={`font-mono text-xs text-right font-bold ${diffColorClass(totDiff)}`}>
-                          {totDiff !== 0 && diffSymbol(totDiff)}₹{formatINR(totDiff)}
-                          {totDiff === 0 && (
-                            <Check className="h-3.5 w-3.5 text-[var(--state-success-border)] inline-block shrink-0 ml-1 font-bold" strokeWidth={2.5} />
-                          )}
-                        </TableCell>
-                      </TableRow>
                     </TableBody>
                   </Table>
                 </div>
@@ -836,6 +809,36 @@ export function SettlementHistoryClient({
                     {totDiff > 0 
                       ? `Excess of ₹${formatINR(totDiff)} detected in receipts.` 
                       : `Shortage of ₹${formatINR(Math.abs(totDiff))} detected in receipts.`}
+                  </div>
+                )}
+
+                {/* Expense Reason & Withdrawal By Info */}
+                {((parseFloat(breakdownSettlement.cashExpense) > 0 || breakdownSettlement.expenseReason) ||
+                  (parseFloat(breakdownSettlement.cashWithdraw) > 0 || breakdownSettlement.withdrawBy)) && (
+                  <div className="space-y-3 pt-2">
+                    {(parseFloat(breakdownSettlement.cashExpense) > 0 || breakdownSettlement.expenseReason) && (
+                      <div className="text-xs border border-[var(--border-default)] rounded-lg p-3 space-y-1 bg-[var(--bg-surface-raised)]">
+                        <div className="font-semibold text-[var(--text-primary)]">Expense Details</div>
+                        <div className="text-[var(--text-secondary)]">
+                          <span className="font-medium">Amount:</span> ₹{formatINR(parseFloat(breakdownSettlement.cashExpense))}
+                        </div>
+                        <div className="text-[var(--text-secondary)]">
+                          <span className="font-medium">Reason:</span> {breakdownSettlement.expenseReason || "No reason specified"}
+                        </div>
+                      </div>
+                    )}
+
+                    {(parseFloat(breakdownSettlement.cashWithdraw) > 0 || breakdownSettlement.withdrawBy) && (
+                      <div className="text-xs border border-[var(--border-default)] rounded-lg p-3 space-y-1 bg-[var(--bg-surface-raised)]">
+                        <div className="font-semibold text-[var(--text-primary)]">Withdrawal / Remittance Details</div>
+                        <div className="text-[var(--text-secondary)]">
+                          <span className="font-medium">Amount:</span> ₹{formatINR(parseFloat(breakdownSettlement.cashWithdraw))}
+                        </div>
+                        <div className="text-[var(--text-secondary)]">
+                          <span className="font-medium">Withdrawn By:</span> {breakdownSettlement.withdrawBy || "No name specified"}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

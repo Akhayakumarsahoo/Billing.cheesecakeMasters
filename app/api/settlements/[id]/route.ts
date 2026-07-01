@@ -168,6 +168,9 @@ export async function PUT(
     const cashExpense = data.cashExpense !== undefined ? new Decimal(data.cashExpense) : settlement.cashExpense;
     const cashWithdraw = data.cashWithdraw !== undefined ? new Decimal(data.cashWithdraw) : settlement.cashWithdraw;
 
+    const expenseReason = data.expenseReason !== undefined ? data.expenseReason : settlement.expenseReason;
+    const withdrawBy = data.withdrawBy !== undefined ? data.withdrawBy : settlement.withdrawBy;
+
     // closing = opening + actualCash - cashExpense - cashWithdraw
     const closingCash = settlement.openingCash
       .plus(actualCash)
@@ -187,6 +190,8 @@ export async function PUT(
         actualCard,
         cashExpense,
         cashWithdraw,
+        expenseReason: expenseReason || null,
+        withdrawBy: withdrawBy || null,
         closingCash,
         status: "active", // Reactivates if it was cancelled
         modifiedById: loggedInUser?.id ?? null,

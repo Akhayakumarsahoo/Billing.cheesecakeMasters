@@ -150,6 +150,8 @@ export const CreateSettlementSchema = z.object({
   actualCard: z.number().nonnegative(),
   cashExpense: z.number().nonnegative(),
   cashWithdraw: z.number().nonnegative(),
+  expenseReason: z.string().max(500).optional().nullable(),
+  withdrawBy: z.string().max(100).optional().nullable(),
 });
 
 export const UpdateSettlementSchema = CreateSettlementSchema.partial();

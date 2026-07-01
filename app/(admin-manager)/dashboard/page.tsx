@@ -1,38 +1,10 @@
-import {
-  IndianRupee,
-  Percent,
-  Receipt,
-  Info,
-  Wallet,
-  Tag,
-  UserX,
-} from "lucide-react";
-import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ClickableRow } from "@/components/clickable-row";
 import { prisma } from "@/lib/db";
 import { Decimal } from "@/lib/db";
 import { Prisma } from "@prisma/client";
-import { DateRangeFilter } from "@/components/date-range-filter";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { StatCard } from "@/components/ui/stat-card";
-import { parseDateRange, formatINR } from "@/lib/utils";
-
+import { parseDateRange } from "@/lib/utils";
 import { Suspense } from "react";
 import { DashboardSkeleton } from "@/components/ui-skeletons";
+import { DashboardClient } from "./dashboard-client";
 
 export default async function SalesDashboard({
   searchParams,
@@ -42,22 +14,9 @@ export default async function SalesDashboard({
   const { from, to } = await searchParams;
 
   return (
-    <>
-      {/* Page Header */}
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-medium text-[var(--text-primary)]">
-            Sales Dashboard
-          </h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">All outlets</p>
-        </div>
-        <DateRangeFilter />
-      </div>
-
-      <Suspense key={`${from || ""}-${to || ""}`} fallback={<DashboardSkeleton />}>
-        <DashboardContent from={from} to={to} />
-      </Suspense>
-    </>
+    <Suspense key={`${from || ""}-${to || ""}`} fallback={<DashboardSkeleton />}>
+      <DashboardContent from={from} to={to} />
+    </Suspense>
   );
 }
 
@@ -90,86 +49,7 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     }
   }
 
-  const totalCashboxBalance = Object.values(cashboxMap).reduce(
-    (sum, bal) => sum.add(bal),
-    new Decimal(0),
-  );
-
-  // 1. Fetch aggregations for all printed bills in the selected date range.
-  const aggregations = await prisma.bill.aggregate({
-    where: {
-      status: "printed",
-      completedAt: { gte: start, lte: end },
-    },
-    _count: { id: true },
-    _sum: {
-      grandTotal: true,
-      totalGst: true,
-      discount: true,
-    },
-  });
-
-  const totalRevenue = aggregations._sum.grandTotal || new Decimal(0);
-  const totalGst = aggregations._sum.totalGst || new Decimal(0);
-  const totalDiscount = aggregations._sum.discount || new Decimal(0);
-  const totalBillsCount = aggregations._count.id;
-
-  // 2. Fetch payment mode aggregates from billPayment
-  const paymentBreakdown = await prisma.billPayment.groupBy({
-    by: ["mode"],
-    where: {
-      bill: {
-        status: "printed",
-        completedAt: { gte: start, lte: end },
-      },
-    },
-    _sum: {
-      amount: true,
-    },
-  });
-
-  const paymentBuckets = { cash: 0, upi: 0, card: 0, online: 0, notPaid: 0 };
-  for (const item of paymentBreakdown) {
-    const mode = item.mode.toLowerCase();
-    const sum = item._sum.amount?.toNumber() || 0;
-    if (mode === "cash") paymentBuckets.cash = sum;
-    else if (mode === "card") paymentBuckets.card = sum;
-    else if (mode === "upi") paymentBuckets.upi = sum;
-    else if (mode === "online") paymentBuckets.online = sum;
-  }
-
-  // 2.1 Fetch Walkaway metrics
-  const walkawayCount = await prisma.walkaway.count({
-    where: {
-      createdAt: { gte: start, lte: end },
-    },
-  });
-
-  const walkawayReasons = await prisma.walkaway.groupBy({
-    by: ["reason"],
-    where: {
-      createdAt: { gte: start, lte: end },
-    },
-    _count: { id: true },
-  });
-
-  const reasonStats = {
-    "Price too high": 0,
-    "Desired item/flavor out of stock": 0,
-    "Long waiting time": 0,
-    "Will return later": 0,
-    "Just exploring/browsing": 0,
-    "Other": 0,
-  } as Record<string, number>;
-
-  for (const wr of walkawayReasons) {
-    if (wr.reason in reasonStats) {
-      reasonStats[wr.reason] = wr._count.id;
-    } else {
-      reasonStats["Other"] += wr._count.id;
-    }
-  }
-
+  // 1. Fetch walkaways count grouped by outletId
   const outletWalkaways = await prisma.walkaway.groupBy({
     by: ["outletId"],
     where: {
@@ -178,15 +58,16 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     _count: { id: true },
   });
 
-  const walkawayMap: Record<string, number> = {};
-  for (const o of outlets) {
-    walkawayMap[o.id] = 0;
-  }
-  for (const ow of outletWalkaways) {
-    walkawayMap[ow.outletId] = ow._count.id;
-  }
+  // 2. Fetch walkaway reasons grouped by outletId and reason
+  const walkawayReasons = await prisma.walkaway.groupBy({
+    by: ["outletId", "reason"],
+    where: {
+      createdAt: { gte: start, lte: end },
+    },
+    _count: { id: true },
+  });
 
-  // 3. Fetch outlet-level grouping
+  // 3. Fetch printed bills aggregations grouped by outletId
   const outletGroups = await prisma.bill.groupBy({
     by: ["outletId"],
     where: {
@@ -202,6 +83,70 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       totalGst: true,
     },
   });
+
+  // 4. Fetch printed bill payment details
+  const paymentBreakdown = await prisma.billPayment.findMany({
+    where: {
+      bill: {
+        status: "printed",
+        completedAt: { gte: start, lte: end },
+      },
+    },
+    select: {
+      amount: true,
+      mode: true,
+      bill: {
+        select: {
+          outletId: true,
+        },
+      },
+    },
+  });
+
+  const outletPaymentsMap: Record<string, { cash: number; upi: number; card: number; online: number }> = {};
+  for (const o of outlets) {
+    outletPaymentsMap[o.id] = { cash: 0, upi: 0, card: 0, online: 0 };
+  }
+  for (const item of paymentBreakdown) {
+    const outletId = item.bill.outletId;
+    const mode = item.mode.toLowerCase();
+    const amount = item.amount.toNumber();
+    if (!outletPaymentsMap[outletId]) continue;
+    if (mode === "cash") outletPaymentsMap[outletId].cash += amount;
+    else if (mode === "card") outletPaymentsMap[outletId].card += amount;
+    else if (mode === "upi") outletPaymentsMap[outletId].upi += amount;
+    else if (mode === "online") outletPaymentsMap[outletId].online += amount;
+  }
+
+  const outletWalkawaysMap: Record<string, Record<string, number>> = {};
+  const walkawayMap: Record<string, number> = {};
+  for (const o of outlets) {
+    walkawayMap[o.id] = 0;
+    outletWalkawaysMap[o.id] = {
+      "Price too high": 0,
+      "Desired item/flavor out of stock": 0,
+      "Long waiting time": 0,
+      "Will return later": 0,
+      "Just exploring/browsing": 0,
+      "Other": 0,
+    };
+  }
+
+  for (const ow of outletWalkaways) {
+    walkawayMap[ow.outletId] = ow._count.id;
+  }
+
+  for (const wr of walkawayReasons) {
+    const outletId = wr.outletId;
+    if (!outletWalkawaysMap[outletId]) continue;
+    const reason = wr.reason;
+    const count = wr._count.id;
+    if (reason in outletWalkawaysMap[outletId]) {
+      outletWalkawaysMap[outletId][reason] = count;
+    } else {
+      outletWalkawaysMap[outletId]["Other"] += count;
+    }
+  }
 
   const outletStatsMap: Record<
     string,
@@ -237,194 +182,30 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     stat.gstTotal = g._sum.totalGst || new Decimal(0);
   }
 
-  const outletStatsList = Object.values(outletStatsMap);
+  const outletStatsList = outlets.map((o) => {
+    const stat = outletStatsMap[o.id];
+    const payments = outletPaymentsMap[o.id] || { cash: 0, upi: 0, card: 0, online: 0 };
+    const walkawayReasonsList = outletWalkawaysMap[o.id] || {
+      "Price too high": 0,
+      "Desired item/flavor out of stock": 0,
+      "Long waiting time": 0,
+      "Will return later": 0,
+      "Just exploring/browsing": 0,
+      "Other": 0,
+    };
+    return {
+      id: o.id,
+      name: o.name,
+      billsCount: stat?.billsCount || 0,
+      revenue: stat?.revenue.toNumber() || 0,
+      discount: stat?.discount.toNumber() || 0,
+      gstTotal: stat?.gstTotal.toNumber() || 0,
+      cashboxBalance: cashboxMap[o.id]?.toNumber() || 0,
+      walkawayCount: stat?.walkawayCount || 0,
+      walkawayReasons: walkawayReasonsList,
+      payments,
+    };
+  });
 
-  return (
-    <>
-
-      {/* Summary Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        <StatCard
-          icon={IndianRupee}
-          label="Total Revenue"
-          value={`₹${formatINR(totalRevenue.toNumber())}`}
-          subtext="Across all outlets"
-        />
-        <StatCard
-          icon={Receipt}
-          label="Total Bills"
-          value={totalBillsCount}
-          subtext="Printed bills only"
-        />
-        <StatCard
-          icon={Percent}
-          label="GST Collected"
-          value={`₹${formatINR(totalGst.toNumber())}`}
-          subtext="CGST + SGST"
-        />
-        <StatCard
-          icon={Tag}
-          label="Total Discount"
-          value={`₹${formatINR(totalDiscount.toNumber())}`}
-          subtext="Total discounts given"
-        />
-        <StatCard
-          icon={Wallet}
-          label="Cash Drawer Balance"
-          value={`₹${formatINR(totalCashboxBalance.toNumber())}`}
-          subtext="Consolidated cash in hand"
-        />
-        <StatCard
-          icon={UserX}
-          label="Total Walkaways"
-          value={walkawayCount}
-          subtext="No purchase customers"
-        />
-      </div>
-
-      {/* Breakdown grids */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <div>
-          <h2 className="text-lg font-medium text-[var(--text-primary)] mb-4">
-            Payment Breakdown
-          </h2>
-          <Card className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm">
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                {[
-                  { label: "Cash", value: paymentBuckets.cash },
-                  { label: "Card", value: paymentBuckets.card },
-                  { label: "UPI", value: paymentBuckets.upi },
-                  {label: "Delivery", value: paymentBuckets.online},
-                ].map(({ label, value }) => (
-                  <div key={label} className="flex justify-between items-center">
-                    <span className="text-[var(--text-secondary)] font-medium">{label}</span>
-                    <span className="font-mono text-[var(--text-primary)]">
-                      ₹ {value.toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div>
-          <h2 className="text-lg font-medium text-[var(--text-primary)] mb-4">
-            Customer Walkaways Breakdown
-          </h2>
-          <Card className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] shadow-sm">
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                {Object.entries(reasonStats).map(([label, value]) => (
-                  <div key={label} className="flex justify-between items-center">
-                    <span className="text-[var(--text-secondary)] font-medium">{label}</span>
-                    <span className="font-mono text-[var(--text-primary)]">
-                      {value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Sales by Outlet Table */}
-      <div className="mb-8">
-        <h2 className="text-lg font-medium text-[var(--text-primary)] mb-4">
-          Sales by Outlet
-        </h2>
-        <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-[var(--border-default)]">
-                {["Outlet", "Bills", "Revenue", "Discount", "GST Total", "Cash Box", "Walkaways"].map(
-                  (heading, i) => (
-                    <TableHead
-                      key={heading}
-                      className={`text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide h-10 ${
-                        i === 0 ? "text-left" : "text-right"
-                      }`}
-                    >
-                      {heading}
-                    </TableHead>
-                  ),
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {outletStatsList.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="text-center py-8 text-[var(--text-muted)]"
-                  >
-                    No sales data found for the selected date range.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                <>
-                  {outletStatsList.map((stat) => (
-                    <ClickableRow
-                      key={stat.name}
-                      href={`/outlets/${stat.id}`}
-                      className="border-[var(--border-default)] group"
-                    >
-                      <TableCell className="text-sm font-medium text-[var(--text-primary)] group-hover:underline">
-                        {stat.name}
-                      </TableCell>
-                      <TableCell className="text-sm text-[var(--text-primary)] text-right">
-                        {stat.billsCount}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
-                        ₹{formatINR(stat.revenue.toNumber())}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
-                        ₹{formatINR(stat.discount.toNumber())}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
-                        ₹{formatINR(stat.gstTotal.toNumber())}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
-                        ₹{formatINR(cashboxMap[stat.id]?.toNumber() || 0)}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-[var(--text-primary)] text-right">
-                        {stat.walkawayCount}
-                      </TableCell>
-                    </ClickableRow>
-                  ))}
-
-                  {/* Totals Row */}
-                  <TableRow className="border-0 bg-[var(--bg-surface-raised)] hover:bg-[var(--bg-surface-raised)]">
-                    <TableCell className="text-sm font-medium text-[var(--text-primary)]">
-                      Total
-                    </TableCell>
-                    <TableCell className="text-sm font-medium text-[var(--text-primary)] text-right">
-                      {outletStatsList.reduce((s, o) => s + o.billsCount, 0)}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right">
-                      ₹{formatINR(outletStatsList.reduce((s, o) => s + o.revenue.toNumber(), 0))}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right">
-                      ₹{formatINR(outletStatsList.reduce((s, o) => s + o.discount.toNumber(), 0))}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right">
-                      ₹{formatINR(outletStatsList.reduce((s, o) => s + o.gstTotal.toNumber(), 0))}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right">
-                      ₹{formatINR(outletStatsList.reduce((s, o) => s + (cashboxMap[o.id]?.toNumber() || 0), 0))}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm font-medium text-[var(--text-primary)] text-right">
-                      {outletStatsList.reduce((s, o) => s + o.walkawayCount, 0)}
-                    </TableCell>
-                  </TableRow>
-                </>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-    </>
-  );
+  return <DashboardClient initialData={outletStatsList} />;
 }

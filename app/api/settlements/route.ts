@@ -159,6 +159,8 @@ export async function POST(req: Request) {
       actualCard,
       cashExpense,
       cashWithdraw,
+      expenseReason,
+      withdrawBy,
     } = result.data;
 
     // Date validations
@@ -249,6 +251,8 @@ export async function POST(req: Request) {
           actualCard: new Decimal(actualCard),
           cashExpense: new Decimal(cashExpense),
           cashWithdraw: new Decimal(cashWithdraw),
+          expenseReason: expenseReason || null,
+          withdrawBy: withdrawBy || null,
           closingCash,
           status: "active",
           createdById: userId,
@@ -271,6 +275,8 @@ export async function POST(req: Request) {
           actualCard: new Decimal(actualCard),
           cashExpense: new Decimal(cashExpense),
           cashWithdraw: new Decimal(cashWithdraw),
+          expenseReason: expenseReason || null,
+          withdrawBy: withdrawBy || null,
           closingCash,
           status: "active",
           createdById: userId,

@@ -63,6 +63,8 @@ export interface SerializedSettlement {
   updatedAt: string;
   createdByName?: string | null;
   modifiedByName?: string | null;
+  expenseReason?: string | null;
+  withdrawBy?: string | null;
 }
 
 interface AdminSettlementHistoryClientProps {
@@ -853,6 +855,36 @@ export function AdminSettlementHistoryClient({
                     {totDiff > 0
                       ? `Excess of ₹${formatINR(totDiff)} detected in receipts.`
                       : `Shortage of ₹${formatINR(Math.abs(totDiff))} detected in receipts.`}
+                  </div>
+                )}
+
+                {/* Expense Reason & Withdrawal By Info */}
+                {((parseFloat(breakdownSettlement.cashExpense) > 0 || breakdownSettlement.expenseReason) ||
+                  (parseFloat(breakdownSettlement.cashWithdraw) > 0 || breakdownSettlement.withdrawBy)) && (
+                  <div className="space-y-3 pt-2">
+                    {(parseFloat(breakdownSettlement.cashExpense) > 0 || breakdownSettlement.expenseReason) && (
+                      <div className="text-xs border border-[var(--border-default)] rounded-lg p-3 space-y-1 bg-[var(--bg-surface-raised)]">
+                        <div className="font-semibold text-[var(--text-primary)]">Expense Details</div>
+                        <div className="text-[var(--text-secondary)]">
+                          <span className="font-medium">Amount:</span> ₹{formatINR(parseFloat(breakdownSettlement.cashExpense))}
+                        </div>
+                        <div className="text-[var(--text-secondary)]">
+                          <span className="font-medium">Reason:</span> {breakdownSettlement.expenseReason || "No reason specified"}
+                        </div>
+                      </div>
+                    )}
+
+                    {(parseFloat(breakdownSettlement.cashWithdraw) > 0 || breakdownSettlement.withdrawBy) && (
+                      <div className="text-xs border border-[var(--border-default)] rounded-lg p-3 space-y-1 bg-[var(--bg-surface-raised)]">
+                        <div className="font-semibold text-[var(--text-primary)]">Withdrawal / Remittance Details</div>
+                        <div className="text-[var(--text-secondary)]">
+                          <span className="font-medium">Amount:</span> ₹{formatINR(parseFloat(breakdownSettlement.cashWithdraw))}
+                        </div>
+                        <div className="text-[var(--text-secondary)]">
+                          <span className="font-medium">Withdrawn By:</span> {breakdownSettlement.withdrawBy || "No name specified"}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

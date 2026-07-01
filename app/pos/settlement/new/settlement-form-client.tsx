@@ -37,6 +37,8 @@ interface SettlementFormClientProps {
     actualCard: string;
     cashExpense: string;
     cashWithdraw: string;
+    expenseReason?: string;
+    withdrawBy?: string;
   };
 }
 
@@ -54,10 +56,13 @@ export function SettlementFormClient({
 
   // Form Fields
   const [actualCash, setActualCash] = useState<string>(initialFormValues?.actualCash || "");
-  const [actualUpi, setActualUpi] = useState<string>(initialFormValues?.actualUpi || "");
-  const [actualCard, setActualCard] = useState<string>(initialFormValues?.actualCard || "");
   const [cashExpense, setCashExpense] = useState<string>(initialFormValues?.cashExpense || "");
   const [cashWithdraw, setCashWithdraw] = useState<string>(initialFormValues?.cashWithdraw || "");
+  const [expenseReason, setExpenseReason] = useState<string>(initialFormValues?.expenseReason || "");
+  const [withdrawBy, setWithdrawBy] = useState<string>(initialFormValues?.withdrawBy || "");
+
+  const actualUpi = summary.billedUpi;
+  const actualCard = summary.billedCard;
 
   const [closingCashInput, setClosingCashInput] = useState<string>("");
 
@@ -101,8 +106,8 @@ export function SettlementFormClient({
   };
 
   const cashDiff = getDifference(actualCash, summary.billedCash);
-  const upiDiff = getDifference(actualUpi, summary.billedUpi);
-  const cardDiff = getDifference(actualCard, summary.billedCard);
+  const upiDiff = 0;
+  const cardDiff = 0;
 
   // Compute Closing Cash
   const opening = safeParse(summary.openingCash);
@@ -220,6 +225,8 @@ export function SettlementFormClient({
       actualCard: parsedActualCard,
       cashExpense: parsedCashExpense,
       cashWithdraw: parsedCashWithdraw,
+      expenseReason: expenseReason.trim() || null,
+      withdrawBy: withdrawBy.trim() || null,
     };
 
     try {
@@ -324,8 +331,8 @@ export function SettlementFormClient({
                 {/* Separator */}
                 <div className="sm:col-span-2 border-t border-[var(--border-subtle)] my-1" />
 
-                {/* Row 2: Opening Cash Balance & Estimated today's cash received */}
-                <div className="space-y-2">
+                {/* Row 2: Opening Cash Balance */}
+                <div className="space-y-2 sm:col-span-2">
                   <Label className="text-sm text-[var(--text-secondary)] font-medium">
                     Opening Cash Balance
                   </Label>
@@ -334,68 +341,6 @@ export function SettlementFormClient({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="actualCash" className="text-sm text-[var(--text-secondary)] font-medium">
-                    Estimated today's cash received (₹)
-                  </Label>
-                  <Input
-                    id="actualCash"
-                    type="text"
-                    inputMode="decimal"
-                    value={actualCash}
-                    disabled={true}
-                    className="font-mono text-sm h-10 bg-[var(--bg-surface-raised)] border-[var(--border-default)] cursor-not-allowed"
-                    placeholder="0.00"
-                  />
-                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] mt-1 px-1">
-                    <span>Billed: <strong className="font-mono text-[var(--text-primary)]">₹{formatINR(parseFloat(summary.billedCash))}</strong></span>
-                    <span>Diff: <span className={`${diffColorClass(cashDiff)} font-mono`}>{cashDiff !== 0 && diffSymbol(cashDiff)}₹{formatINR(cashDiff)}</span></span>
-                  </div>
-                </div>
-
-                {/* Row 3: Actual UPI Received & Actual Card Received */}
-                <div className="space-y-2">
-                  <Label htmlFor="actualUpi" className="text-sm text-[var(--text-primary)] font-medium">
-                    Actual UPI Received (₹)
-                  </Label>
-                  <Input
-                    id="actualUpi"
-                    type="text"
-                    inputMode="decimal"
-                    value={actualUpi}
-                    disabled={isSubmitting}
-                    onChange={(e) => handleInputChange(e.target.value, setActualUpi)}
-                    className="font-mono text-sm h-10 bg-white border-[var(--border-default)]"
-                    placeholder="0.00"
-                  />
-                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] mt-1 px-1">
-                    <span>Billed: <strong className="font-mono text-[var(--text-primary)]">₹{formatINR(parseFloat(summary.billedUpi))}</strong></span>
-                    <span>Diff: <span className={`${diffColorClass(upiDiff)} font-mono`}>{upiDiff !== 0 && diffSymbol(upiDiff)}₹{formatINR(upiDiff)}</span></span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="actualCard" className="text-sm text-[var(--text-primary)] font-medium">
-                    Actual Card Received (₹)
-                  </Label>
-                  <Input
-                    id="actualCard"
-                    type="text"
-                    inputMode="decimal"
-                    value={actualCard}
-                    disabled={isSubmitting}
-                    onChange={(e) => handleInputChange(e.target.value, setActualCard)}
-                    className="font-mono text-sm h-10 bg-white border-[var(--border-default)]"
-                    placeholder="0.00"
-                  />
-                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] mt-1 px-1">
-                    <span>Billed: <strong className="font-mono text-[var(--text-primary)]">₹{formatINR(parseFloat(summary.billedCard))}</strong></span>
-                    <span>Diff: <span className={`${diffColorClass(cardDiff)} font-mono`}>{cardDiff !== 0 && diffSymbol(cardDiff)}₹{formatINR(cardDiff)}</span></span>
-                  </div>
-                </div>
-
-                {/* Separator */}
-                <div className="sm:col-span-2 border-t border-[var(--border-subtle)] my-1" />
 
                 {/* Row 4: Cash Expense & Cash Withdrawal */}
                 <div className="space-y-2">
@@ -412,7 +357,6 @@ export function SettlementFormClient({
                     className="font-mono text-sm h-10 bg-white border-[var(--border-default)] text-[var(--state-error-text)]"
                     placeholder="0.00"
                   />
-                  <p className="text-[11px] text-[var(--text-muted)] px-1">Log any cash expenditures paid directly from the drawer.</p>
                 </div>
 
                 <div className="space-y-2">
@@ -429,7 +373,37 @@ export function SettlementFormClient({
                     className="font-mono text-sm h-10 bg-white border-[var(--border-default)] text-[var(--text-secondary)]"
                     placeholder="0.00"
                   />
-                  <p className="text-[11px] text-[var(--text-muted)] px-1">Log any cash removed for deposit, remittance, or bank transfer.</p>
+                </div>
+
+                {/* Row 4b: Expense Reason & Withdrawal By */}
+                <div className="space-y-2">
+                  <Label htmlFor="expenseReason" className="text-sm text-[var(--text-primary)] font-medium">
+                    Reason for Expense
+                  </Label>
+                  <Input
+                    id="expenseReason"
+                    type="text"
+                    value={expenseReason}
+                    disabled={isSubmitting}
+                    onChange={(e) => setExpenseReason(e.target.value)}
+                    className="text-sm h-10 bg-white border-[var(--border-default)]"
+                    placeholder=""
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="withdrawBy" className="text-sm text-[var(--text-primary)] font-medium">
+                    Withdrawal by (Person Name)
+                  </Label>
+                  <Input
+                    id="withdrawBy"
+                    type="text"
+                    value={withdrawBy}
+                    disabled={isSubmitting}
+                    onChange={(e) => setWithdrawBy(e.target.value)}
+                    className="text-sm h-10 bg-white border-[var(--border-default)]"
+                    placeholder=""
+                  />
                 </div>
 
                 {/* Separator */}

@@ -71,6 +71,8 @@ export default async function AdminEditSettlementPage({
     actualCard: settlement.actualCard.toString(),
     cashExpense: settlement.cashExpense.toString(),
     cashWithdraw: settlement.cashWithdraw.toString(),
+    expenseReason: settlement.expenseReason ?? "",
+    withdrawBy: settlement.withdrawBy ?? "",
   };
 
   return (

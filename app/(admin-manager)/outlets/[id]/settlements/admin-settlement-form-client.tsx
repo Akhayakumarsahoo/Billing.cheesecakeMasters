@@ -39,6 +39,8 @@ interface AdminSettlementFormClientProps {
     actualCard: string;
     cashExpense: string;
     cashWithdraw: string;
+    expenseReason?: string;
+    withdrawBy?: string;
   };
 }
 
@@ -62,6 +64,8 @@ export function AdminSettlementFormClient({
   const [actualCard, setActualCard] = useState<string>(initialFormValues?.actualCard || "");
   const [cashExpense, setCashExpense] = useState<string>(initialFormValues?.cashExpense || "");
   const [cashWithdraw, setCashWithdraw] = useState<string>(initialFormValues?.cashWithdraw || "");
+  const [expenseReason, setExpenseReason] = useState<string>(initialFormValues?.expenseReason || "");
+  const [withdrawBy, setWithdrawBy] = useState<string>(initialFormValues?.withdrawBy || "");
 
   const [closingCashInput, setClosingCashInput] = useState<string>("");
 
@@ -109,6 +113,8 @@ export function AdminSettlementFormClient({
       setActualCard("");
       setCashExpense("");
       setCashWithdraw("");
+      setExpenseReason("");
+      setWithdrawBy("");
     }
   }, [date, isEdit]);
 
@@ -245,6 +251,8 @@ export function AdminSettlementFormClient({
       actualCard: parsedActualCard,
       cashExpense: parsedCashExpense,
       cashWithdraw: parsedCashWithdraw,
+      expenseReason: expenseReason.trim() || null,
+      withdrawBy: withdrawBy.trim() || null,
     };
 
     try {
@@ -438,7 +446,6 @@ export function AdminSettlementFormClient({
                     className="font-mono text-sm h-10 bg-white border-[var(--border-default)] text-[var(--state-error-text)]"
                     placeholder="0.00"
                   />
-                  <p className="text-[11px] text-[var(--text-muted)] px-1">Log any cash expenditures paid directly from the drawer.</p>
                 </div>
 
                 <div className="space-y-2">
@@ -455,7 +462,37 @@ export function AdminSettlementFormClient({
                     className="font-mono text-sm h-10 bg-white border-[var(--border-default)] text-[var(--text-secondary)]"
                     placeholder="0.00"
                   />
-                  <p className="text-[11px] text-[var(--text-muted)] px-1">Log any cash removed for deposit, remittance, or bank transfer.</p>
+                </div>
+
+                {/* Row 4b: Expense Reason & Withdrawal By */}
+                <div className="space-y-2">
+                  <Label htmlFor="expenseReason" className="text-sm text-[var(--text-primary)] font-medium">
+                    Reason for Expense
+                  </Label>
+                  <Input
+                    id="expenseReason"
+                    type="text"
+                    value={expenseReason}
+                    disabled={isSubmitting}
+                    onChange={(e) => setExpenseReason(e.target.value)}
+                    className="text-sm h-10 bg-white border-[var(--border-default)]"
+                    placeholder=""
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="withdrawBy" className="text-sm text-[var(--text-primary)] font-medium">
+                    Withdrawal by (Person Name)
+                  </Label>
+                  <Input
+                    id="withdrawBy"
+                    type="text"
+                    value={withdrawBy}
+                    disabled={isSubmitting}
+                    onChange={(e) => setWithdrawBy(e.target.value)}
+                    className="text-sm h-10 bg-white border-[var(--border-default)]"
+                    placeholder=""
+                  />
                 </div>
 
                 {/* Separator */}
