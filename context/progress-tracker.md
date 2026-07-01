@@ -11,7 +11,34 @@ change.
 
 - Testing and Verification
 
-## Completed
+- **Inventory Detail Page Name Selector**
+  - Replaced the static inventory name display on the inventory details page (`/inventory/[id]`) with a select dropdown selector.
+  - Fetched all active and inactive inventories in the server-side page component for Admin and Manager users, while keeping the single scoped inventory fallback for `storeroom` employees.
+  - Implemented the `<Select>` component dropdown inside `InventoryDetailClient` with a clean, borderless typography style. It automatically redirects users to `/inventory/[id]` on selection change, improving navigation speed.
+
+- **Inventory Management System (Central Stores, Kitchens, and Outlets)**
+  - Implemented the complete inventory management system with role-based scoping (storeroom scoped to assigned inventory), live price/tax back-calculations, available stock warnings, and transaction-safe checkout/cancellation hooks.
+  - Implemented all inventory database tables, relationships, and Zod validators.
+  - Created routes and UI tabs for Overview, Raw Materials, Current Stock, Purchases, Transfers, Wastage, and Recipes.
+  - Implemented auto-consumption on bill checkout and automatic reversals on bill cancellation inside database transactions.
+  - Resolved all Base UI trigger type check errors (asChild replaced with render prop) and select event handler mismatches.
+  - Allowed stock transfers to proceed even when the source inventory stock level is zero or insufficient, removing blocks in both frontend and backend validation.
+  - Updated the "To Inventory" dropdown selector inside the stock transfer creation page to render the human-readable inventory display name instead of the raw database UUID.
+  - Replaced the raw material count card in the inventory detail overview panel with a "Stock Valuation" metric displaying the total currency worth (Stock * Purchase Price) of all active materials in the inventory.
+  - Created a dedicated "Management" tab (for Admin users, ordered after the "Recipes" tab) to show basic inventory details as a read-only view by default, with an "Edit Settings" button that toggles into the editable form (Name, Address, and Outlet Mappings), keeping configuration actions separate.
+  - Reordered the sub-navigation tabs on the inventory details view to match the requested layout flow: Overview, Current Stock, Purchases, Transfers, Wastage, Raw Materials, Recipes, and Management.
+  - Implemented the "Stock Summary" page/tab (positioned after "Wastage") along with a backend API endpoint at `/api/inventory/[id]/stock-summary`. It dynamically calculates opening stock, additions, deductions, closing stock, and discrepancies within a selected date range, and supports filters (Material, Unit) and CSV report downloading.
+  - Cleaned up the Stock Summary table and CSV export structure to completely remove HSN code rows, cells, and headers.
+  - Removed the "Production (I)" column from the Stock Summary report view, the CSV exporter, and the backend API payload, adjusting the deductions total formula to D+E+F+G+H.
+  - Adjusted the Stock Summary API calculations to net/group stock movements by type within the selected range before computing totals, ensuring that cancellations (e.g. printing and voiding a bill) result in net zero consumption instead of duplicate consumption entries.
+  - Cleaned up the Stock Summary page to remove the Category and Unit Type filter inputs, simplifying the search interface to a 3-column layout (Raw Material name query, From Date, and To Date).
+  - Renamed the "Excess (C)" column label in the Stock Summary table and CSV report headers to "Excess/short (C)".
+  - Removed "Normal Loss", "Shortage", "Closing Summary", and "Difference" columns from the Stock Summary report table, CSV exporter, and backend API payload, adjusting the deductions total formula to D+E+F (Consumed + Wastage + Transfer).
+
+- **Inventory & Stock Transfer Specifications Update**
+  - Updated the inventory feature specification [10-Inventory.md](file:///c:/Users/User/Desktop/billCCM/context/feature-specs/10-Inventory.md) to require outlet mapping during inventory creation, adding prompts to create a Clerk account (email, password) with the `storeroom` role for standalone storerooms.
+  - Redesigned the stock transfer workflow to support asynchronous multi-inventory operations: source inventory reduces stock upon sending (`pending` status), destination inventory shows a prompt to accept or reject, and stock adds to the destination only upon acceptance (otherwise reversing the source deduction on rejection or cancellation).
+  - Aligned data models, access controls, page actions, and verification checklists with the new flow.
 
 - **Walkaway Reason Naming (Bad customer service → Will return later)**
   - Replaced the customer walkaway reason "Bad customer service" with "Will return later" across all related views, component dropdown lists, and the database schema comment to better represent the customer's intent to return later.

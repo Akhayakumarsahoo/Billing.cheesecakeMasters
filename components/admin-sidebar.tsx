@@ -13,6 +13,7 @@ import {
   ListOrdered,
   Coins,
   BarChart3,
+  Warehouse,
 } from "lucide-react";
 import {
   Sidebar,
@@ -62,7 +63,8 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
   const isOrdersActive = isSpecificOutlet && pathname?.endsWith("/orders");
   const isSettlementsActive = isSpecificOutlet && pathname?.includes("/settlements");
   const isReportsActive = pathname?.endsWith("/reports");
-  const isDashboardActive = (pathname === "/" || (isSpecificOutlet && !isMenuActive && !isOrdersActive && !isSettlementsActive)) && !isReportsActive;
+  const isInventoryActive = pathname?.startsWith("/inventory");
+  const isDashboardActive = (pathname === "/" || (isSpecificOutlet && !isMenuActive && !isOrdersActive && !isSettlementsActive)) && !isReportsActive && !isInventoryActive;
 
   const dashboardHref = currentOutletId && currentOutletId !== "all" 
     ? `/outlets/${currentOutletId}` 
@@ -86,14 +88,16 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton render={<Link href={dashboardHref} />} isActive={isDashboardActive} tooltip="Dashboard">
-                  <LayoutDashboard />
-                  <span>Dashboard</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {role !== "storeroom" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton render={<Link href={dashboardHref} />} isActive={isDashboardActive} tooltip="Dashboard">
+                    <LayoutDashboard />
+                    <span>Dashboard</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
-              {currentOutletId && currentOutletId !== "all" && (
+              {role !== "storeroom" && currentOutletId && currentOutletId !== "all" && (
                 <SidebarMenuItem>
                   <SidebarMenuButton render={<Link href={`/outlets/${currentOutletId}/orders`} />} isActive={isOrdersActive} tooltip="All orders">
                     <ListOrdered />
@@ -102,7 +106,7 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
                 </SidebarMenuItem>
               )}
 
-              {currentOutletId && currentOutletId !== "all" && (
+              {role !== "storeroom" && currentOutletId && currentOutletId !== "all" && (
                 <SidebarMenuItem>
                   <SidebarMenuButton render={<Link href={`/outlets/${currentOutletId}/settlements`} />} isActive={isSettlementsActive} tooltip="Daily Settlement">
                     <Coins />
@@ -111,7 +115,7 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
                 </SidebarMenuItem>
               )}
               
-              {currentOutletId && currentOutletId !== "all" && (
+              {role !== "storeroom" && currentOutletId && currentOutletId !== "all" && (
                 <>
                   {role === "admin" && (
                     <SidebarMenuItem>
@@ -124,10 +128,19 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
                 </>
               )}
 
+              {role !== "storeroom" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton render={<Link href={reportsHref} />} isActive={isReportsActive} tooltip="Reports">
+                    <BarChart3 />
+                    <span>Reports</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
               <SidebarMenuItem>
-                <SidebarMenuButton render={<Link href={reportsHref} />} isActive={isReportsActive} tooltip="Reports">
-                  <BarChart3 />
-                  <span>Reports</span>
+                <SidebarMenuButton render={<Link href="/inventory" />} isActive={isInventoryActive} tooltip="Inventory">
+                  <Warehouse />
+                  <span>Inventory</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 

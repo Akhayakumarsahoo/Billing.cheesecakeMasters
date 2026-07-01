@@ -14,6 +14,7 @@ enum UserRole {
   manager
   admin
   outlet
+  storeroom
 }
 
 enum BillStatus {
@@ -51,6 +52,7 @@ model Outlet {
   billSequence   BillSequence?
   dailySettlements DailySettlement[]
   walkaways        Walkaway[]
+  inventoryLinks   InventoryOutlet[]
 
   @@map("outlets")
 }
@@ -70,10 +72,20 @@ model User {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
 
+  inventoryId String?   @map("inventory_id")
+  inventory   Inventory? @relation(fields: [inventoryId], references: [id])
+
   // Relations
   modifiedBills       Bill[]            @relation("BillModifiedBy")
   createdSettlements  DailySettlement[] @relation("SettlementCreatedBy")
   modifiedSettlements DailySettlement[] @relation("SettlementModifiedBy")
+
+  purchaseInvoices    PurchaseInvoice[] @relation("PurchaseCreatedBy")
+  transfersCreated    StockTransfer[]   @relation("TransferCreatedBy")
+  transfersAccepted   StockTransfer[]   @relation("TransferAcceptedBy")
+  transfersRejected   StockTransfer[]   @relation("TransferRejectedBy")
+  wastageRecords      WastageRecord[]   @relation("WastageCreatedBy")
+  stockMovements      StockMovement[]   @relation("MovementCreatedBy")
 
   @@map("users")
 }
@@ -91,6 +103,7 @@ model GstSlab {
 
   // Relations
   menuItems MenuItem[]
+  rawMaterials RawMaterial[]
 
   @@map("gst_slabs")
 }
@@ -149,6 +162,7 @@ model MenuItem {
 
   // Relations
   billLineItems BillLineItem[]
+  recipes       Recipe[]
 
   @@unique([outletId, sku]) // SKU unique per outlet
   @@map("menu_items")
@@ -341,6 +355,292 @@ model Walkaway {
   createdByEmail String?
 
   @@map("walkaways")
+}
+
+// ─────────────────────────────────────────
+// INVENTORIES AND STOCK MANAGEMENT
+// ─────────────────────────────────────────
+
+model Inventory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  address   String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users            User[]
+  outlets          InventoryOutlet[]
+  rawMaterials     RawMaterial[]
+  purchaseInvoices PurchaseInvoice[]
+  transfersFrom    StockTransfer[]   @relation("FromInventory")
+  transfersTo      StockTransfer[]   @relation("ToInventory")
+  wastageRecords   WastageRecord[]
+  recipes          Recipe[]
+  stockMovements   StockMovement[]
+
+  @@map("inventories")
+}
+
+model InventoryOutlet {
+  inventoryId String    @map("inventory_id")
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  outletId    String    @map("outlet_id")
+  outlet      Outlet    @relation(fields: [outletId], references: [id])
+
+  @@id([inventoryId, outletId])
+  @@unique([inventoryId, outletId])
+  @@map("inventory_outlets")
+}
+
+model RawMaterial {
+  id            String   @id @default(uuid())
+  inventoryId   String   @map("inventory_id")
+  inventory     Inventory @relation(fields: [inventoryId], references: [id])
+  name          String
+  unit          String
+  purchasePrice Decimal  @map("purchase_price") @db.Decimal(12, 2)
+  transferPrice Decimal  @map("transfer_price") @db.Decimal(12, 2)
+  gstSlabId     Int      @map("gst_slab_id")
+  gstSlab       GstSlab  @relation(fields: [gstSlabId], references: [id])
+  currentStock  Decimal  @default(0) @map("current_stock") @db.Decimal(12, 3)
+  lowStockAlert Decimal? @map("low_stock_alert") @db.Decimal(12, 3)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  purchaseLines  PurchaseInvoiceLine[]
+  transferLines  StockTransferLine[]
+  wastageLines   WastageLine[]
+  recipeLines    RecipeLine[]
+  stockMovements StockMovement[]
+
+  @@unique([inventoryId, name])
+  @@map("raw_materials")
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  phone     String?
+  address   String?
+  gstin     String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  purchaseInvoices PurchaseInvoice[]
+
+  @@map("suppliers")
+}
+
+enum PurchaseInvoiceStatus {
+  draft
+  confirmed
+  cancelled
+}
+
+model PurchaseInvoice {
+  id               String                @id @default(uuid())
+  inventoryId      String                @map("inventory_id")
+  inventory        Inventory             @relation(fields: [inventoryId], references: [id])
+  supplierId       String                @map("supplier_id")
+  supplier         Supplier              @relation(fields: [supplierId], references: [id])
+  invoiceNumber    String                @map("invoice_number")
+  invoiceDate      DateTime              @map("invoice_date") @db.Date
+  status           PurchaseInvoiceStatus @default(draft)
+  subtotal         Decimal               @db.Decimal(12, 2)
+  totalGst         Decimal               @map("total_gst") @db.Decimal(12, 2)
+  otherCharges     Decimal               @default(0) @map("other_charges") @db.Decimal(12, 2)
+  otherChargesGst  Decimal               @default(0) @map("other_charges_gst") @db.Decimal(12, 2)
+  grandTotal       Decimal               @map("grand_total") @db.Decimal(12, 2)
+  notes            String?
+  confirmedAt      DateTime?             @map("confirmed_at")
+  cancelledAt      DateTime?             @map("cancelled_at")
+  createdById      String                @map("created_by")
+  createdBy        User                  @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  lines PurchaseInvoiceLine[]
+
+  @@map("purchase_invoices")
+}
+
+model PurchaseInvoiceLine {
+  id                String          @id @default(uuid())
+  purchaseInvoiceId String          @map("purchase_invoice_id")
+  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id])
+  rawMaterialId     String          @map("raw_material_id")
+  rawMaterial       RawMaterial     @relation(fields: [rawMaterialId], references: [id])
+  materialName      String          @map("material_name")
+  unit              String
+  quantity          Decimal         @db.Decimal(12, 3)
+  unitPrice         Decimal         @map("unit_price") @db.Decimal(12, 2)
+  gstRate           Decimal         @map("gst_rate") @db.Decimal(5, 2)
+  lineBaseTotal     Decimal         @map("line_base_total") @db.Decimal(12, 2)
+  lineGstAmount     Decimal         @map("line_gst_amount") @db.Decimal(12, 2)
+  lineTotal         Decimal         @map("line_total") @db.Decimal(12, 2)
+
+  @@map("purchase_invoice_lines")
+}
+
+enum StockTransferStatus {
+  draft
+  pending
+  accepted
+  rejected
+  cancelled
+}
+
+model StockTransfer {
+  id              String              @id @default(uuid())
+  fromInventoryId String              @map("from_inventory_id")
+  fromInventory   Inventory           @relation("FromInventory", fields: [fromInventoryId], references: [id])
+  toInventoryId   String              @map("to_inventory_id")
+  toInventory     Inventory           @relation("ToInventory", fields: [toInventoryId], references: [id])
+  status          StockTransferStatus @default(draft)
+  subtotal        Decimal             @db.Decimal(12, 2)
+  totalGst        Decimal             @map("total_gst") @db.Decimal(12, 2)
+  otherCharges    Decimal             @default(0) @map("other_charges") @db.Decimal(12, 2)
+  otherChargesGst Decimal             @default(0) @map("other_charges_gst") @db.Decimal(12, 2)
+  grandTotal      Decimal             @map("grand_total") @db.Decimal(12, 2)
+  notes           String?
+  sentAt          DateTime?           @map("sent_at")
+  acceptedAt      DateTime?           @map("accepted_at")
+  rejectedAt      DateTime?           @map("rejected_at")
+  cancelledAt     DateTime?           @map("cancelled_at")
+  createdById     String              @map("created_by")
+  createdBy       User                @relation("TransferCreatedBy", fields: [createdById], references: [id])
+  acceptedById    String?             @map("accepted_by")
+  acceptedBy      User?               @relation("TransferAcceptedBy", fields: [acceptedById], references: [id])
+  rejectedById    String?             @map("rejected_by")
+  rejectedBy      User?               @relation("TransferRejectedBy", fields: [rejectedById], references: [id])
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  lines StockTransferLine[]
+
+  @@map("stock_transfers")
+}
+
+model StockTransferLine {
+  id              String        @id @default(uuid())
+  stockTransferId String        @map("stock_transfer_id")
+  stockTransfer   StockTransfer @relation(fields: [stockTransferId], references: [id])
+  rawMaterialId   String        @map("raw_material_id")
+  rawMaterial     RawMaterial   @relation(fields: [rawMaterialId], references: [id])
+  materialName    String        @map("material_name")
+  unit            String
+  quantity        Decimal       @db.Decimal(12, 3)
+  unitPrice       Decimal       @map("unit_price") @db.Decimal(12, 2)
+  gstRate         Decimal       @map("gst_rate") @db.Decimal(5, 2)
+  lineBaseTotal   Decimal       @map("line_base_total") @db.Decimal(12, 2)
+  lineGstAmount   Decimal       @map("line_gst_amount") @db.Decimal(12, 2)
+  lineTotal       Decimal       @map("line_total") @db.Decimal(12, 2)
+
+  @@map("stock_transfer_lines")
+}
+
+enum WastageRecordStatus {
+  draft
+  confirmed
+  cancelled
+}
+
+model WastageRecord {
+  id          String              @id @default(uuid())
+  inventoryId String              @map("inventory_id")
+  inventory   Inventory           @relation(fields: [inventoryId], references: [id])
+  status      WastageRecordStatus @default(draft)
+  wastageDate DateTime            @map("wastage_date") @db.Date
+  reason      String?
+  notes       String?
+  confirmedAt DateTime?           @map("confirmed_at")
+  cancelledAt DateTime?           @map("cancelled_at")
+  createdById String              @map("created_by")
+  createdBy   User                @relation("WastageCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  lines WastageLine[]
+
+  @@map("wastage_records")
+}
+
+model WastageLine {
+  id              String        @id @default(uuid())
+  wastageRecordId String        @map("wastage_record_id")
+  wastageRecord   WastageRecord @relation(fields: [wastageRecordId], references: [id])
+  rawMaterialId   String        @map("raw_material_id")
+  rawMaterial     RawMaterial   @relation(fields: [rawMaterialId], references: [id])
+  materialName    String        @map("material_name")
+  unit            String
+  quantity        Decimal       @db.Decimal(12, 3)
+
+  @@map("wastage_lines")
+}
+
+model Recipe {
+  id          String   @id @default(uuid())
+  menuItemId  String   @map("menu_item_id")
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+  inventoryId String   @map("inventory_id")
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  lines RecipeLine[]
+
+  @@unique([menuItemId, inventoryId])
+  @@map("recipes")
+}
+
+model RecipeLine {
+  id              String      @id @default(uuid())
+  recipeId        String      @map("recipe_id")
+  recipe          Recipe      @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  rawMaterialId   String      @map("raw_material_id")
+  rawMaterial     RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  quantityPerUnit Decimal     @map("quantity_per_unit") @db.Decimal(12, 4)
+
+  @@map("recipe_lines")
+}
+
+enum StockMovementType {
+  purchase
+  transfer_in
+  transfer_out
+  wastage
+  consumption
+  adjustment
+}
+
+enum StockMovementRefType {
+  purchase_invoice
+  stock_transfer
+  wastage_record
+  bill
+  manual
+}
+
+model StockMovement {
+  id             String               @id @default(uuid())
+  inventoryId    String               @map("inventory_id")
+  inventory      Inventory            @relation(fields: [inventoryId], references: [id])
+  rawMaterialId  String               @map("raw_material_id")
+  rawMaterial    RawMaterial          @relation(fields: [rawMaterialId], references: [id])
+  movementType   StockMovementType    @map("movement_type")
+  referenceType  StockMovementRefType @map("reference_type")
+  referenceId    String?              @map("reference_id")
+  quantityChange Decimal              @map("quantity_change") @db.Decimal(12, 3)
+  note           String?
+  createdById    String               @map("created_by")
+  createdBy      User                 @relation("MovementCreatedBy", fields: [createdById], references: [id])
+  createdAt      DateTime             @default(now()) @map("created_at")
+
+  @@map("stock_movements")
 }
 
 

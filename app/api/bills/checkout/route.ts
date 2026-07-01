@@ -4,6 +4,7 @@ import { CheckoutBillSchema } from "@/lib/validators";
 import { computeLineItem, computeBillTotals } from "@/lib/gst";
 import { generateBillNumber } from "@/lib/bill-number";
 import { syncSettlementForDate } from "@/lib/settlement";
+import { recomputeStock } from "@/lib/inventory";
 import { NextResponse } from "next/server";
 import { Decimal } from "@/lib/db";
 
@@ -192,6 +193,25 @@ export async function POST(req: Request) {
           throw new Error("PAST_DAY_EDIT_FORBIDDEN");
         }
 
+        // Clean up previous stock movements & recompute stock
+        const existingMovements = await tx.stockMovement.findMany({
+          where: {
+            referenceType: "bill",
+            referenceId: billId
+          }
+        });
+        if (existingMovements.length > 0) {
+          await tx.stockMovement.deleteMany({
+            where: {
+              referenceType: "bill",
+              referenceId: billId
+            }
+          });
+          for (const m of existingMovements) {
+            await recomputeStock(m.rawMaterialId, tx);
+          }
+        }
+
         // Clean up previous line items & payments
         await tx.billPayment.deleteMany({ where: { billId } });
         await tx.billLineItem.deleteMany({ where: { billId } });
@@ -281,13 +301,68 @@ export async function POST(req: Request) {
       });
 
       // Retrieve full bill including lineItems and payments
-      return tx.bill.findUnique({
+      const finalBillRecord = await tx.bill.findUnique({
         where: { id: billId },
         include: {
           lineItems: true,
           payments: true,
         },
       });
+
+      // Auto-consumption logic
+      const linkedInventories = await tx.inventoryOutlet.findMany({
+        where: { outletId: outlet.id }
+      });
+      if (linkedInventories.length > 0 && finalBillRecord) {
+        const checkedMenuItemIds = finalBillRecord.lineItems
+          .map((li) => li.menuItemId)
+          .filter((id): id is string => typeof id === "string");
+          
+        if (checkedMenuItemIds.length > 0) {
+          const recipes = await tx.recipe.findMany({
+            where: {
+              inventoryId: { in: linkedInventories.map(li => li.inventoryId) },
+              menuItemId: { in: checkedMenuItemIds },
+              isActive: true
+            },
+            include: {
+              lines: true
+            }
+          });
+          
+          const recipeMap = new Map<string, any>();
+          for (const r of recipes) {
+            recipeMap.set(`${r.inventoryId}_${r.menuItemId}`, r);
+          }
+          
+          for (const li of finalBillRecord.lineItems) {
+            if (!li.menuItemId) continue;
+            for (const invOutlet of linkedInventories) {
+              const recipe = recipeMap.get(`${invOutlet.inventoryId}_${li.menuItemId}`);
+              if (!recipe) continue;
+              
+              for (const rLine of recipe.lines) {
+                const change = rLine.quantityPerUnit.mul(li.quantity);
+                await tx.stockMovement.create({
+                  data: {
+                    inventoryId: invOutlet.inventoryId,
+                    rawMaterialId: rLine.rawMaterialId,
+                    movementType: "consumption",
+                    referenceType: "bill",
+                    referenceId: finalBillRecord.id,
+                    quantityChange: change.negated(),
+                    createdById: loggedInUser?.id || "system",
+                    note: `Auto-consumption for bill ${finalBillRecord.billNumber}`
+                  }
+                });
+                await recomputeStock(rLine.rawMaterialId, tx);
+              }
+            }
+          }
+        }
+      }
+
+      return finalBillRecord;
     }, {
       timeout: 10000,
     });

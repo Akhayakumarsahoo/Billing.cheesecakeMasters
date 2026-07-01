@@ -160,4 +160,101 @@ export const CreateWalkawaySchema = z.object({
   customReason: z.string().max(500).optional().nullable(),
 });
 
+// ── Inventory & Warehousing ───────────────────────────────
+export const CreateInventorySchema = z.object({
+  name: z.string().min(1).max(100),
+  address: z.string().max(300).optional().nullable(),
+  outletIds: z.array(z.string().uuid()).optional(),
+  email: z.string().email().optional().nullable(),
+  password: z.string().min(8).optional().nullable(),
+});
+
+export const UpdateInventorySchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  address: z.string().max(300).optional().nullable(),
+  outletIds: z.array(z.string().uuid()).optional(),
+});
+
+export const CreateRawMaterialSchema = z.object({
+  inventoryId: z.string().uuid(),
+  name: z.string().min(1).max(150),
+  unit: z.string().min(1).max(50),
+  purchasePrice: z.number().nonnegative(),
+  transferPrice: z.number().nonnegative(),
+  gstSlabId: z.number().refine((v) => [0, 5, 18, 28].includes(v), {
+    message: "gstSlabId must be one of 0, 5, 18, 28",
+  }),
+  lowStockAlert: z.number().nonnegative().optional().nullable(),
+});
+
+export const UpdateRawMaterialSchema = CreateRawMaterialSchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
+
+export const CreateSupplierSchema = z.object({
+  name: z.string().min(1).max(150),
+  phone: z.string().max(20).optional().nullable(),
+  address: z.string().max(300).optional().nullable(),
+  gstin: z.string().max(15).optional().nullable(),
+});
+
+export const CreatePurchaseInvoiceSchema = z.object({
+  inventoryId: z.string().uuid(),
+  supplierId: z.string().uuid(),
+  invoiceNumber: z.string().min(1).max(100),
+  invoiceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Date must be YYYY-MM-DD" }),
+  notes: z.string().max(500).optional().nullable(),
+  otherCharges: z.number().nonnegative().optional(),
+  otherChargesGst: z.number().nonnegative().optional(),
+  lines: z.array(
+    z.object({
+      rawMaterialId: z.string().uuid(),
+      quantity: z.number().positive(),
+      unitPrice: z.number().nonnegative(),
+    })
+  ).min(1),
+  status: z.enum(["draft", "confirmed"]).optional(),
+});
+
+export const CreateStockTransferSchema = z.object({
+  fromInventoryId: z.string().uuid(),
+  toInventoryId: z.string().uuid(),
+  notes: z.string().max(500).optional().nullable(),
+  otherCharges: z.number().nonnegative().optional(),
+  otherChargesGst: z.number().nonnegative().optional(),
+  lines: z.array(
+    z.object({
+      rawMaterialId: z.string().uuid(),
+      quantity: z.number().positive(),
+      unitPrice: z.number().nonnegative(),
+    })
+  ).min(1),
+  status: z.enum(["draft", "pending"]).optional(),
+});
+
+export const CreateWastageRecordSchema = z.object({
+  inventoryId: z.string().uuid(),
+  wastageDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Date must be YYYY-MM-DD" }),
+  reason: z.string().max(200).optional().nullable(),
+  notes: z.string().max(500).optional().nullable(),
+  lines: z.array(
+    z.object({
+      rawMaterialId: z.string().uuid(),
+      quantity: z.number().positive(),
+    })
+  ).min(1),
+  status: z.enum(["draft", "confirmed"]).optional(),
+});
+
+export const SaveRecipeSchema = z.object({
+  menuItemId: z.string().uuid(),
+  inventoryId: z.string().uuid(),
+  lines: z.array(
+    z.object({
+      rawMaterialId: z.string().uuid(),
+      quantityPerUnit: z.number().positive(),
+    })
+  ),
+});
+
 

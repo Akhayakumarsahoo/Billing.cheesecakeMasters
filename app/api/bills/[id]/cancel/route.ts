@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentOutlet, getCurrentUser, getLoggedInUser } from "@/lib/auth";
 import { syncSettlementForDate } from "@/lib/settlement";
+import { recomputeStock } from "@/lib/inventory";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -62,14 +63,46 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const loggedInUser = await getLoggedInUser();
 
-    const updatedBill = await prisma.bill.update({
-      where: { id },
-      data: {
-        status: "cancelled",
-        cancelledAt: new Date(),
-        modifiedById: loggedInUser?.id ?? null,
-      },
-    });
+    const updatedBill = await prisma.$transaction(async (tx) => {
+      // 1. Update bill status
+      const updated = await tx.bill.update({
+        where: { id },
+        data: {
+          status: "cancelled",
+          cancelledAt: new Date(),
+          modifiedById: loggedInUser?.id ?? null,
+        },
+      });
+
+      // 2. Find all consumption movements for this bill
+      const existingMovements = await tx.stockMovement.findMany({
+        where: {
+          referenceType: "bill",
+          referenceId: id,
+          movementType: "consumption"
+        }
+      });
+
+      // 3. Revert consumption movements (negative consumption gets a positive reversal)
+      for (const m of existingMovements) {
+        await tx.stockMovement.create({
+          data: {
+            inventoryId: m.inventoryId,
+            rawMaterialId: m.rawMaterialId,
+            movementType: "consumption",
+            referenceType: "bill",
+            referenceId: id,
+            quantityChange: m.quantityChange.negated(),
+            createdById: loggedInUser?.id || "system",
+            note: "Reversal due to bill cancellation"
+          }
+        });
+
+        await recomputeStock(m.rawMaterialId, tx);
+      }
+
+      return updated;
+    }, { timeout: 10000 });
 
     if (updatedBill.completedAt) {
       await syncSettlementForDate(updatedBill.outletId, updatedBill.completedAt);
