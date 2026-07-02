@@ -11,6 +11,13 @@ change.
 
 - Testing and Verification
 
+- **Fixed Price Discount Back-Calculation**
+  - Updated the POS discount dialog to replace the "Fixed Amount" option with a "Fixed Price" input.
+  - Pre-populated the input field with the target total amount (including tax) when selecting Fixed Price.
+  - Added real-time auto-synchronization when switching between Percentage and Fixed Price options in the discount type select dropdown.
+  - Implemented back-calculation logic to compute the discount amount from the desired grand total: `discount = original_subtotal - (original_subtotal * (entered_total / original_total_with_tax))`.
+  - Passed unrounded `originalTotalWithTax` from the parent cart builder component (`bill-builder.tsx`) to the discount dialog for high precision back-calculation.
+
 - **Sales Dashboard Outlet Checklist Filter**
   - Refactored the dashboard page component `app/(admin-manager)/dashboard/page.tsx` to query sales, walkaways, walkaway reasons, and payment breakdowns grouped per outlet.
   - Implemented the `DashboardClient` component containing an interactive checklist card using capsule toggles with active checkmarks.

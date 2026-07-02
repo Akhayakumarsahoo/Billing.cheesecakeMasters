@@ -226,12 +226,22 @@ export function BillBuilder({
     const grandTotal = Math.max(0, Math.round(rawTotal));
     const roundOff = grandTotal - rawTotal;
 
+    let originalGstAmount = 0;
+    cart.forEach((item) => {
+      const price = parseFloat(item.menuItem.basePrice);
+      const qty = item.quantity;
+      const rate = parseFloat(item.menuItem.gstSlab.rate);
+      originalGstAmount += (price * qty) * (rate / 100);
+    });
+    const originalTotalWithTax = subtotal + originalGstAmount;
+
     return {
       subtotal,
       gstAmount,
       discountAmount,
       roundOff,
       grandTotal,
+      originalTotalWithTax,
     };
   }, [cart, discountType, discountValue]);
 
@@ -872,6 +882,7 @@ export function BillBuilder({
         isOpen={isDiscountOpen}
         onClose={() => setIsDiscountOpen(false)}
         subtotal={totals.subtotal}
+        originalTotalWithTax={totals.originalTotalWithTax}
         initialDiscountType={discountType}
         initialDiscountValue={discountValue}
         initialDiscountReason={discountReason}

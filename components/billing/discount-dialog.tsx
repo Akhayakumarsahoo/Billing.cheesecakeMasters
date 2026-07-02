@@ -24,6 +24,7 @@ interface DiscountDialogProps {
   isOpen: boolean;
   onClose: () => void;
   subtotal: number;
+  originalTotalWithTax: number;
   initialDiscountType: "percentage" | "fixed" | null;
   initialDiscountValue: number;
   initialDiscountReason: string;
@@ -38,6 +39,7 @@ export function DiscountDialog({
   isOpen,
   onClose,
   subtotal,
+  originalTotalWithTax,
   initialDiscountType,
   initialDiscountValue,
   initialDiscountReason,
@@ -52,25 +54,42 @@ export function DiscountDialog({
   useEffect(() => {
     if (isOpen) {
       setDiscountType(initialDiscountType || "percentage");
-      setDiscountValue(initialDiscountValue > 0 ? initialDiscountValue.toString() : "");
       setDiscountReason(initialDiscountReason || "");
       setError(null);
+
+      if (initialDiscountType === "percentage") {
+        setDiscountValue(initialDiscountValue > 0 ? initialDiscountValue.toString() : "");
+      } else if (initialDiscountType === "fixed") {
+        // If it's already a fixed discount, the entered grand total is originalTotalWithTax * (1 - initialDiscountValue / subtotal)
+        const discRatio = subtotal > 0 ? initialDiscountValue / subtotal : 0;
+        const targetGrandTotal = originalTotalWithTax * (1 - discRatio);
+        setDiscountValue(Math.max(0, Math.round(targetGrandTotal)).toString());
+      } else {
+        setDiscountValue("");
+      }
     }
   }, [
     isOpen,
     initialDiscountType,
     initialDiscountValue,
     initialDiscountReason,
+    originalTotalWithTax,
+    subtotal,
   ]);
 
   const handleApply = () => {
     setError(null);
     const valueNum = parseFloat(discountValue);
 
-    if (isNaN(valueNum) || valueNum <= 0) {
-      setError("Please enter a valid discount amount/percentage.");
+    if (isNaN(valueNum) || valueNum < 0) {
+      setError(discountType === "percentage"
+        ? "Please enter a valid discount percentage."
+        : "Please enter a valid fixed price."
+      );
       return;
     }
+
+    let calculatedDiscountValue = valueNum;
 
     if (discountType === "percentage") {
       if (valueNum < 1 || valueNum > 100) {
@@ -78,9 +97,21 @@ export function DiscountDialog({
         return;
       }
     } else if (discountType === "fixed") {
-      if (valueNum > subtotal) {
-        setError(`Fixed discount amount cannot exceed the total core amount (₹${subtotal.toFixed(2)}).`);
+      // valueNum is the entered target total with tax (Fixed Price)
+      const maxTotal = Math.round(originalTotalWithTax);
+      if (valueNum > maxTotal) {
+        setError(`Fixed price cannot exceed the original total with tax (₹${maxTotal}).`);
         return;
+      }
+
+      // Back calculate the discount amount:
+      // discount amount = original sub total - entered subtotal
+      // entered subtotal = original subtotal * (entered total with tax / original total with tax)
+      if (originalTotalWithTax > 0) {
+        const enteredSubtotal = subtotal * (valueNum / originalTotalWithTax);
+        calculatedDiscountValue = Math.max(0, subtotal - enteredSubtotal);
+      } else {
+        calculatedDiscountValue = 0;
       }
     }
 
@@ -89,7 +120,7 @@ export function DiscountDialog({
       return;
     }
 
-    onConfirm(discountType, valueNum, discountReason.trim());
+    onConfirm(discountType, calculatedDiscountValue, discountReason.trim());
     onClose();
   };
 
@@ -106,7 +137,9 @@ export function DiscountDialog({
             Apply Discount
           </DialogTitle>
           <DialogDescription className="text-xs text-[var(--text-secondary)]">
-            Specify a percentage or fixed discount on the core amount (₹{subtotal.toFixed(2)}).
+            {discountType === "percentage"
+              ? `Specify a percentage discount on the core amount (₹${subtotal.toFixed(2)}).`
+              : `Specify a target total bill amount with tax (original total: ₹${Math.round(originalTotalWithTax)}).`}
           </DialogDescription>
         </DialogHeader>
 
@@ -125,8 +158,31 @@ export function DiscountDialog({
               <Select
                 value={discountType}
                 onValueChange={(val) => {
-                  setDiscountType(val as "percentage" | "fixed");
+                  const prevType = discountType;
+                  const newType = val as "percentage" | "fixed";
+                  setDiscountType(newType);
                   setError(null);
+
+                  const currentValNum = parseFloat(discountValue);
+                  if (newType === "fixed" && prevType === "percentage") {
+                    if (!isNaN(currentValNum) && currentValNum >= 0 && currentValNum <= 100) {
+                      const targetGrandTotal = originalTotalWithTax * (1 - currentValNum / 100);
+                      setDiscountValue(Math.max(0, Math.round(targetGrandTotal)).toString());
+                    } else {
+                      setDiscountValue(Math.max(0, Math.round(originalTotalWithTax)).toString());
+                    }
+                  } else if (newType === "percentage" && prevType === "fixed") {
+                    if (!isNaN(currentValNum) && currentValNum >= 0 && originalTotalWithTax > 0) {
+                      const pct = (1 - currentValNum / originalTotalWithTax) * 100;
+                      if (pct >= 0 && pct <= 100) {
+                        setDiscountValue(Math.max(0, Math.min(100, Number(pct.toFixed(2)))).toString());
+                      } else {
+                        setDiscountValue("");
+                      }
+                    } else {
+                      setDiscountValue("");
+                    }
+                  }
                 }}
               >
                 <SelectTrigger id="discount-type" className="h-10 bg-[var(--bg-surface)]">
@@ -134,21 +190,21 @@ export function DiscountDialog({
                 </SelectTrigger>
                 <SelectContent className="bg-[var(--bg-surface)] border-[var(--border-default)]">
                   <SelectItem value="percentage">Percentage (%)</SelectItem>
-                  <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
+                  <SelectItem value="fixed">Fixed Price</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="discount-value" className="text-xs font-medium text-[var(--text-secondary)]">
-                {discountType === "percentage" ? "Discount (%)" : "Amount (₹)"}
+                {discountType === "percentage" ? "Discount (%)" : "Fixed Price (₹)"}
               </Label>
               <Input
                 id="discount-value"
                 type="number"
-                min="1"
+                min="0"
                 step="any"
-                placeholder={discountType === "percentage" ? "e.g. 10" : "e.g. 150"}
+                placeholder={discountType === "percentage" ? "e.g. 10" : `e.g. ${Math.round(originalTotalWithTax)}`}
                 value={discountValue}
                 onChange={(e) => {
                   setDiscountValue(e.target.value);
