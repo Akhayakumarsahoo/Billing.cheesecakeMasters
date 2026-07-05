@@ -235,7 +235,7 @@ export function RawMaterialsTab({
             </TableHeader>
             <TableBody>
               {filtered.map((m) => {
-                const stock = Number(m.currentStock);
+                const stock = Number(m.currentStock || 0);
                 const alert = m.lowStockAlert ? Number(m.lowStockAlert) : null;
                 const isLowStock = alert !== null && stock < alert;
 
@@ -248,13 +248,13 @@ export function RawMaterialsTab({
                       {m.unit}
                     </TableCell>
                     <TableCell className={`text-sm text-right font-mono font-semibold ${isLowStock ? "text-[var(--state-error-text)] bg-[var(--state-error-bg)] rounded px-1" : "text-[var(--text-primary)]"}`}>
-                      {stock.toFixed(3)}
+                      {(stock || 0).toFixed(3)}
                     </TableCell>
                     <TableCell className="text-sm text-right font-mono text-[var(--text-secondary)]">
-                      ₹{Number(m.purchasePrice).toFixed(2)}
+                      ₹{(Number(m.purchasePrice) || 0).toFixed(2)}
                     </TableCell>
                     <TableCell className="text-sm text-right font-mono text-[var(--text-secondary)]">
-                      ₹{Number(m.transferPrice).toFixed(2)}
+                      ₹{(Number(m.transferPrice) || 0).toFixed(2)}
                     </TableCell>
                     <TableCell className="text-xs text-[var(--text-secondary)] font-mono">
                       {m.gstRate}%

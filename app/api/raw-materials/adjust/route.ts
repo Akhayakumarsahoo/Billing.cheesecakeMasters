@@ -3,9 +3,11 @@ import { prisma } from "@/lib/db";
 import { recomputeStock } from "@/lib/inventory";
 import { z } from "zod";
 import { NextResponse } from "next/server";
+import { getLocalDateString } from "@/lib/utils";
 
 const AdjustStockSchema = z.object({
   inventoryId: z.string().uuid(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   adjustments: z.array(
     z.object({
       rawMaterialId: z.string().uuid(),
@@ -35,7 +37,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { inventoryId, adjustments } = result.data;
+    const { inventoryId, date, adjustments } = result.data;
 
     // Scope check for storeroom users
     if (user.role === "storeroom" && user.inventoryId !== inventoryId) {
@@ -44,6 +46,10 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
+
+    const todayStr = getLocalDateString(new Date());
+    const isPreviousDate = !!(date && date < todayStr);
+    const endDate = isPreviousDate ? new Date(`${date}T23:59:59.999`) : null;
 
     // Run batch database transaction
     const results = await prisma.$transaction(async (tx) => {
@@ -64,7 +70,26 @@ export async function POST(req: Request) {
           throw new Error(`Material ${material.name} does not belong to inventory ${inventoryId}`);
         }
 
-        const oldStock = Number(material.currentStock);
+        let oldStock = Number(material.currentStock);
+        let adjustmentDate = new Date();
+
+        if (isPreviousDate && endDate) {
+          adjustmentDate = endDate;
+
+          // Compute movements after endDate
+          const afterAggregation = await tx.stockMovement.aggregate({
+            where: {
+              rawMaterialId: adj.rawMaterialId,
+              createdAt: { gt: endDate }
+            },
+            _sum: {
+              quantityChange: true
+            }
+          });
+          const changeAfter = Number(afterAggregation._sum.quantityChange || 0);
+          oldStock = oldStock - changeAfter;
+        }
+
         const newStock = adj.targetStock;
         const diff = newStock - oldStock;
 
@@ -78,8 +103,11 @@ export async function POST(req: Request) {
             movementType: "adjustment",
             referenceType: "manual",
             quantityChange: diff,
-            note: `Manual stock adjustment (from ${oldStock.toFixed(3)} to ${newStock.toFixed(3)})`,
-            createdById: user.id
+            note: isPreviousDate
+              ? `Manual stock adjustment for ${date} (from ${oldStock.toFixed(3)} to ${newStock.toFixed(3)})`
+              : `Manual stock adjustment (from ${oldStock.toFixed(3)} to ${newStock.toFixed(3)})`,
+            createdById: user.id,
+            createdAt: adjustmentDate
           }
         });
 

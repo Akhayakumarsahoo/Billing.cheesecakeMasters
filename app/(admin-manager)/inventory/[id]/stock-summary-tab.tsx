@@ -17,6 +17,8 @@ import {
 import { toast } from "sonner";
 import { Download, Calendar, Search, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter, useSearchParams } from "next/navigation";
+import { DateRangeFilter } from "@/components/date-range-filter";
 
 interface ReportLine {
   materialId: string;
@@ -33,6 +35,7 @@ interface ReportLine {
   transfer: number;
   totalDeductions: number;
   closingStock: number;
+  closingSummary: number;
 }
 
 interface StockSummaryTabProps {
@@ -41,6 +44,9 @@ interface StockSummaryTabProps {
 }
 
 export function StockSummaryTab({ inventoryId, userRole }: StockSummaryTabProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const getTodayString = () => {
     const d = new Date();
     const year = d.getFullYear();
@@ -49,11 +55,13 @@ export function StockSummaryTab({ inventoryId, userRole }: StockSummaryTabProps)
     return `${year}-${month}-${day}`;
   };
 
+  const todayStr = getTodayString();
+  const fromDate = searchParams.get("from") || todayStr;
+  const toDate = searchParams.get("to") || todayStr;
+
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ReportLine[]>([]);
   const [search, setSearch] = useState("");
-  const [fromDate, setFromDate] = useState(getTodayString());
-  const [toDate, setToDate] = useState(getTodayString());
 
   // Cached filters for trigger action
   const [appliedSearch, setAppliedSearch] = useState("");
@@ -93,9 +101,14 @@ export function StockSummaryTab({ inventoryId, userRole }: StockSummaryTabProps)
 
   const handleClear = () => {
     setSearch("");
-    setFromDate(getTodayString());
-    setToDate(getTodayString());
     setAppliedSearch("");
+    
+    // Clear URL params for from/to dates
+    const params = new URLSearchParams(window.location.search);
+    params.delete("from");
+    params.delete("to");
+    router.push(`${window.location.pathname}?${params.toString()}`);
+    router.refresh();
   };
 
   const handleExportCSV = () => {
@@ -118,15 +131,15 @@ export function StockSummaryTab({ inventoryId, userRole }: StockSummaryTabProps)
 
     const rows = data.map((line) => [
       `"${line.materialName} [${line.unit}]"`,
-      line.opening.toFixed(3),
-      line.purchase.toFixed(3),
-      line.excess.toFixed(3),
-      line.totalAdditions.toFixed(3),
-      line.consumed.toFixed(3),
-      line.wastage.toFixed(3),
-      line.transfer.toFixed(3),
-      line.totalDeductions.toFixed(3),
-      line.closingStock.toFixed(3),
+      (line.opening || 0).toFixed(3),
+      (line.purchase || 0).toFixed(3),
+      (line.excess || 0).toFixed(3),
+      (line.totalAdditions || 0).toFixed(3),
+      (line.consumed || 0).toFixed(3),
+      (line.wastage || 0).toFixed(3),
+      (line.transfer || 0).toFixed(3),
+      (line.totalDeductions || 0).toFixed(3),
+      (line.closingSummary || 0).toFixed(3),
     ]);
 
     const csvContent =
@@ -166,11 +179,11 @@ export function StockSummaryTab({ inventoryId, userRole }: StockSummaryTabProps)
       </div>
 
       {/* Filter Card */}
-      <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl">
+      <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl relative z-20 overflow-visible">
         <CardContent className="p-4">
-          <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <form onSubmit={handleSearch} className="flex gap-4 items-end flex-wrap">
             {/* Raw Material search */}
-            <div className="space-y-1.5 col-span-1">
+            <div className="space-y-1.5 flex-1 min-w-[200px]">
               <Label htmlFor="search-mat" className="text-xs font-semibold text-[var(--text-secondary)]">
                 Raw Material
               </Label>
@@ -183,42 +196,16 @@ export function StockSummaryTab({ inventoryId, userRole }: StockSummaryTabProps)
               />
             </div>
 
-            {/* From Date */}
-            <div className="space-y-1.5 col-span-1">
-              <Label htmlFor="from-date" className="text-xs font-semibold text-[var(--text-secondary)]">
-                From Date
+            {/* Date Range Selector */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-[var(--text-secondary)] block">
+                Date Range
               </Label>
-              <div className="relative">
-                <Input
-                  id="from-date"
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="h-10 pl-9 border-[var(--border-default)] bg-white text-xs"
-                />
-                <Calendar className="absolute left-3 top-3 h-4 w-4 text-[var(--text-muted)] pointer-events-none" />
-              </div>
-            </div>
-
-            {/* To Date */}
-            <div className="space-y-1.5 col-span-1">
-              <Label htmlFor="to-date" className="text-xs font-semibold text-[var(--text-secondary)]">
-                To Date
-              </Label>
-              <div className="relative">
-                <Input
-                  id="to-date"
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="h-10 pl-9 border-[var(--border-default)] bg-white text-xs"
-                />
-                <Calendar className="absolute left-3 top-3 h-4 w-4 text-[var(--text-muted)] pointer-events-none" />
-              </div>
+              <DateRangeFilter />
             </div>
 
             {/* Action buttons */}
-            <div className="col-span-1 md:col-span-3 flex gap-2 justify-end pt-2">
+            <div className="flex gap-2 h-10 items-center">
               <Button
                 type="button"
                 onClick={handleClear}
@@ -241,7 +228,7 @@ export function StockSummaryTab({ inventoryId, userRole }: StockSummaryTabProps)
       </Card>
 
       {/* Summary Table Card */}
-      <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl overflow-hidden">
+      <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl overflow-hidden relative z-10">
         {loading ? (
           <div className="p-6 space-y-4">
             <Skeleton className="h-10 w-full" />
@@ -301,39 +288,39 @@ export function StockSummaryTab({ inventoryId, userRole }: StockSummaryTabProps)
                     </TableCell>
 
                     <TableCell className="text-right py-3.5 font-mono text-xs text-[var(--text-secondary)]">
-                      {line.opening.toFixed(3)}
+                      {(line.opening || 0).toFixed(3)}
                     </TableCell>
 
                     <TableCell className="text-right py-3.5 font-mono text-xs text-emerald-600">
-                      {line.purchase.toFixed(3)}
+                      {(line.purchase || 0).toFixed(3)}
                     </TableCell>
 
                     <TableCell className="text-right py-3.5 font-mono text-xs text-emerald-600">
-                      {line.excess.toFixed(3)}
+                      {(line.excess || 0).toFixed(3)}
                     </TableCell>
 
                     <TableCell className="text-right py-3.5 font-mono text-xs font-semibold text-[var(--text-primary)] bg-blue-50/20 dark:bg-blue-950/5">
-                      {line.totalAdditions.toFixed(3)}
+                      {(line.totalAdditions || 0).toFixed(3)}
                     </TableCell>
 
                     <TableCell className="text-right py-3.5 font-mono text-xs text-rose-600">
-                      {line.consumed.toFixed(3)}
+                      {(line.consumed || 0).toFixed(3)}
                     </TableCell>
 
                     <TableCell className="text-right py-3.5 font-mono text-xs text-rose-600">
-                      {line.wastage.toFixed(3)}
+                      {(line.wastage || 0).toFixed(3)}
                     </TableCell>
 
                     <TableCell className="text-right py-3.5 font-mono text-xs text-rose-600">
-                      {line.transfer.toFixed(3)}
+                      {(line.transfer || 0).toFixed(3)}
                     </TableCell>
 
                     <TableCell className="text-right py-3.5 font-mono text-xs font-semibold text-[var(--text-primary)] bg-blue-50/20 dark:bg-blue-950/5">
-                      {line.totalDeductions.toFixed(3)}
+                      {(line.totalDeductions || 0).toFixed(3)}
                     </TableCell>
 
                     <TableCell className="text-right py-3.5 font-mono text-xs font-semibold text-[var(--text-primary)] pr-4">
-                      {line.closingStock.toFixed(3)}
+                      {(line.closingSummary || 0).toFixed(3)}
                     </TableCell>
                   </TableRow>
                 ))}

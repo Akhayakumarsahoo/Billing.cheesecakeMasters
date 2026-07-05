@@ -669,7 +669,7 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
                           <TableRow key={line.rawMaterialId} className="border-[var(--border-subtle)]">
                             <TableCell className="text-sm font-medium text-[var(--text-primary)]">
                               <div>{line.materialName}</div>
-                              <div className="text-[10px] text-[var(--text-muted)]">Available: {line.availableStock.toFixed(3)} {line.unit}</div>
+                              <div className="text-[10px] text-[var(--text-muted)]">Available: {(line.availableStock || 0).toFixed(3)} {line.unit}</div>
                             </TableCell>
                             <TableCell className="text-xs text-[var(--text-secondary)]">
                               {line.unit}
@@ -687,7 +687,7 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
                               />
                               {isShortage && (
                                 <div className="text-[9px] text-[var(--state-error-text)] font-semibold mt-1">
-                                  Only {line.availableStock.toFixed(3)} available
+                                  Only {(line.availableStock || 0).toFixed(3)} available
                                 </div>
                               )}
                             </TableCell>

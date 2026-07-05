@@ -167,7 +167,7 @@ export function OverviewTab({
               </TableHeader>
               <TableBody>
                 {recentMovements.map((move) => {
-                  const val = Number(move.quantityChange);
+                  const val = Number(move.quantityChange || 0);
                   const isPositive = val > 0;
                   return (
                     <TableRow key={move.id} className="border-[var(--border-subtle)] hover:bg-[var(--bg-hover)]">
@@ -178,7 +178,7 @@ export function OverviewTab({
                         {move.movementType.replace("_", " ")}
                       </TableCell>
                       <TableCell className={`font-mono text-sm text-right font-semibold ${isPositive ? "text-[var(--state-success-text)]" : "text-[var(--state-error-text)]"}`}>
-                        {isPositive ? `+${val.toFixed(3)}` : val.toFixed(3)} {move.unit}
+                        {isPositive ? `+${(val || 0).toFixed(3)}` : (val || 0).toFixed(3)} {move.unit}
                       </TableCell>
                       <TableCell className="text-xs text-[var(--text-secondary)] font-mono">
                         {move.referenceType.replace("_", " ")}

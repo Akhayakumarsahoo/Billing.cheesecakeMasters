@@ -2,12 +2,14 @@ import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { CreateRawMaterialSchema } from "@/lib/validators";
 import { NextResponse } from "next/server";
+import { getLocalDateString } from "@/lib/utils";
 
 export async function GET(req: Request) {
   try {
     const user = await requireAuth();
     const { searchParams } = new URL(req.url);
     const inventoryId = searchParams.get("inventoryId");
+    const dateStr = searchParams.get("date");
 
     if (!inventoryId) {
       return NextResponse.json(
@@ -39,20 +41,53 @@ export async function GET(req: Request) {
       orderBy: { name: "asc" }
     });
 
-    const serialized = rawMaterials.map(m => ({
-      id: m.id,
-      name: m.name,
-      unit: m.unit,
-      purchasePrice: m.purchasePrice.toString(),
-      transferPrice: m.transferPrice.toString(),
-      currentStock: m.currentStock.toString(),
-      lowStockAlert: m.lowStockAlert ? m.lowStockAlert.toString() : null,
-      isActive: m.isActive,
-      gstSlabId: m.gstSlabId,
-      gstRate: m.gstSlab.rate.toString(),
-      createdAt: m.createdAt.toISOString(),
-      updatedAt: m.updatedAt.toISOString(),
-    }));
+    const todayStr = getLocalDateString(new Date());
+    const isPreviousDate = !!(dateStr && dateStr < todayStr);
+
+    let movementsAfter: Record<string, number> = {};
+
+    if (isPreviousDate) {
+      const endDate = new Date(`${dateStr}T23:59:59.999`);
+      const materialIds = rawMaterials.map(m => m.id);
+
+      const afterMovements = await prisma.stockMovement.findMany({
+        where: {
+          rawMaterialId: { in: materialIds },
+          createdAt: { gt: endDate }
+        },
+        select: {
+          rawMaterialId: true,
+          quantityChange: true
+        }
+      });
+
+      for (const mv of afterMovements) {
+        movementsAfter[mv.rawMaterialId] = (movementsAfter[mv.rawMaterialId] || 0) + Number(mv.quantityChange);
+      }
+    }
+
+    const serialized = rawMaterials.map(m => {
+      let stockVal = Number(m.currentStock);
+      if (isPreviousDate) {
+        const changeAfter = movementsAfter[m.id] || 0;
+        stockVal = stockVal - changeAfter;
+      }
+
+      return {
+        id: m.id,
+        name: m.name,
+        unit: m.unit,
+        purchasePrice: m.purchasePrice.toString(),
+        transferPrice: m.transferPrice.toString(),
+        currentStock: stockVal.toString(),
+        lowStockAlert: m.lowStockAlert ? m.lowStockAlert.toString() : null,
+        isActive: m.isActive,
+        gstSlabId: m.gstSlabId,
+        gstRate: m.gstSlab.rate.toString(),
+        createdAt: m.createdAt.toISOString(),
+        updatedAt: m.updatedAt.toISOString(),
+      };
+    });
 
     return NextResponse.json({ data: serialized }, { status: 200 });
   } catch (error: any) {

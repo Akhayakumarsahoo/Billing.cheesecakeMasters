@@ -11,6 +11,12 @@ change.
 
 - Testing and Verification
 
+- **Historical Stock Date Selector and Propagation Adjustments**
+  - Added a date selector input styled with Tailwind and Lucide calendar icons to the Current Stock tab.
+  - Implemented back-calculation for historical closing stock levels on the GET `/api/raw-materials` endpoint by subtracting later movements from live stock.
+  - Implemented historical stock adjustments on the POST `/api/raw-materials/adjust` endpoint, saving `StockMovement` entries with historical end-of-day timestamps and updating the raw material's live current stock to propagate adjustments forward.
+  - Set table columns to dynamically display "Current Stock" or "Closing Stock" depending on whether today's date or a past date is selected.
+
 - **Fixed Price Discount Back-Calculation**
   - Updated the POS discount dialog to replace the "Fixed Amount" option with a "Fixed Price" input.
   - Pre-populated the input field with the target total amount (including tax) when selecting Fixed Price.

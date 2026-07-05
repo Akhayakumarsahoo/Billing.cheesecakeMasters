@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Save } from "lucide-react";
+import { Search, Save, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getLocalDateString } from "@/lib/utils";
 
 interface RawMaterial {
   id: string;
@@ -24,6 +25,9 @@ interface CurrentStockTabProps {
 }
 
 export function CurrentStockTab({ inventoryId, userRole }: CurrentStockTabProps) {
+  const todayStr = getLocalDateString(new Date());
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -35,12 +39,12 @@ export function CurrentStockTab({ inventoryId, userRole }: CurrentStockTabProps)
 
   useEffect(() => {
     fetchStock();
-  }, [inventoryId]);
+  }, [inventoryId, selectedDate]);
 
   const fetchStock = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/raw-materials?inventoryId=${inventoryId}`);
+      const res = await fetch(`/api/raw-materials?inventoryId=${inventoryId}&date=${selectedDate}`);
       if (!res.ok) throw new Error("Failed to load stock levels");
       const body = await res.json();
       // Only keep active raw materials for stock adjustments
@@ -49,7 +53,7 @@ export function CurrentStockTab({ inventoryId, userRole }: CurrentStockTabProps)
       // Reset adjustments state
       setEditedValues({});
     } catch (err: any) {
-      toast.error(err.message || "Failed to load current stock.");
+      toast.error(err.message || "Failed to load stock.");
     } finally {
       setLoading(false);
     }
@@ -88,6 +92,7 @@ export function CurrentStockTab({ inventoryId, userRole }: CurrentStockTabProps)
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           inventoryId,
+          date: selectedDate,
           adjustments: [{ rawMaterialId: m.id, targetStock }]
         })
       });
@@ -131,6 +136,7 @@ export function CurrentStockTab({ inventoryId, userRole }: CurrentStockTabProps)
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           inventoryId,
+          date: selectedDate,
           adjustments: adjustmentsList
         })
       });
@@ -158,15 +164,28 @@ export function CurrentStockTab({ inventoryId, userRole }: CurrentStockTabProps)
   return (
     <div className="space-y-4">
       {/* Top Filter and Batch Actions */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-secondary)]" />
-          <Input
-            placeholder="Filter items..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 bg-[var(--bg-surface)] border-[var(--border-default)] rounded-md"
-          />
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4 flex-wrap flex-1 max-w-2xl">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-secondary)]" />
+            <Input
+              placeholder="Filter items..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-10 bg-[var(--bg-surface)] border-[var(--border-default)] rounded-md text-sm"
+            />
+          </div>
+
+          <div className="relative flex items-center">
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              max={todayStr}
+              className="h-10 pl-9 border-[var(--border-default)] bg-[var(--bg-surface)] rounded-md text-sm text-[var(--text-primary)] focus-visible:ring-1 focus-visible:ring-[var(--border-strong)] w-48 font-sans"
+            />
+            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
+          </div>
         </div>
 
         {isAllowed && (
@@ -199,7 +218,9 @@ export function CurrentStockTab({ inventoryId, userRole }: CurrentStockTabProps)
               <TableRow className="border-[var(--border-default)] hover:bg-transparent">
                 <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Name</TableHead>
                 <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Unit</TableHead>
-                <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right w-36">Current Stock</TableHead>
+                <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right w-36">
+                  {selectedDate === todayStr ? "Current Stock" : "Closing Stock"}
+                </TableHead>
                 {isAllowed && (
                   <>
                     <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right w-44">Adjust Stock</TableHead>
@@ -210,7 +231,7 @@ export function CurrentStockTab({ inventoryId, userRole }: CurrentStockTabProps)
             </TableHeader>
             <TableBody>
               {filtered.map((m) => {
-                const stock = Number(m.currentStock);
+                const stock = Number(m.currentStock || 0);
                 const alert = m.lowStockAlert ? Number(m.lowStockAlert) : null;
                 const isLowStock = alert !== null && stock < alert;
 
@@ -231,7 +252,7 @@ export function CurrentStockTab({ inventoryId, userRole }: CurrentStockTabProps)
                       {m.unit}
                     </TableCell>
                     <TableCell className="text-sm text-right font-mono font-semibold text-[var(--text-primary)]">
-                      {stock.toFixed(3)}
+                      {(stock || 0).toFixed(3)}
                     </TableCell>
                     {isAllowed && (
                       <>
