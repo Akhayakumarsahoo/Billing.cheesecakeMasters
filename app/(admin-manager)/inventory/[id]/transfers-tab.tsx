@@ -87,6 +87,16 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
   const [otherCharges, setOtherCharges] = useState("0");
   const [otherChargesGst, setOtherChargesGst] = useState("0");
   const [lines, setLines] = useState<TransferLine[]>([]);
+  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().split("T")[0]);
+
+  const resetForm = () => {
+    setToInventoryId("");
+    setNotes("");
+    setOtherCharges("0");
+    setOtherChargesGst("0");
+    setLines([]);
+    setTransferDate(new Date().toISOString().split("T")[0]);
+  };
 
   // Search inside form
   const [materialSearch, setMaterialSearch] = useState("");
@@ -236,7 +246,8 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
           quantity: l.quantity,
           unitPrice: l.unitPrice
         })),
-        status
+        status,
+        date: transferDate
       };
 
       const res = await fetch("/api/transfers", {
@@ -251,6 +262,7 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
       toast.success(status === "pending" ? "Stock transfer sent." : "Stock transfer draft saved.");
       setIsConfirmDialogOpen(false);
       setView("list");
+      resetForm();
       fetchTransfers();
     } catch (err: any) {
       toast.error(err.message || "Failed to create transfer.");
@@ -325,7 +337,7 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-[var(--text-primary)]">Stock Transfers</h2>
           {isAllowed && (
-            <Button onClick={() => setView("create")} className="bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white font-medium h-10 px-4 rounded-md flex items-center gap-2">
+            <Button onClick={() => { resetForm(); setView("create"); }} className="bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white font-medium h-10 px-4 rounded-md flex items-center gap-2">
               <Plus className="h-4 w-4" />
               New Transfer
             </Button>
@@ -338,94 +350,85 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
             </div>
-          ) : transfers.length === 0 ? (
-            <div className="py-8 text-center text-xs text-[var(--text-muted)]">
-              No stock transfers logged.
-            </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="border-[var(--border-default)] hover:bg-transparent">
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Transfer ID</TableHead>
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Type</TableHead>
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">From Inventory</TableHead>
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">To Inventory</TableHead>
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-center">Items</TableHead>
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right">Grand Total</TableHead>
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Status</TableHead>
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transfers.map((t) => {
-                  const isOutbound = t.fromInventoryId === inventoryId;
-                  const typeLabel = isOutbound ? "Outbound" : "Inbound";
-                  
-                  return (
-                    <TableRow key={t.id} className="border-[var(--border-subtle)] hover:bg-[var(--bg-hover)]">
-                      <TableCell className="text-sm font-medium text-[var(--text-primary)] font-mono truncate max-w-[120px]">
-                        {t.id.slice(0, 8)}...
-                      </TableCell>
-                      <TableCell className="text-xs font-semibold">
-                        <span className={isOutbound ? "text-amber-600" : "text-blue-600"}>
-                          {typeLabel}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-xs text-[var(--text-secondary)] font-medium">{t.fromInventoryName}</TableCell>
-                      <TableCell className="text-xs text-[var(--text-secondary)] font-medium">{t.toInventoryName}</TableCell>
-                      <TableCell className="text-xs text-[var(--text-secondary)] text-center font-mono">{t.itemsCount}</TableCell>
-                      <TableCell className="text-sm text-right font-mono font-semibold text-[var(--text-primary)]">
-                        ₹{Number(t.grandTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {t.status === "draft" && <Badge className="bg-gray-100 text-gray-800 border border-gray-300">Draft</Badge>}
-                        {t.status === "pending" && <Badge className="bg-blue-100 text-blue-800 border border-blue-300">Pending</Badge>}
-                        {t.status === "accepted" && <Badge className="bg-green-100 text-green-800 border border-green-300">Accepted</Badge>}
-                        {t.status === "rejected" && <Badge className="bg-red-100 text-red-800 border border-red-300">Rejected</Badge>}
-                        {t.status === "cancelled" && <Badge className="bg-red-100 text-red-800 border border-red-300">Cancelled</Badge>}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button variant="ghost" size="sm" onClick={() => handleOpenView(t.id)} className="h-8 w-8 p-0">
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
-                          
-                          {/* Outbound Actions */}
-                          {isAllowed && isOutbound && t.status === "draft" && (
-                            <>
-                              <Button variant="ghost" size="sm" onClick={() => handleUpdateStatus(t.id, "pending")} className="h-8 w-8 p-0 text-blue-600" title="Send Transfer">
-                                <Plus className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => handleUpdateStatus(t.id, "cancelled")} className="h-8 w-8 p-0 text-red-600" title="Cancel Draft">
-                                <Ban className="h-3.5 w-3.5" />
-                              </Button>
-                            </>
-                          )}
-
-                          {isAllowed && isOutbound && t.status === "pending" && (
-                            <Button variant="ghost" size="sm" onClick={() => handleUpdateStatus(t.id, "cancelled")} className="h-8 w-8 p-0 text-red-600" title="Recall/Cancel Transfer">
-                              <Ban className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-
-                          {/* Inbound Actions */}
-                          {isAllowed && !isOutbound && t.status === "pending" && (
-                            <>
-                              <Button variant="ghost" size="sm" onClick={() => handleUpdateStatus(t.id, "accepted")} className="h-8 w-8 p-0 text-green-600" title="Accept Transfer">
-                                <Check className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => handleUpdateStatus(t.id, "rejected")} className="h-8 w-8 p-0 text-red-600" title="Reject Transfer">
-                                <Ban className="h-3.5 w-3.5" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
+            (() => {
+              const outboundTransfers = transfers.filter(t => t.fromInventoryId === inventoryId);
+              if (outboundTransfers.length === 0) {
+                return (
+                  <div className="py-8 text-center text-xs text-[var(--text-muted)]">
+                    No stock transfers logged.
+                  </div>
+                );
+              }
+              return (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-[var(--border-default)] hover:bg-transparent">
+                      <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium pl-4">Date</TableHead>
+                      <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">From Inventory</TableHead>
+                      <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-center">Items</TableHead>
+                      <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right">Grand Total</TableHead>
+                      <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Status</TableHead>
+                      <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right">Actions</TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {outboundTransfers.map((t) => {
+                      const isOutbound = t.fromInventoryId === inventoryId;
+                      
+                      return (
+                        <TableRow key={t.id} className="border-[var(--border-subtle)] hover:bg-[var(--bg-hover)]">
+                          <TableCell className="text-xs text-[var(--text-secondary)] font-medium pl-4">
+                            {new Date(t.createdAt).toLocaleDateString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric"
+                            })}
+                          </TableCell>
+                          <TableCell className="text-xs text-[var(--text-secondary)] font-medium">{t.fromInventoryName}</TableCell>
+                          <TableCell className="text-xs text-[var(--text-secondary)] text-center font-mono">{t.itemsCount}</TableCell>
+                          <TableCell className="text-sm text-right font-mono font-semibold text-[var(--text-primary)]">
+                            ₹{Number(t.grandTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {t.status === "draft" && <Badge className="bg-gray-100 text-gray-800 border border-gray-300">Draft</Badge>}
+                            {t.status === "pending" && <Badge className="bg-blue-100 text-blue-800 border border-blue-300">Pending</Badge>}
+                            {t.status === "accepted" && <Badge className="bg-green-100 text-green-800 border border-green-300">Accepted</Badge>}
+                            {t.status === "rejected" && <Badge className="bg-red-100 text-red-800 border border-red-300">Rejected</Badge>}
+                            {t.status === "cancelled" && <Badge className="bg-red-100 text-red-800 border border-red-300">Cancelled</Badge>}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button variant="ghost" size="sm" onClick={() => handleOpenView(t.id)} className="h-8 w-8 p-0">
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                              
+                              {/* Outbound Actions */}
+                              {isAllowed && isOutbound && t.status === "draft" && (
+                                <>
+                                  <Button variant="ghost" size="sm" onClick={() => handleUpdateStatus(t.id, "pending")} className="h-8 w-8 p-0 text-blue-600" title="Send Transfer">
+                                    <Plus className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" onClick={() => handleUpdateStatus(t.id, "cancelled")} className="h-8 w-8 p-0 text-red-600" title="Cancel Draft">
+                                    <Ban className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
+
+                              {isAllowed && isOutbound && t.status === "pending" && (
+                                <Button variant="ghost" size="sm" onClick={() => handleUpdateStatus(t.id, "cancelled")} className="h-8 w-8 p-0 text-red-600" title="Recall/Cancel Transfer">
+                                  <Ban className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              );
+            })()
           )}
         </Card>
       </div>
@@ -450,7 +453,7 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
         <div className="flex justify-between items-center pb-3 border-b border-[var(--border-default)]">
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Transfer details: <span className="font-mono">{t.id}</span>
+              Transfer details
             </h2>
             <p className="text-xs text-[var(--text-muted)] mt-1">Logged: {new Date(t.createdAt).toLocaleString("en-IN")}</p>
           </div>
@@ -575,7 +578,7 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[var(--bg-surface-raised)] border border-[var(--border-subtle)] rounded-xl p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[var(--bg-surface-raised)] border border-[var(--border-subtle)] rounded-xl p-4">
               {/* Destination Inventory Selector */}
               <div className="space-y-1.5">
                 <Label htmlFor="dest-inv" className="text-sm font-medium">To Inventory *</Label>
@@ -591,6 +594,19 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Transfer Date */}
+              <div className="space-y-1.5">
+                <Label htmlFor="transfer-date" className="text-sm font-medium">Transfer Date *</Label>
+                <Input
+                  id="transfer-date"
+                  type="date"
+                  value={transferDate}
+                  onChange={(e) => setTransferDate(e.target.value)}
+                  className="h-10 border-[var(--border-default)] bg-white"
+                  required
+                />
               </div>
 
               {/* Notes */}

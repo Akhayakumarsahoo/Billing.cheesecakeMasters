@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { recomputeStock } from "@/lib/inventory";
+import { recomputeStock, adjustStock } from "@/lib/inventory";
 import { CreateStockTransferSchema } from "@/lib/validators";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -108,7 +108,10 @@ export async function PATCH(
 
     const transfer = await prisma.stockTransfer.findUnique({
       where: { id },
-      include: { lines: true }
+      include: {
+        lines: true,
+        fromInventory: { select: { name: true, address: true } }
+      }
     });
 
     if (!transfer) {
@@ -148,11 +151,16 @@ export async function PATCH(
         }
 
         const pendingTransfer = await prisma.$transaction(async (tx) => {
+          // Batch fetch all raw materials in a single query to eliminate N+1 queries
+          const materialIds = transfer.lines.map(line => line.rawMaterialId);
+          const materials = await tx.rawMaterial.findMany({
+            where: { id: { in: materialIds } }
+          });
+          const materialMap = new Map(materials.map(m => [m.id, m]));
+
           // Verify stock exists in source before sending
           for (const line of transfer.lines) {
-            const material = await tx.rawMaterial.findUnique({
-              where: { id: line.rawMaterialId }
-            });
+            const material = materialMap.get(line.rawMaterialId);
             if (!material) throw new Error(`Material ${line.materialName} not found`);
 
             // Deduct stock
@@ -164,11 +172,12 @@ export async function PATCH(
                 referenceType: "stock_transfer",
                 referenceId: id,
                 quantityChange: line.quantity.negated(),
-                createdById: user.id
+                createdById: user.id,
+                createdAt: transfer.createdAt
               }
             });
 
-            await recomputeStock(line.rawMaterialId, tx);
+            await adjustStock(line.rawMaterialId, line.quantity.negated(), tx);
           }
 
           // Update status
@@ -176,7 +185,7 @@ export async function PATCH(
             where: { id },
             data: {
               status: "pending",
-              sentAt: new Date()
+              sentAt: transfer.createdAt
             }
           });
         }, { timeout: 10000 });
@@ -200,65 +209,132 @@ export async function PATCH(
         }
 
         const acceptedTransfer = await prisma.$transaction(async (tx) => {
-          // Process lines into destination
+          // 1. Batch fetch source and destination raw materials to eliminate N+1 loop queries
+          const sourceMaterialIds = transfer.lines.map(line => line.rawMaterialId);
+          const sourceMaterials = await tx.rawMaterial.findMany({
+            where: { id: { in: sourceMaterialIds } }
+          });
+          const sourceMaterialMap = new Map(sourceMaterials.map(m => [m.id, m]));
+
+          const materialNames = transfer.lines.map(line => line.materialName);
+          const destMaterials = await tx.rawMaterial.findMany({
+            where: {
+              inventoryId: transfer.toInventoryId,
+              name: { in: materialNames }
+            }
+          });
+          const destMaterialMap = new Map(destMaterials.map(m => [`${m.name}_${m.unit}`, m]));
+
+          // Resolve/create all destination raw materials first
+          const resolvedLines = [];
           for (const line of transfer.lines) {
-            // Find source material to copy fields (like gstSlabId) if creating new
-            const sourceMat = await tx.rawMaterial.findUnique({
-              where: { id: line.rawMaterialId }
-            });
+            const sourceMat = sourceMaterialMap.get(line.rawMaterialId);
             if (!sourceMat) throw new Error(`Source material not found`);
 
-            // Find matching material by name and unit in destination
-            let destMat = await tx.rawMaterial.findFirst({
-              where: {
-                inventoryId: transfer.toInventoryId,
-                name: line.materialName,
-                unit: line.unit
-              }
-            });
+            const destKey = `${line.materialName}_${line.unit}`;
+            let destMat = destMaterialMap.get(destKey);
 
             if (!destMat) {
-              // Create a new raw material record in destination
               destMat = await tx.rawMaterial.create({
                 data: {
                   inventoryId: transfer.toInventoryId,
                   name: line.materialName,
                   unit: line.unit,
-                  purchasePrice: line.unitPrice, // set purchase price as transfer price
+                  purchasePrice: line.unitPrice,
                   transferPrice: line.unitPrice,
                   gstSlabId: sourceMat.gstSlabId,
                   currentStock: 0,
                   isActive: true
                 }
               });
+              // Cache it locally in case other lines reference the same new material
+              destMaterialMap.set(destKey, destMat);
             }
 
-            // Add stock to destination
+            resolvedLines.push({
+              line,
+              destMat
+            });
+          }
+
+          // Find/create supplier
+          const supplierName = `${transfer.fromInventory.name} (Transfer)`;
+          let supplier = await tx.supplier.findFirst({
+            where: { name: supplierName }
+          });
+          if (!supplier) {
+            supplier = await tx.supplier.create({
+              data: {
+                name: supplierName,
+                address: transfer.fromInventory.address || "Internal Stock Transfer",
+                isActive: true
+              }
+            });
+          }
+
+          // Create PurchaseInvoice
+          const invoice = await tx.purchaseInvoice.create({
+            data: {
+              inventoryId: transfer.toInventoryId,
+              supplierId: supplier.id,
+              invoiceNumber: `TRF-${transfer.id.slice(0, 8).toUpperCase()}`,
+              invoiceDate: transfer.createdAt,
+              status: "confirmed",
+              subtotal: transfer.subtotal,
+              totalGst: transfer.totalGst,
+              otherCharges: transfer.otherCharges,
+              otherChargesGst: transfer.otherChargesGst,
+              grandTotal: transfer.grandTotal,
+              notes: transfer.notes || `Generated from Stock Transfer ${transfer.id.slice(0, 8)}`,
+              createdById: user.id,
+              confirmedAt: new Date(),
+              lines: {
+                create: resolvedLines.map(({ line, destMat }) => ({
+                  rawMaterialId: destMat.id,
+                  materialName: line.materialName,
+                  unit: line.unit,
+                  quantity: line.quantity,
+                  unitPrice: line.unitPrice,
+                  gstRate: line.gstRate,
+                  lineBaseTotal: line.lineBaseTotal,
+                  lineGstAmount: line.lineGstAmount,
+                  lineTotal: line.lineTotal
+                }))
+              }
+            },
+            include: {
+              lines: true
+            }
+          });
+
+          // Create purchase stock movements and update stock atomically
+          for (const invLine of invoice.lines) {
             await tx.stockMovement.create({
               data: {
                 inventoryId: transfer.toInventoryId,
-                rawMaterialId: destMat.id,
-                movementType: "transfer_in",
-                referenceType: "stock_transfer",
-                referenceId: id,
-                quantityChange: line.quantity,
-                createdById: user.id
+                rawMaterialId: invLine.rawMaterialId,
+                movementType: "purchase",
+                referenceType: "purchase_invoice",
+                referenceId: invoice.id,
+                quantityChange: invLine.quantity,
+                createdById: user.id,
+                createdAt: transfer.createdAt
               }
             });
 
-            await recomputeStock(destMat.id, tx);
+            await adjustStock(invLine.rawMaterialId, invLine.quantity, tx);
           }
 
-          // Update status
+          // Update stock transfer status to accepted
           return tx.stockTransfer.update({
-            where: { id },
+            where: { id: transfer.id },
             data: {
               status: "accepted",
               acceptedAt: new Date(),
               acceptedById: user.id
             }
           });
-        }, { timeout: 10000 });
+        }, { timeout: 15000 });
 
         return NextResponse.json({ data: acceptedTransfer }, { status: 200 });
       }
@@ -290,11 +366,12 @@ export async function PATCH(
                 referenceId: id,
                 quantityChange: line.quantity,
                 createdById: user.id,
-                note: "Transfer rejected: stock restored"
+                note: "Transfer rejected: stock restored",
+                createdAt: transfer.createdAt
               }
             });
 
-            await recomputeStock(line.rawMaterialId, tx);
+            await adjustStock(line.rawMaterialId, line.quantity, tx);
           }
 
           // Update status
@@ -339,11 +416,12 @@ export async function PATCH(
                   referenceId: id,
                   quantityChange: line.quantity,
                   createdById: user.id,
-                  note: "Transfer cancelled: stock restored"
+                  note: "Transfer cancelled: stock restored",
+                  createdAt: transfer.createdAt
                 }
               });
 
-              await recomputeStock(line.rawMaterialId, tx);
+              await adjustStock(line.rawMaterialId, line.quantity, tx);
             }
           }
 
@@ -410,16 +488,20 @@ export async function PATCH(
 
       const computedLines = [];
 
+      // Batch fetch all raw materials to eliminate N+1 loop queries
+      const materialIds = lines.map(line => line.rawMaterialId);
+      const materials = await tx.rawMaterial.findMany({
+        where: { id: { in: materialIds } },
+        include: { gstSlab: true }
+      });
+      const materialMap = new Map(materials.map(m => [m.id, m]));
+
       for (const line of lines) {
-        const material = await tx.rawMaterial.findUnique({
-          where: { id: line.rawMaterialId },
-          include: { gstSlab: true }
-        });
+        const material = materialMap.get(line.rawMaterialId);
 
         if (!material) {
           throw new Error(`Material with ID ${line.rawMaterialId} not found`);
         }
-
 
         const quantity = new Prisma.Decimal(line.quantity);
         const unitPrice = new Prisma.Decimal(line.unitPrice);
@@ -502,7 +584,7 @@ export async function PATCH(
             }
           });
 
-          await recomputeStock(line.rawMaterialId, tx);
+          await adjustStock(line.rawMaterialId, line.quantity.negated(), tx);
         }
       }
 

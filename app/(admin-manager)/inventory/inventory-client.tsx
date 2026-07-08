@@ -261,55 +261,47 @@ export function InventoryClient({ initialInventories, activeOutlets, userRole }:
         )}
       </div>
 
-      {/* Grid of Inventories */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* List of Inventories */}
+      <div className="flex flex-col gap-4">
         {filtered.map((inv) => (
-          <Card key={inv.id} className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-sm hover:shadow transition-shadow">
-            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-              <div className="space-y-1">
-                <CardTitle className="text-base font-semibold text-[var(--text-primary)] truncate max-w-[200px]">
-                  {inv.name}
-                </CardTitle>
-                <CardDescription className="text-xs text-[var(--text-secondary)] truncate max-w-[200px]">
-                  {inv.address || "No address provided"}
-                </CardDescription>
+          <Card 
+            key={inv.id} 
+            onClick={() => router.push(`/inventory/${inv.id}`)}
+            className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-sm hover:shadow-md hover:border-[var(--accent-primary)] transition-all cursor-pointer"
+          >
+            <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* Left Side: Name and Info */}
+              <div className="flex items-center gap-4 min-w-0 flex-1">
+                <div className="p-3 bg-[var(--bg-surface-raised)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-secondary)] shrink-0">
+                  <Warehouse className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <CardTitle className="text-base font-semibold text-[var(--text-primary)]">
+                    {inv.name}
+                  </CardTitle>
+                  <CardDescription className="text-xs text-[var(--text-secondary)] mt-0.5 truncate">
+                    {inv.address || "No address/description provided"}
+                  </CardDescription>
+                </div>
               </div>
-              <div className="p-2 bg-[var(--bg-surface-raised)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-secondary)] shrink-0">
-                <Warehouse className="h-4 w-4" />
-              </div>
-            </CardHeader>
-            <CardContent className="pt-4 flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-4 border-t border-[var(--border-subtle)] pt-3 text-xs">
-                <div>
-                  <p className="text-[var(--text-muted)] font-medium">Link Scope</p>
-                  <p className="text-[var(--text-primary)] font-semibold mt-0.5 truncate">
+
+              {/* Middle Section: Stats */}
+              <div className="flex items-center gap-6 sm:gap-12 shrink-0">
+                <div className="text-left sm:text-right">
+                  <p className="text-[var(--text-muted)] text-[10px] font-medium uppercase tracking-wider">Link Scope</p>
+                  <p className="text-sm font-semibold text-[var(--text-primary)] mt-0.5">
                     {inv.linkedOutlets.length > 0
                       ? `${inv.linkedOutlets.length} Outlet${inv.linkedOutlets.length > 1 ? "s" : ""}`
                       : "Standalone storeroom"}
                   </p>
                 </div>
-                <div>
-                  <p className="text-[var(--text-muted)] font-medium">Raw Materials</p>
-                  <p className="text-[var(--text-primary)] font-semibold mt-0.5">
-                    {inv.activeMaterialsCount} active
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-2.5">
-                <Button
-                  onClick={() => router.push(`/inventory/${inv.id}`)}
-                  className="flex-1 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white text-xs font-medium h-9 rounded-md"
-                >
-                  Manage
-                </Button>
               </div>
             </CardContent>
           </Card>
         ))}
 
         {filtered.length === 0 && (
-          <div className="col-span-full py-12 flex flex-col items-center justify-center border border-dashed border-[var(--border-default)] rounded-xl bg-[var(--bg-surface-raised)]">
+          <div className="py-12 flex flex-col items-center justify-center border border-dashed border-[var(--border-default)] rounded-xl bg-[var(--bg-surface-raised)]">
             <Warehouse className="h-8 w-8 text-[var(--text-muted)] mb-3" />
             <p className="text-sm font-medium text-[var(--text-primary)]">No inventories found</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">

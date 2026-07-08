@@ -7,30 +7,34 @@ export async function getBilledSalesForDate(outletId: string, dateStr: string) {
   const start = new Date(`${dateStr}T00:00:00.000`);
   const end = new Date(`${dateStr}T23:59:59.999`);
 
-  const bills = await prisma.bill.findMany({
+  // Run database-level Group By aggregation instead of pulling all bills into memory
+  const payments = await prisma.billPayment.groupBy({
+    by: ["mode"],
     where: {
-      outletId,
-      status: "printed",
-      completedAt: { gte: start, lte: end },
+      bill: {
+        outletId,
+        status: "printed",
+        completedAt: { gte: start, lte: end },
+      },
     },
-    include: { payments: true },
+    _sum: {
+      amount: true,
+    },
   });
 
   let billedCash = new Decimal(0);
   let billedUpi = new Decimal(0);
   let billedCard = new Decimal(0);
 
-  for (const bill of bills) {
-    for (const payment of bill.payments) {
-      const amt = payment.amount;
-      const mode = payment.mode;
-      if (mode === "cash") {
-        billedCash = billedCash.plus(amt);
-      } else if (mode === "upi") {
-        billedUpi = billedUpi.plus(amt);
-      } else if (mode === "card") {
-        billedCard = billedCard.plus(amt);
-      }
+  for (const group of payments) {
+    const amt = group._sum.amount || new Decimal(0);
+    const mode = group.mode;
+    if (mode === "cash") {
+      billedCash = billedCash.plus(amt);
+    } else if (mode === "upi") {
+      billedUpi = billedUpi.plus(amt);
+    } else if (mode === "card") {
+      billedCard = billedCard.plus(amt);
     }
   }
 
@@ -41,6 +45,7 @@ export async function getBilledSalesForDate(outletId: string, dateStr: string) {
     totalBilled: billedCash.plus(billedUpi).plus(billedCard),
   };
 }
+
 
 /**
  * Gets the opening cash balance for a specific date and outlet.

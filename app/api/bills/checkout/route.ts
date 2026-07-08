@@ -4,7 +4,7 @@ import { CheckoutBillSchema } from "@/lib/validators";
 import { computeLineItem, computeBillTotals } from "@/lib/gst";
 import { generateBillNumber } from "@/lib/bill-number";
 import { syncSettlementForDate } from "@/lib/settlement";
-import { recomputeStock } from "@/lib/inventory";
+import { recomputeStock, adjustStock } from "@/lib/inventory";
 import { NextResponse } from "next/server";
 import { Decimal } from "@/lib/db";
 
@@ -169,7 +169,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const loggedInUser = await getLoggedInUser();
+    const loggedInUser = null;
 
     // 5. Execute all database mutations atomically inside a single transaction
     const finalBill = await prisma.$transaction(async (tx) => {
@@ -208,7 +208,7 @@ export async function POST(req: Request) {
             }
           });
           for (const m of existingMovements) {
-            await recomputeStock(m.rawMaterialId, tx);
+            await adjustStock(m.rawMaterialId, m.quantityChange.negated(), tx);
           }
         }
 
@@ -234,12 +234,12 @@ export async function POST(req: Request) {
             customerName: customerName || null,
             customerPhone: customerPhone || null,
             notes: notes || null,
-            modifiedById: loggedInUser?.id ?? null,
+            modifiedById: null,
           },
         });
       } else {
         // Generate new sequential bill number and create a new bill row
-        const billNumber = await generateBillNumber(outlet.id, tx);
+        const billNumber = await generateBillNumber(outlet.id, tx, outlet.sequenceIndex);
         const newBill = await tx.bill.create({
           data: {
             billNumber,
@@ -351,11 +351,11 @@ export async function POST(req: Request) {
                     referenceType: "bill",
                     referenceId: finalBillRecord.id,
                     quantityChange: change.negated(),
-                    createdById: loggedInUser?.id || "system",
+                    createdById: "system",
                     note: `Auto-consumption for bill ${finalBillRecord.billNumber}`
                   }
                 });
-                await recomputeStock(rLine.rawMaterialId, tx);
+                await adjustStock(rLine.rawMaterialId, change.negated(), tx);
               }
             }
           }

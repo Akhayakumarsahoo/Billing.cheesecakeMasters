@@ -84,33 +84,25 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     },
   });
 
-  // 4. Fetch printed bill payment details
-  const paymentBreakdown = await prisma.billPayment.findMany({
-    where: {
-      bill: {
-        status: "printed",
-        completedAt: { gte: start, lte: end },
-      },
-    },
-    select: {
-      amount: true,
-      mode: true,
-      bill: {
-        select: {
-          outletId: true,
-        },
-      },
-    },
-  });
+  // 4. Fetch printed bill payment details using SQL group by to avoid loading all rows
+  const paymentBreakdown = await prisma.$queryRaw<
+    { outletId: string; mode: string; totalAmount: string }[]
+  >`
+    SELECT b."outletId", p.mode::text, SUM(p.amount)::text as "totalAmount"
+    FROM bill_payments p
+    JOIN bills b ON p."billId" = b.id
+    WHERE b.status = 'printed' AND b."completedAt" >= ${start} AND b."completedAt" <= ${end}
+    GROUP BY b."outletId", p.mode
+  `;
 
   const outletPaymentsMap: Record<string, { cash: number; upi: number; card: number; online: number }> = {};
   for (const o of outlets) {
     outletPaymentsMap[o.id] = { cash: 0, upi: 0, card: 0, online: 0 };
   }
   for (const item of paymentBreakdown) {
-    const outletId = item.bill.outletId;
+    const outletId = item.outletId;
     const mode = item.mode.toLowerCase();
-    const amount = item.amount.toNumber();
+    const amount = parseFloat(item.totalAmount || "0");
     if (!outletPaymentsMap[outletId]) continue;
     if (mode === "cash") outletPaymentsMap[outletId].cash += amount;
     else if (mode === "card") outletPaymentsMap[outletId].card += amount;

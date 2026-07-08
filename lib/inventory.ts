@@ -32,3 +32,27 @@ export async function recomputeStock(
 
   return updatedMaterial;
 }
+
+/**
+ * Atomically adjusts the current stock of a raw material by the given change.
+ * Prevents having to recompute historical aggregate sums for simple transactions.
+ */
+export async function adjustStock(
+  rawMaterialId: string,
+  quantityChange: Prisma.Decimal | number,
+  tx?: Prisma.TransactionClient
+) {
+  const db = tx || prisma;
+
+  const updatedMaterial = await db.rawMaterial.update({
+    where: { id: rawMaterialId },
+    data: {
+      currentStock: {
+        increment: quantityChange
+      }
+    }
+  });
+
+  return updatedMaterial;
+}
+

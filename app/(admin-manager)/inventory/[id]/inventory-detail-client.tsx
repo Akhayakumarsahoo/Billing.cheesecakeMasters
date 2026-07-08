@@ -8,6 +8,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   BarChart, 
   Package, 
@@ -17,7 +23,11 @@ import {
   Trash2, 
   BookOpen,
   Settings,
-  ClipboardList
+  ClipboardList,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Folder
 } from "lucide-react";
 import { OverviewTab } from "./overview-tab";
 import { RawMaterialsTab } from "./raw-materials-tab";
@@ -98,18 +108,46 @@ export function InventoryDetailClient({
 
   const hasOutlets = currentInventory.linkedOutlets.length > 0;
 
-  // Tabs definitions
-  const tabs = [
-    { id: "overview", label: "Overview", icon: BarChart },
+  const reportsSubTabs = [
     { id: "current-stock", label: "Current Stock", icon: Boxes },
+    { id: "stock-summary", label: "Stock Summary", icon: ClipboardList },
+    { id: "other-reports", label: "Other Reports", icon: FileText }
+  ];
+
+  const managementSubTabs = [
+    { id: "raw-materials", label: "Raw Materials", icon: Package },
+    ...(hasOutlets ? [{ id: "recipes", label: "Recipes", icon: BookOpen }] : []),
+    ...(user.role === "admin" ? [{ id: "management", label: "Settings", icon: Settings }] : [])
+  ];
+
+  const mainTabs = [
+    { id: "overview", label: "Overview", icon: BarChart },
     { id: "purchases", label: "Purchases", icon: ShoppingCart },
     { id: "transfers", label: "Transfers", icon: ArrowLeftRight },
     { id: "wastage", label: "Wastage", icon: Trash2 },
-    { id: "stock-summary", label: "Stock Summary", icon: ClipboardList },
-    { id: "raw-materials", label: "Raw Materials", icon: Package },
-    ...(hasOutlets ? [{ id: "recipes", label: "Recipes", icon: BookOpen }] : []),
-    ...(user.role === "admin" ? [{ id: "management", label: "Management", icon: Settings }] : [])
   ];
+
+  const [isReportsOpen, setIsReportsOpen] = useState(() => 
+    reportsSubTabs.some(t => t.id === activeTab)
+  );
+
+  const [isManagementOpen, setIsManagementOpen] = useState(() => 
+    managementSubTabs.some(t => t.id === activeTab)
+  );
+
+  // Auto-expand folder when activeTab changes to a reports tab
+  useEffect(() => {
+    if (reportsSubTabs.some(t => t.id === activeTab)) {
+      setIsReportsOpen(true);
+    }
+  }, [activeTab]);
+
+  // Auto-expand folder when activeTab changes to a management tab
+  useEffect(() => {
+    if (managementSubTabs.some(t => t.id === activeTab)) {
+      setIsManagementOpen(true);
+    }
+  }, [activeTab]);
 
   const handleInventoryChange = (value: string | null) => {
     if (!value) return;
@@ -145,9 +183,9 @@ export function InventoryDetailClient({
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 items-start">
-        {/* Sidebar sub-navigation */}
-        <div className="w-full md:w-56 shrink-0 flex md:flex-col gap-1 border-b md:border-b-0 md:border-r border-[var(--border-default)] pb-4 md:pb-0 md:pr-4 overflow-x-auto md:overflow-x-visible whitespace-nowrap">
-          {tabs.map((tab) => {
+        {/* Desktop sub-navigation */}
+        <div className="hidden md:flex md:w-56 shrink-0 flex-col gap-1 border-r border-[var(--border-default)] pr-4">
+          {mainTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -165,6 +203,200 @@ export function InventoryDetailClient({
               </button>
             );
           })}
+
+          {/* Reports collapsible folder */}
+          <div>
+            <button
+              onClick={() => setIsReportsOpen(prev => !prev)}
+              className="flex items-center justify-between w-full h-10 px-3 rounded-lg text-sm font-medium transition-colors text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+            >
+              <div className="flex items-center gap-2.5">
+                <ClipboardList className="h-4 w-4" />
+                <span>Reports</span>
+              </div>
+              {isReportsOpen ? (
+                <ChevronDown className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5" />
+              )}
+            </button>
+            
+            {isReportsOpen && (
+              <div className="flex flex-col gap-1 pl-4 mt-1 border-l border-[var(--border-default)] ml-5">
+                {reportsSubTabs.map((subTab) => {
+                  const Icon = subTab.icon;
+                  const isActive = activeTab === subTab.id;
+                  return (
+                    <button
+                      key={subTab.id}
+                      onClick={() => setActiveTab(subTab.id)}
+                      className={`flex items-center gap-2.5 h-9 px-3 rounded-md text-xs font-medium transition-colors ${
+                        isActive
+                          ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
+                          : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      <span>{subTab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Management collapsible folder */}
+          {(() => {
+            const visibleMgtSub = managementSubTabs.filter(tab => {
+              if (tab.id === "recipes") return hasOutlets;
+              if (tab.id === "management") return user.role === "admin";
+              return true;
+            });
+            if (visibleMgtSub.length === 0) return null;
+            return (
+              <div>
+                <button
+                  onClick={() => setIsManagementOpen(prev => !prev)}
+                  className="flex items-center justify-between w-full h-10 px-3 rounded-lg text-sm font-medium transition-colors text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] animate-none"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Folder className="h-4 w-4" />
+                    <span>Management</span>
+                  </div>
+                  {isManagementOpen ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  )}
+                </button>
+                
+                {isManagementOpen && (
+                  <div className="flex flex-col gap-1 pl-4 mt-1 border-l border-[var(--border-default)] ml-5 animate-none">
+                    {visibleMgtSub.map((subTab) => {
+                      const Icon = subTab.icon;
+                      const isActive = activeTab === subTab.id;
+                      return (
+                        <button
+                          key={subTab.id}
+                          onClick={() => setActiveTab(subTab.id)}
+                          className={`flex items-center gap-2.5 h-9 px-3 rounded-md text-xs font-medium transition-colors ${
+                            isActive
+                              ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
+                              : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                          }`}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          <span>{subTab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* Mobile sub-navigation */}
+        <div className="flex md:hidden w-full gap-1 border-b border-[var(--border-default)] pb-4 overflow-x-auto whitespace-nowrap items-center">
+          {mainTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2.5 h-10 px-3 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+
+          {/* Reports Dropdown Menu for Mobile */}
+          {(() => {
+            const activeReport = reportsSubTabs.find(t => t.id === activeTab);
+            const isReportActive = !!activeReport;
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={`flex items-center gap-2.5 h-10 px-3 rounded-lg text-sm font-medium transition-colors border border-[var(--border-default)] ${
+                    isReportActive
+                      ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                  }`}
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  <span>{isReportActive ? activeReport.label : "Reports"}</span>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-white border-[var(--border-default)]">
+                  {reportsSubTabs.map((subTab) => (
+                    <DropdownMenuItem
+                      key={subTab.id}
+                      onClick={() => setActiveTab(subTab.id)}
+                      className={`text-xs font-medium cursor-pointer ${
+                        activeTab === subTab.id ? "bg-[var(--bg-active)]" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <subTab.icon className="h-3.5 w-3.5" />
+                        <span>{subTab.label}</span>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })()}
+
+          {/* Management Dropdown Menu for Mobile */}
+          {(() => {
+            const visibleMgtSub = managementSubTabs.filter(tab => {
+              if (tab.id === "recipes") return hasOutlets;
+              if (tab.id === "management") return user.role === "admin";
+              return true;
+            });
+            const activeMgt = visibleMgtSub.find(t => t.id === activeTab);
+            const isMgtActive = !!activeMgt;
+            if (visibleMgtSub.length === 0) return null;
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={`flex items-center gap-2.5 h-10 px-3 rounded-lg text-sm font-medium transition-colors border border-[var(--border-default)] ${
+                    isMgtActive
+                      ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                  }`}
+                >
+                  <Folder className="h-4 w-4" />
+                  <span>{isMgtActive ? activeMgt.label : "Management"}</span>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-white border-[var(--border-default)]">
+                  {visibleMgtSub.map((subTab) => (
+                    <DropdownMenuItem
+                      key={subTab.id}
+                      onClick={() => setActiveTab(subTab.id)}
+                      className={`text-xs font-medium cursor-pointer ${
+                        activeTab === subTab.id ? "bg-[var(--bg-active)]" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <subTab.icon className="h-3.5 w-3.5" />
+                        <span>{subTab.label}</span>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })()}
         </div>
 
         {/* Main Tab Content */}
@@ -214,6 +446,17 @@ export function InventoryDetailClient({
               inventoryId={currentInventory.id}
               userRole={user.role}
             />
+          )}
+          {activeTab === "other-reports" && (
+            <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl p-8 shadow-sm">
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <FileText className="h-8 w-8 text-[var(--text-secondary)] mb-3" />
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">Other Reports</h3>
+                <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-sm">
+                  This reports dashboard will be defined and developed in a future update.
+                </p>
+              </div>
+            </div>
           )}
           {activeTab === "recipes" && hasOutlets && (
             <RecipesTab

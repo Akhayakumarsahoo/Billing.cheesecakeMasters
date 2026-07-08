@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, invalidateAuthCache } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { UpdateOutletSchema } from "@/lib/validators";
 import { NextResponse } from "next/server";
@@ -75,6 +75,8 @@ export async function PATCH(
       where: { id },
       data: dbFields,
     });
+
+    invalidateAuthCache(outlet.clerkUserId);
 
     return NextResponse.json({ data: updated }, { status: 200 });
   } catch (error: any) {

@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { recomputeStock } from "@/lib/inventory";
+import { recomputeStock, adjustStock } from "@/lib/inventory";
 import { CreateWastageRecordSchema } from "@/lib/validators";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -105,10 +105,15 @@ export async function POST(req: Request) {
     const savedRecord = await prisma.$transaction(async (tx) => {
       const computedLines = [];
 
+      // Batch fetch all raw materials in a single query to eliminate N+1 queries
+      const materialIds = lines.map(line => line.rawMaterialId);
+      const materials = await tx.rawMaterial.findMany({
+        where: { id: { in: materialIds } }
+      });
+      const materialMap = new Map(materials.map(m => [m.id, m]));
+
       for (const line of lines) {
-        const material = await tx.rawMaterial.findUnique({
-          where: { id: line.rawMaterialId }
-        });
+        const material = materialMap.get(line.rawMaterialId);
 
         if (!material) {
           throw new Error(`Raw material with ID ${line.rawMaterialId} not found`);
@@ -172,7 +177,7 @@ export async function POST(req: Request) {
             }
           });
 
-          await recomputeStock(line.rawMaterialId, tx);
+          await adjustStock(line.rawMaterialId, line.quantity.negated(), tx);
         }
       }
 

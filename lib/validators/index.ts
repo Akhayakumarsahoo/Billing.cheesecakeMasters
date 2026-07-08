@@ -232,6 +232,7 @@ export const CreateStockTransferSchema = z.object({
     })
   ).min(1),
   status: z.enum(["draft", "pending"]).optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Date must be YYYY-MM-DD" }).optional(),
 });
 
 export const CreateWastageRecordSchema = z.object({

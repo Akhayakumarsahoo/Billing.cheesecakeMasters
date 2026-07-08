@@ -126,11 +126,79 @@ export function PurchasesTab({ inventoryId, userRole, gstSlabs }: PurchasesTabPr
   const [newMatTransfer, setNewMatTransfer] = useState("");
   const [newMatGstId, setNewMatGstId] = useState("");
 
+  // New Inbound Pending Transfers States
+  const [pendingTransfers, setPendingTransfers] = useState<any[]>([]);
+  const [reviewTransferOpen, setReviewTransferOpen] = useState(false);
+  const [reviewTransfer, setReviewTransfer] = useState<any>(null);
+  const [loadingTransfer, setLoadingTransfer] = useState(false);
+  const [isRespondingTransfer, setIsRespondingTransfer] = useState(false);
+
   useEffect(() => {
     fetchInvoices();
     fetchSuppliers();
     fetchRawMaterials();
+    fetchPendingTransfers();
   }, [inventoryId]);
+
+  const fetchPendingTransfers = async () => {
+    try {
+      const res = await fetch(`/api/transfers?inventoryId=${inventoryId}`);
+      if (!res.ok) throw new Error("Failed to load inbound transfers");
+      const body = await res.json();
+      const inboundPending = body.data.filter(
+        (t: any) => t.toInventoryId === inventoryId && t.status === "pending"
+      );
+      setPendingTransfers(inboundPending);
+    } catch (err: any) {
+      console.error("fetchPendingTransfers error:", err);
+    }
+  };
+
+  const handleViewTransfer = async (id: string) => {
+    setReviewTransferOpen(true);
+    setLoadingTransfer(true);
+    setReviewTransfer(null);
+    try {
+      const res = await fetch(`/api/transfers/${id}`);
+      if (!res.ok) throw new Error("Failed to fetch transfer details");
+      const body = await res.json();
+      setReviewTransfer(body.data);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load transfer details");
+      setReviewTransferOpen(false);
+    } finally {
+      setLoadingTransfer(false);
+    }
+  };
+
+  const handleRespondTransfer = async (status: "accepted" | "rejected") => {
+    if (!reviewTransfer) return;
+    const verb = status === "accepted" ? "accept" : "reject";
+    if (!confirm(`Are you sure you want to ${verb} this stock transfer?`)) {
+      return;
+    }
+
+    setIsRespondingTransfer(true);
+    try {
+      const res = await fetch(`/api/transfers/${reviewTransfer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status })
+      });
+
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error?.message || `Failed to ${verb} transfer`);
+
+      toast.success(status === "accepted" ? "Transfer accepted, purchase invoice generated." : "Transfer rejected.");
+      setReviewTransferOpen(false);
+      fetchPendingTransfers();
+      fetchInvoices();
+    } catch (err: any) {
+      toast.error(err.message || `Failed to ${verb} transfer.`);
+    } finally {
+      setIsRespondingTransfer(false);
+    }
+  };
 
   const fetchInvoices = async () => {
     try {
@@ -493,7 +561,7 @@ export function PurchasesTab({ inventoryId, userRole, gstSlabs }: PurchasesTabPr
 
   if (view === "list") {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-[var(--text-primary)]">Purchase Invoices</h2>
           {isAllowed && (
@@ -503,6 +571,65 @@ export function PurchasesTab({ inventoryId, userRole, gstSlabs }: PurchasesTabPr
             </Button>
           )}
         </div>
+
+        {/* Pending Inbound Transfers Alert Section */}
+        {pendingTransfers.length > 0 && (
+          <Card className="border-amber-200 bg-amber-50/20 dark:border-amber-900/30 dark:bg-amber-950/5 rounded-xl">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-800 dark:text-amber-400">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                Pending Inbound Stock Transfers ({pendingTransfers.length})
+              </CardTitle>
+              <p className="text-xs text-amber-700 dark:text-amber-500 font-medium">
+                Other inventories have sent stock transfers to this inventory. Review and accept/reject them below to generate purchase invoices.
+              </p>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-amber-100 dark:border-amber-950/40 hover:bg-transparent">
+                      <TableHead className="text-xs uppercase text-amber-800 dark:text-amber-400 font-medium pl-4">Source Inventory</TableHead>
+                      <TableHead className="text-xs uppercase text-amber-800 dark:text-amber-400 font-medium">Date</TableHead>
+                      <TableHead className="text-xs uppercase text-amber-800 dark:text-amber-400 font-medium text-center">Items</TableHead>
+                      <TableHead className="text-xs uppercase text-amber-800 dark:text-amber-400 font-medium text-right">Value</TableHead>
+                      <TableHead className="text-xs uppercase text-amber-800 dark:text-amber-400 font-medium text-right pr-4">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingTransfers.map((t) => (
+                      <TableRow key={t.id} className="border-amber-100/50 dark:border-amber-950/20 hover:bg-amber-50/40">
+                        <TableCell className="text-xs font-medium text-amber-900 dark:text-amber-300 pl-4">{t.fromInventoryName}</TableCell>
+                        <TableCell className="text-xs text-amber-700 dark:text-amber-400">
+                          {new Date(t.createdAt).toLocaleDateString("en-IN", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric"
+                          })}
+                        </TableCell>
+                        <TableCell className="text-xs text-center font-mono text-amber-900 dark:text-amber-300">{t.itemsCount}</TableCell>
+                        <TableCell className="text-xs text-right font-mono font-semibold text-amber-900 dark:text-amber-300">
+                          ₹{Number(t.grandTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="text-right pr-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewTransfer(t.id)}
+                            className="h-8 text-xs bg-white hover:bg-amber-100/20 border-amber-200 text-amber-800 font-medium shadow-sm"
+                          >
+                            <Eye className="h-3.5 w-3.5 mr-1" />
+                            Review
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl overflow-hidden">
           {loading ? (
@@ -579,6 +706,121 @@ export function PurchasesTab({ inventoryId, userRole, gstSlabs }: PurchasesTabPr
             </Table>
           )}
         </Card>
+
+        {/* Review Inbound Transfer Dialog */}
+        <Dialog open={reviewTransferOpen} onOpenChange={setReviewTransferOpen}>
+          <DialogContent className="max-w-2xl bg-white border-[var(--border-default)] shadow-xl rounded-xl">
+            <DialogHeader>
+              <DialogTitle className="text-base font-semibold text-[var(--text-primary)]">
+                Review Inbound Stock Transfer
+              </DialogTitle>
+              <DialogDescription className="text-xs text-[var(--text-secondary)]">
+                Verify transfer details and accept/reject it to add items to your stock.
+              </DialogDescription>
+            </DialogHeader>
+
+            {loadingTransfer ? (
+              <div className="p-6 space-y-3">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+              </div>
+            ) : reviewTransfer ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 bg-[var(--bg-surface-raised)] border border-[var(--border-subtle)] rounded-xl p-4 text-xs">
+                  <div>
+                    <span className="text-[var(--text-muted)] font-medium">Source Inventory</span>
+                    <p className="font-semibold text-sm mt-1">{reviewTransfer.fromInventoryName}</p>
+                  </div>
+                  <div>
+                    <span className="text-[var(--text-muted)] font-medium">Transfer Date</span>
+                    <p className="font-semibold text-sm mt-1">
+                      {new Date(reviewTransfer.createdAt).toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-[var(--text-muted)] font-medium">Notes</span>
+                    <p className="mt-1 text-[var(--text-secondary)] bg-white p-2 rounded border border-[var(--border-default)] min-h-[40px]">
+                      {reviewTransfer.notes || "No notes logged for this transfer"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border border-[var(--border-default)] rounded-xl overflow-hidden max-h-[250px] overflow-y-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-white z-10">
+                      <TableRow className="border-[var(--border-default)] hover:bg-transparent">
+                        <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium py-2.5 pl-4">Item Name</TableHead>
+                        <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium py-2.5">Unit</TableHead>
+                        <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right py-2.5">Quantity</TableHead>
+                        <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right py-2.5">Unit Price</TableHead>
+                        <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right py-2.5 pr-4">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reviewTransfer.lines.map((line: any) => (
+                        <TableRow key={line.id} className="border-[var(--border-subtle)]">
+                          <TableCell className="text-xs font-semibold pl-4">{line.materialName}</TableCell>
+                          <TableCell className="text-xs text-[var(--text-secondary)]">{line.unit}</TableCell>
+                          <TableCell className="text-xs text-right font-mono font-medium">{Number(line.quantity).toFixed(3)}</TableCell>
+                          <TableCell className="text-xs text-right font-mono">₹{Number(line.unitPrice).toFixed(2)}</TableCell>
+                          <TableCell className="text-xs text-right font-mono font-semibold pr-4">₹{Number(line.lineTotal).toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="flex flex-col items-end gap-1.5 text-xs pr-2">
+                  <div className="flex justify-between w-64 border-b border-[var(--border-subtle)] pb-1.5 text-[var(--text-secondary)] font-medium">
+                    <span>Subtotal</span>
+                    <span className="font-mono">₹{Number(reviewTransfer.subtotal).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between w-64 border-b border-[var(--border-subtle)] pb-1.5 text-[var(--text-secondary)] font-medium">
+                    <span>Total GST</span>
+                    <span className="font-mono">₹{Number(reviewTransfer.totalGst).toFixed(2)}</span>
+                  </div>
+                  {(Number(reviewTransfer.otherCharges) > 0 || Number(reviewTransfer.otherChargesGst) > 0) && (
+                    <div className="flex justify-between w-64 border-b border-[var(--border-subtle)] pb-1.5 text-[var(--text-secondary)] font-medium">
+                      <span>Other Charges (incl. GST)</span>
+                      <span className="font-mono">₹{(Number(reviewTransfer.otherCharges) + Number(reviewTransfer.otherChargesGst)).toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between w-64 pt-1 text-[var(--text-primary)] font-bold text-sm">
+                    <span>Grand Total</span>
+                    <span className="font-mono">₹{Number(reviewTransfer.grandTotal).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <DialogFooter className="mt-4 flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => setReviewTransferOpen(false)}
+                    disabled={isRespondingTransfer}
+                    className="h-9 text-xs"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    onClick={() => handleRespondTransfer("rejected")}
+                    disabled={isRespondingTransfer}
+                    variant="outline"
+                    className="border-red-600 text-red-600 hover:bg-red-50 h-9 text-xs font-semibold"
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    onClick={() => handleRespondTransfer("accepted")}
+                    disabled={isRespondingTransfer}
+                    className="bg-green-600 hover:bg-green-700 text-white h-9 text-xs font-semibold"
+                  >
+                    {isRespondingTransfer ? "Accepting..." : "Accept & Generate Purchase Invoice"}
+                  </Button>
+                </DialogFooter>
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

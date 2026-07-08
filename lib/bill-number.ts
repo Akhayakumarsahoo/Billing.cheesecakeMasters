@@ -3,56 +3,41 @@ import { Prisma } from "@prisma/client";
 
 export async function generateBillNumber(
   outletId: string,
-  tx?: Prisma.TransactionClient
+  tx?: Prisma.TransactionClient,
+  outletSequenceIndex?: number
 ): Promise<string> {
   const client = tx || prisma;
   const year = new Date().getFullYear();
 
-  const outlet = await client.outlet.findUnique({
-    where: { id: outletId },
-    select: { sequenceIndex: true },
-  });
-  if (!outlet) {
-    throw new Error(`Outlet not found: ${outletId}`);
+  let outletIndex = outletSequenceIndex;
+  if (outletIndex === undefined) {
+    const outlet = await client.outlet.findUnique({
+      where: { id: outletId },
+      select: { sequenceIndex: true },
+    });
+    if (!outlet) {
+      throw new Error(`Outlet not found: ${outletId}`);
+    }
+    outletIndex = outlet.sequenceIndex;
   }
-  const outletIndex = outlet.sequenceIndex;
 
-  const executeSequenceUpdate = async (t: Prisma.TransactionClient) => {
-    await t.$executeRawUnsafe(
-      `INSERT INTO bill_sequences ("outletId", year, "lastSeq")
-       VALUES ($1, $2, 0)
-       ON CONFLICT ("outletId") DO NOTHING`,
-      outletId,
-      year,
-    );
+  // Execute sequence update using a single atomic PostgreSQL query.
+  // This automatically inserts or updates, increments, and handles year reset in one network round-trip.
+  const rows = await client.$queryRaw<{ lastSeq: number }[]>`
+    INSERT INTO bill_sequences ("outletId", year, "lastSeq")
+    VALUES (${outletId}, ${year}, 1)
+    ON CONFLICT ("outletId")
+    DO UPDATE SET
+      "lastSeq" = CASE WHEN bill_sequences.year = EXCLUDED.year THEN bill_sequences."lastSeq" + 1 ELSE 1 END,
+      year = EXCLUDED.year
+    RETURNING "lastSeq"
+  `;
 
-    // Reset sequence if year has changed
-    await t.$executeRawUnsafe(
-      `UPDATE bill_sequences SET "lastSeq" = 0, year = $1
-       WHERE "outletId" = $2 AND year != $1`,
-      year,
-      outletId,
-    );
+  if (!rows || rows.length === 0) {
+    throw new Error(`Failed to generate sequence index for outlet: ${outletId}`);
+  }
 
-    const rows = await t.$queryRawUnsafe<{ lastSeq: number }[]>(
-      `UPDATE bill_sequences SET "lastSeq" = "lastSeq" + 1
-       WHERE "outletId" = $1
-       RETURNING "lastSeq"`,
-      outletId,
-    );
-
-    return rows[0].lastSeq;
-  };
-
-  // Run the sequence update inside the provided transaction, or start a new transaction with 10000ms timeout
-  const result = tx
-    ? await executeSequenceUpdate(tx)
-    : await prisma.$transaction(async (innerTx) => {
-        return executeSequenceUpdate(innerTx);
-      }, {
-        timeout: 10000,
-      });
-
-  const seq = String(result).padStart(5, "0");
+  const seq = String(rows[0].lastSeq).padStart(5, "0");
   return `OTL${outletIndex}-${year}-${seq}`;
 }
+

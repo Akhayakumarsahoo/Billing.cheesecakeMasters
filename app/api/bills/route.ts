@@ -132,21 +132,20 @@ export async function POST(req: Request) {
       );
     }
 
-    const outlet = await prisma.outlet.findUnique({ where: { id: outletAuth.id } });
-    if (!outlet || !outlet.isActive) {
+    if (!outletAuth.isActive) {
       return NextResponse.json(
         { error: { code: "INVALID_OUTLET", message: "Outlet not found or inactive" } },
         { status: 400 }
       );
     }
 
-    const billNumber = await generateBillNumber(outlet.id);
+    const billNumber = await generateBillNumber(outletAuth.id, undefined, outletAuth.sequenceIndex);
 
     const bill = await prisma.bill.create({
       data: {
         ...result.data,
         billNumber,
-        outletId: outlet.id,
+        outletId: outletAuth.id,
         status: "draft",
       },
     });

@@ -126,7 +126,16 @@ export async function POST(req: Request) {
       otherChargesGst = 0,
       lines,
       status = "draft",
+      date,
     } = result.data;
+
+    let createdAt = new Date();
+    if (date) {
+      const d = new Date(date);
+      const now = new Date();
+      d.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+      createdAt = d;
+    }
 
     // Scope check: storeroom user can only transfer FROM their assigned inventory
     if (user.role === "storeroom" && user.inventoryId !== fromInventoryId) {
@@ -218,7 +227,8 @@ export async function POST(req: Request) {
             grandTotal,
             notes,
             createdById: user.id,
-            sentAt: status === "pending" ? new Date() : null,
+            sentAt: status === "pending" ? createdAt : null,
+            createdAt,
             lines: {
               create: computedLines.map((cl) => ({
                 rawMaterialId: cl.rawMaterialId,
@@ -250,6 +260,7 @@ export async function POST(req: Request) {
                 referenceId: transfer.id,
                 quantityChange: line.quantity.negated(),
                 createdById: user.id,
+                createdAt,
               },
             });
 

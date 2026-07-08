@@ -11,6 +11,30 @@ change.
 
 - Testing and Verification
 
+- **Nested Management Folder in Inventory Sidebar**
+  - Grouped management tabs (`Raw Materials`, `Recipes`, and `Settings`) within a single "Management" folder.
+  - Implemented collapsible sub-menu item block on desktop screens with chevron indicators and automatic expansion logic.
+  - Relabeled the `"management"` tab as `"Settings"` for cleaner semantics.
+  - Implemented a trigger pill with `DropdownMenu` component in the horizontal navigation on mobile/tablet viewports to let users toggle management tabs.
+
+- **Nested Reports Folder in Inventory Sidebar**
+  - Grouped reports (`Current Stock`, `Stock Summary`, and a new placeholder for `Other Reports`) within a single "Reports" folder.
+  - Implemented collapsible sub-menu item block on desktop screens with chevron indicators and automatic expansion logic.
+  - Implemented a trigger pill with `DropdownMenu` component in the horizontal navigation on mobile/tablet viewports to let users toggle reports.
+  - Created a placeholder view for the new `Other Reports` page.
+
+- **Stock Transfers View Separation and Column Cleanup**
+  - Updated the Transfers Tab list to display only outbound transfers (where the current inventory is the sender).
+  - Updated the Purchases Tab to display pending inbound stock transfers in the "Pending Inbound Stock Transfers" alert block to allow acceptance.
+  - Removed `ID`, `Type`, and `To Inventory` columns from the Transfers Tab table.
+  - Removed `Transfer ID` column from the Purchases Tab's pending inbound transfers list table.
+  - Cleaned up table paddings and alignment.
+
+- **Auto-Collapsing Left Sidebar on Inventory Pages**
+  - Integrated the `useSidebar` hook from `@/components/ui/sidebar` inside `AdminSidebar`.
+  - Added a client-side `useEffect` hook listening to the browser pathname.
+  - Automatically collapses the left sidebar on navigation to any path starting with `/inventory` to optimize page real estate for complex inventory data tables.
+
 - **Historical Stock Date Selector and Propagation Adjustments**
   - Added a date selector input styled with Tailwind and Lucide calendar icons to the Current Stock tab.
   - Implemented back-calculation for historical closing stock levels on the GET `/api/raw-materials` endpoint by subtracting later movements from live stock.

@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, invalidateAuthCache } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { UpdateUserSchema } from "@/lib/validators";
 import { clerkClient } from "@clerk/nextjs/server";
@@ -102,6 +102,8 @@ export async function PATCH(
       where: { id },
       data: dataToUpdate,
     });
+
+    invalidateAuthCache(dbUser.clerkUserId);
 
     const { clerkUserId, ...rest } = updated;
     return NextResponse.json({ data: rest }, { status: 200 });

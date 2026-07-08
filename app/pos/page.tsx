@@ -18,7 +18,19 @@ export default async function PosPage() {
 
   const menuItems = await prisma.menuItem.findMany({
     where: { outletId: outlet.id, isActive: true },
-    include: { gstSlab: true },
+    select: {
+      id: true,
+      name: true,
+      sku: true,
+      basePrice: true,
+      unit: true,
+      categoryId: true,
+      gstSlab: {
+        select: {
+          rate: true
+        }
+      }
+    }
   });
 
   // Serialize Decimal values to strings before passing to the client component

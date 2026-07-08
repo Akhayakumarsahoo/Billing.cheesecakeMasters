@@ -25,6 +25,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 interface AdminSidebarProps {
@@ -33,8 +34,20 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ role }: AdminSidebarProps) {
   const pathname = usePathname();
+  const { setOpen } = useSidebar();
   const [mounted, setMounted] = useState(false);
   const [persistedOutletId, setPersistedOutletId] = useState<string | null>(null);
+
+  const [prevPath, setPrevPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (pathname !== prevPath) {
+      setPrevPath(pathname);
+      if (pathname?.startsWith("/inventory")) {
+        setOpen(false);
+      }
+    }
+  }, [pathname, prevPath, setOpen]);
 
   useEffect(() => {
     setMounted(true);
@@ -138,7 +151,7 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
               )}
 
               <SidebarMenuItem>
-                <SidebarMenuButton render={<Link href="/inventory" />} isActive={isInventoryActive} tooltip="Inventory">
+                <SidebarMenuButton render={<Link href="/inventory" onClick={() => setOpen(false)} />} isActive={isInventoryActive} tooltip="Inventory">
                   <Warehouse />
                   <span>Inventory</span>
                 </SidebarMenuButton>
