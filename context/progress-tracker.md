@@ -11,6 +11,10 @@ change.
 
 - Testing and Verification
 
+- **Stock Movement Foreign Key Constraint Bug Fix & CompletedAt Preservation**
+  - Resolved `Foreign key constraint violated on the constraint: stock_movements_created_by_fkey` error during bill checkout and bill cancellation by dynamically resolving the actual database `User` ID associated with the authenticated outlet POS instead of using the hardcoded `"system"` string.
+  - Prevented updating the `completedAt` timestamp of a bill when it is updated/edited, ensuring only the default Prisma `updatedAt` field gets refreshed and the original completion time is preserved.
+
 - **Nested Management Folder in Inventory Sidebar**
   - Grouped management tabs (`Raw Materials`, `Recipes`, and `Settings`) within a single "Management" folder.
   - Implemented collapsible sub-menu item block on desktop screens with chevron indicators and automatic expansion logic.

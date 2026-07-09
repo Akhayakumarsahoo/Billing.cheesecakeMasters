@@ -221,7 +221,6 @@ export async function POST(req: Request) {
           where: { id: billId },
           data: {
             status: "printed",
-            completedAt: new Date(),
             subtotal: finalTotals.subtotal,
             totalCgst: finalTotals.totalCgst,
             totalSgst: finalTotals.totalSgst,
@@ -335,6 +334,27 @@ export async function POST(req: Request) {
             recipeMap.set(`${r.inventoryId}_${r.menuItemId}`, r);
           }
           
+          // Resolve a valid createdById from the User table for the outlet or fallback
+          const userRow = await tx.user.findUnique({
+            where: { clerkUserId: outlet.clerkUserId }
+          });
+          let createdById = userRow?.id;
+          if (!createdById) {
+            const fallbackUser = await tx.user.findFirst({
+              where: { role: "admin", isActive: true }
+            });
+            createdById = fallbackUser?.id;
+          }
+          if (!createdById) {
+            const anyUser = await tx.user.findFirst({
+              where: { isActive: true }
+            });
+            createdById = anyUser?.id;
+          }
+          if (!createdById) {
+            throw new Error("No active user found in the database to associate with stock movement");
+          }
+
           for (const li of finalBillRecord.lineItems) {
             if (!li.menuItemId) continue;
             for (const invOutlet of linkedInventories) {
@@ -351,7 +371,7 @@ export async function POST(req: Request) {
                     referenceType: "bill",
                     referenceId: finalBillRecord.id,
                     quantityChange: change.negated(),
-                    createdById: "system",
+                    createdById,
                     note: `Auto-consumption for bill ${finalBillRecord.billNumber}`
                   }
                 });

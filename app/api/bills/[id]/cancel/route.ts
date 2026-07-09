@@ -83,6 +83,30 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         }
       });
 
+      // Get a fallback/actual user ID for createdById to prevent foreign key violation
+      let cancelCreatedById = loggedInUser?.id;
+      if (!cancelCreatedById && outlet) {
+        const userRow = await tx.user.findUnique({
+          where: { clerkUserId: outlet.clerkUserId }
+        });
+        cancelCreatedById = userRow?.id;
+      }
+      if (!cancelCreatedById) {
+        const fallbackUser = await tx.user.findFirst({
+          where: { role: "admin", isActive: true }
+        });
+        cancelCreatedById = fallbackUser?.id;
+      }
+      if (!cancelCreatedById) {
+        const anyUser = await tx.user.findFirst({
+          where: { isActive: true }
+        });
+        cancelCreatedById = anyUser?.id;
+      }
+      if (!cancelCreatedById) {
+        throw new Error("No active user found in the database to associate with stock movement");
+      }
+
       // 3. Revert consumption movements (negative consumption gets a positive reversal)
       for (const m of existingMovements) {
         await tx.stockMovement.create({
@@ -93,7 +117,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             referenceType: "bill",
             referenceId: id,
             quantityChange: m.quantityChange.negated(),
-            createdById: loggedInUser?.id || "system",
+            createdById: cancelCreatedById,
             note: "Reversal due to bill cancellation"
           }
         });
