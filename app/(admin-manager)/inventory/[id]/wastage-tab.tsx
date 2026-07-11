@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Search, X, AlertTriangle, Eye, Ban, Check, Trash2 } from "lucide-react";
+import { Plus, Search, X, AlertTriangle, Eye, Ban, Check, Trash2, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,6 +18,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import type { DateRange } from "react-day-picker";
+import { cn } from "@/lib/utils";
 
 interface RawMaterial {
   id: string;
@@ -55,9 +60,31 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
   const [records, setRecords] = useState<WastageRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Views: "list" | "create" | "view"
-  const [view, setView] = useState<"list" | "create" | "view">("list");
+  // Views: "list" | "create"
+  const [view, setView] = useState<"list" | "create">("list");
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+  const toLocalDateString = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const today = new Date();
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(today.getDate() - 6);
+
+  const [fromDate, setFromDate] = useState(() => toLocalDateString(sevenDaysAgo));
+  const [toDate, setToDate] = useState(() => toLocalDateString(today));
+  const todayStr = toLocalDateString(today);
+
+  const [draftRange, setDraftRange] = useState<DateRange>({
+    from: sevenDaysAgo,
+    to: today
+  });
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   // Lists
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
@@ -65,7 +92,6 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
   // Form State
   const [wastageDate, setWastageDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [reason, setReason] = useState("");
-  const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<WastageLine[]>([]);
 
   // Search inside form
@@ -78,13 +104,17 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
 
   useEffect(() => {
     fetchRecords();
+  }, [inventoryId, fromDate, toDate]);
+
+  useEffect(() => {
     fetchRawMaterials();
   }, [inventoryId]);
 
   const fetchRecords = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/wastage?inventoryId=${inventoryId}`);
+      const url = `/api/wastage?inventoryId=${inventoryId}&from=${fromDate}&to=${toDate}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load wastage records");
       const body = await res.json();
       setRecords(body.data);
@@ -93,6 +123,108 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpen = () => {
+    const parseLocalDate = (str: string): Date => {
+      const [y, m, d] = str.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+    setDraftRange({
+      from: parseLocalDate(fromDate),
+      to: parseLocalDate(toDate)
+    });
+    setIsPopoverOpen(true);
+  };
+
+  const getShortcutList = () => {
+    const now = new Date();
+    const todayVal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const yesterday = new Date(todayVal);
+    yesterday.setDate(todayVal.getDate() - 1);
+
+    const last7 = new Date(todayVal);
+    last7.setDate(todayVal.getDate() - 6);
+
+    const last30 = new Date(todayVal);
+    last30.setDate(todayVal.getDate() - 29);
+
+    const last90 = new Date(todayVal);
+    last90.setDate(todayVal.getDate() - 89);
+
+    const thisMonthStart = new Date(todayVal.getFullYear(), todayVal.getMonth(), 1);
+
+    const lastMonthStart = new Date(todayVal.getFullYear(), todayVal.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(todayVal.getFullYear(), todayVal.getMonth(), 0);
+
+    return [
+      { key: "today", label: "Today", from: todayVal, to: todayVal },
+      { key: "yesterday", label: "Yesterday", from: yesterday, to: yesterday },
+      { key: "last7", label: "Last 7 Days", from: last7, to: todayVal },
+      { key: "last30", label: "Last 30 Days", from: last30, to: todayVal },
+      { key: "last90", label: "Last 90 Days", from: last90, to: todayVal },
+      { key: "thisMonth", label: "This Month", from: thisMonthStart, to: todayVal },
+      { key: "lastMonth", label: "Last Month", from: lastMonthStart, to: lastMonthEnd },
+    ];
+  };
+
+  const activeShortcutKey = (() => {
+    if (!draftRange?.from || !draftRange?.to) return null;
+    const shortcuts = getShortcutList();
+    for (const s of shortcuts) {
+      if (toLocalDateString(draftRange.from) === toLocalDateString(s.from) && 
+          toLocalDateString(draftRange.to) === toLocalDateString(s.to)) {
+        return s.key;
+      }
+    }
+    return null;
+  })();
+
+  const handleShortcutClick = (key: string, from: Date, to: Date) => {
+    setDraftRange({ from, to });
+    const fromStr = toLocalDateString(from);
+    const toStr = toLocalDateString(to);
+    setFromDate(fromStr);
+    setToDate(toStr);
+    setIsPopoverOpen(false);
+  };
+
+  const handleApply = () => {
+    if (!draftRange?.from) {
+      toast.error("Please select a start date");
+      return;
+    }
+
+    const to = draftRange.to ?? draftRange.from;
+    const diffDays = Math.ceil(
+      (to.getTime() - draftRange.from.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (diffDays > 93) {
+      toast.error("Date range cannot exceed 3 months (93 days)");
+      return;
+    }
+
+    setFromDate(toLocalDateString(draftRange.from));
+    setToDate(toLocalDateString(to));
+    setIsPopoverOpen(false);
+  };
+
+  const previewLabel = () => {
+    if (draftRange?.from) {
+      const fromStr = format(draftRange.from, "dd/MM/yyyy");
+      const toStr = draftRange.to ? format(draftRange.to, "dd/MM/yyyy") : fromStr;
+      return `${fromStr} to ${toStr}`;
+    }
+    return "Select date range";
+  };
+
+  const displayLabel = () => {
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+    if (fromDate === toDate) return format(from, "MMM d, yyyy");
+    return `${format(from, "MMM d")} – ${format(to, "MMM d, yyyy")}`;
   };
 
   const fetchRawMaterials = async () => {
@@ -151,13 +283,7 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
       return;
     }
 
-    // Check stock validation before confirming
     if (status === "confirmed") {
-      const hasShortage = lines.some(l => l.quantity > l.availableStock);
-      if (hasShortage) {
-        toast.error("One or more items exceed available stock levels.");
-        return;
-      }
       setSubmitStatus(status);
       setIsConfirmDialogOpen(true);
     } else {
@@ -172,7 +298,7 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
         inventoryId,
         wastageDate,
         reason: reason.trim() || null,
-        notes: notes.trim() || null,
+        notes: null,
         lines: lines.map(l => ({
           rawMaterialId: l.rawMaterialId,
           quantity: l.quantity
@@ -194,7 +320,6 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
       setView("list");
       // Reset form
       setReason("");
-      setNotes("");
       setLines([]);
       setWastageDate(new Date().toISOString().split("T")[0]);
       fetchRecords();
@@ -210,9 +335,9 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const handleOpenView = async (recordId: string) => {
-    setView("view");
     setSelectedRecordId(recordId);
     setLoadingDetail(true);
+    setIsDetailsOpen(true);
     try {
       const res = await fetch(`/api/wastage/${recordId}`);
       if (!res.ok) throw new Error("Failed to load wastage record details");
@@ -220,7 +345,7 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
       setDetailRecord(body.data);
     } catch (err: any) {
       toast.error(err.message || "Failed to load details");
-      setView("list");
+      setIsDetailsOpen(false);
     } finally {
       setLoadingDetail(false);
     }
@@ -248,7 +373,7 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
 
       toast.success(`Wastage record: ${newStatus}`);
       fetchRecords();
-      if (view === "view") {
+      if (isDetailsOpen && recordId) {
         handleOpenView(recordId);
       }
     } catch (err: any) {
@@ -266,8 +391,89 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
   if (view === "list") {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Wastage & Spoilage Logs</h2>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Wastage & Spoilage Logs</h2>
+            
+            <Popover open={isPopoverOpen} onOpenChange={(val) => {
+              if (val) handleOpen();
+              else setIsPopoverOpen(false);
+            }}>
+              <PopoverTrigger
+                className={cn(
+                  "inline-flex items-center gap-2 h-9 px-3 rounded-md text-xs font-normal border cursor-pointer select-none",
+                  "bg-[var(--bg-surface)] border-[var(--border-default)]",
+                  "text-[var(--text-primary)] transition-colors outline-none",
+                  "hover:bg-[var(--bg-hover)] hover:border-[var(--border-strong)]",
+                  "min-w-[200px] whitespace-nowrap",
+                  isPopoverOpen && "border-[var(--border-strong)] bg-[var(--bg-hover)]"
+                )}
+              >
+                <CalendarIcon className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0" strokeWidth={1.5} />
+                <span className="flex-1 text-left font-sans">{displayLabel()}</span>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-xl rounded-xl overflow-hidden flex flex-col z-50" align="start">
+                <div className="flex flex-row">
+                  {/* Sidebar with Shortcuts */}
+                  <div className="w-44 flex flex-col border-r border-[var(--border-default)] py-2 bg-[var(--bg-surface)] shrink-0">
+                    {getShortcutList().map((s) => {
+                      const isActive = activeShortcutKey === s.key;
+                      return (
+                        <button
+                          key={s.key}
+                          type="button"
+                          onClick={() => handleShortcutClick(s.key, s.from, s.to)}
+                          className={cn(
+                            "w-full text-left py-2.5 px-4 text-xs font-medium transition-colors select-none",
+                            isActive
+                              ? "bg-[var(--bg-active)] text-[var(--text-primary)] border-r-2 border-[var(--accent-primary)]"
+                              : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                          )}
+                        >
+                          {s.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Calendar component */}
+                  <div className="p-3">
+                    <CalendarComponent
+                      mode="range"
+                      selected={draftRange}
+                      onSelect={(val) => val && setDraftRange(val)}
+                      numberOfMonths={2}
+                      disabled={{ after: new Date() }}
+                      defaultMonth={draftRange?.from}
+                      className="relative p-0"
+                    />
+                  </div>
+                </div>
+
+                {/* Footer of the Popover */}
+                <div className="flex items-center justify-between gap-4 px-4 py-3 border-t border-[var(--border-default)] bg-[var(--bg-surface-raised)]">
+                  <span className="text-xs text-[var(--text-secondary)] font-mono">
+                    {previewLabel()}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsPopoverOpen(false)}
+                      className="h-8 text-xs px-3 font-medium"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleApply}
+                      className="bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white h-8 text-xs px-4 font-medium"
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
           {isAllowed && (
             <Button onClick={() => setView("create")} className="bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white font-medium h-10 px-4 rounded-md flex items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -290,7 +496,6 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
             <Table>
               <TableHeader>
                 <TableRow className="border-[var(--border-default)] hover:bg-transparent">
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Log ID</TableHead>
                   <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Wastage Date</TableHead>
                   <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Reason</TableHead>
                   <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-center">Items Count</TableHead>
@@ -302,9 +507,6 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
               <TableBody>
                 {records.map((r) => (
                   <TableRow key={r.id} className="border-[var(--border-subtle)] hover:bg-[var(--bg-hover)]">
-                    <TableCell className="text-sm font-medium text-[var(--text-primary)] font-mono truncate max-w-[120px]">
-                      {r.id.slice(0, 8)}...
-                    </TableCell>
                     <TableCell className="text-xs text-[var(--text-secondary)] font-medium">{r.wastageDate}</TableCell>
                     <TableCell className="text-xs text-[var(--text-secondary)] font-medium max-w-[150px] truncate">
                       {r.reason || "—"}
@@ -346,102 +548,119 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
             </Table>
           )}
         </Card>
-      </div>
-    );
-  }
 
-  if (view === "view") {
-    if (loadingDetail || !detailRecord) {
-      return (
-        <div className="p-6 space-y-3">
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-      );
-    }
+        <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+          <DialogContent className="max-w-3xl bg-white border-[var(--border-default)]">
+            <DialogHeader>
+              <DialogTitle className="text-base font-semibold text-[var(--text-primary)]">
+                Wastage Log Details
+              </DialogTitle>
+              <DialogDescription className="text-xs text-[var(--text-muted)]">
+                {detailRecord && `Logged: ${new Date(detailRecord.createdAt).toLocaleString("en-IN")}`}
+              </DialogDescription>
+            </DialogHeader>
 
-    const r = detailRecord;
+            {loadingDetail || !detailRecord ? (
+              <div className="py-8 space-y-3">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Details grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[var(--bg-surface-raised)] border border-[var(--border-subtle)] rounded-xl p-4 text-xs">
+                  <div>
+                    <p className="text-[var(--text-muted)] font-medium">Wastage Date</p>
+                    <p className="font-semibold mt-1">{detailRecord.wastageDate}</p>
+                  </div>
+                  <div>
+                    <p className="text-[var(--text-muted)] font-medium">Reason for Wastage</p>
+                    <p className="font-semibold mt-1">{detailRecord.reason || "General spoilage"}</p>
+                  </div>
+                </div>
 
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center pb-3 border-b border-[var(--border-default)]">
-          <div>
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Wastage Log: <span className="font-mono">{r.id}</span>
-            </h2>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Logged: {new Date(r.createdAt).toLocaleString("en-IN")}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {r.status === "draft" && <Badge className="bg-gray-100 text-gray-800">Draft</Badge>}
-            {r.status === "confirmed" && <Badge className="bg-green-100 text-green-800">Confirmed</Badge>}
-            {r.status === "cancelled" && <Badge className="bg-red-100 text-red-800">Cancelled</Badge>}
-            <Button variant="outline" size="sm" onClick={() => setView("list")} className="h-9">
-              Back to List
-            </Button>
-          </div>
-        </div>
+                {/* Status Badge */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[var(--text-muted)] font-medium">Status:</span>
+                  {detailRecord.status === "draft" && <Badge className="bg-gray-100 text-gray-800 border border-gray-300">Draft</Badge>}
+                  {detailRecord.status === "confirmed" && <Badge className="bg-green-100 text-green-800 border border-green-300">Confirmed</Badge>}
+                  {detailRecord.status === "cancelled" && <Badge className="bg-red-100 text-red-800 border border-red-300">Cancelled</Badge>}
+                </div>
 
-        {/* Details Card */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-[var(--bg-surface-raised)] border border-[var(--border-subtle)] rounded-xl p-4 text-sm">
-          <div>
-            <p className="text-[var(--text-muted)] font-medium">Wastage Date</p>
-            <p className="font-semibold mt-1">{r.wastageDate}</p>
-          </div>
-          <div>
-            <p className="text-[var(--text-muted)] font-medium">Reason for Wastage</p>
-            <p className="font-semibold mt-1">{r.reason || "General spoilage"}</p>
-          </div>
-          <div>
-            <p className="text-[var(--text-muted)] font-medium">Notes & Context</p>
-            <p className="text-xs text-[var(--text-secondary)] mt-1 whitespace-pre-wrap">
-              {r.notes || "No additional notes logged"}
-            </p>
-          </div>
-        </div>
+                {/* Lines Table */}
+                <div className="border border-[var(--border-default)] rounded-xl overflow-hidden shadow-sm">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-[var(--border-default)] hover:bg-transparent">
+                        <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Raw Material</TableHead>
+                        <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Unit</TableHead>
+                        <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right">Wasted Quantity</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {detailRecord.lines.map((line: any) => (
+                        <TableRow key={line.id} className="border-[var(--border-subtle)]">
+                          <TableCell className="text-sm font-medium text-[var(--text-primary)]">{line.materialName}</TableCell>
+                          <TableCell className="text-xs text-[var(--text-secondary)]">{line.unit}</TableCell>
+                          <TableCell className="text-sm text-right font-mono font-semibold text-red-600">
+                            -{Number(line.quantity).toFixed(3)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
 
-        {/* Lines Table */}
-        <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl overflow-hidden shadow-sm">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-[var(--border-default)] hover:bg-transparent">
-                <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Raw Material</TableHead>
-                <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Unit</TableHead>
-                <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right">Wasted Quantity</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {r.lines.map((line: any) => (
-                <TableRow key={line.id} className="border-[var(--border-subtle)]">
-                  <TableCell className="text-sm font-medium text-[var(--text-primary)]">{line.materialName}</TableCell>
-                  <TableCell className="text-xs text-[var(--text-secondary)]">{line.unit}</TableCell>
-                  <TableCell className="text-sm text-right font-mono font-semibold text-red-600">
-                    -{Number(line.quantity).toFixed(3)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+            <DialogFooter className="mt-4 flex flex-row gap-2 justify-between items-center sm:justify-between w-full">
+              {/* Left side actions if allowed */}
+              <div className="flex gap-2">
+                {detailRecord && isAllowed && detailRecord.status === "draft" && (
+                  <>
+                    <Button
+                      onClick={() => handleUpdateStatus(detailRecord.id, "confirmed")}
+                      disabled={isSubmitting}
+                      className="bg-green-600 hover:bg-green-700 text-white font-medium h-9 text-xs"
+                    >
+                      Confirm wastage
+                    </Button>
+                    <Button
+                      onClick={() => handleUpdateStatus(detailRecord.id, "cancelled")}
+                      disabled={isSubmitting}
+                      variant="outline"
+                      className="border-red-600 text-red-600 hover:bg-red-50 font-medium h-9 text-xs"
+                    >
+                      Cancel log
+                    </Button>
+                  </>
+                )}
 
-        {/* Confirmation buttons in details */}
-        {isAllowed && r.status === "draft" && (
-          <div className="flex gap-3 justify-end">
-            <Button onClick={() => handleUpdateStatus(r.id, "confirmed")} className="bg-green-600 hover:bg-green-700 text-white font-medium h-10 px-4 rounded-md">
-              Confirm wastage
-            </Button>
-            <Button onClick={() => handleUpdateStatus(r.id, "cancelled")} variant="outline" className="border-red-600 text-red-600 hover:bg-red-50 font-medium h-10 px-4 rounded-md">
-              Cancel log
-            </Button>
-          </div>
-        )}
+                {detailRecord && isAllowed && detailRecord.status === "confirmed" && (
+                  <Button
+                    onClick={() => handleUpdateStatus(detailRecord.id, "cancelled")}
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="border-red-600 text-red-600 hover:bg-red-50 font-medium h-9 text-xs"
+                  >
+                    Cancel log & revert stock
+                  </Button>
+                )}
+              </div>
 
-        {isAllowed && r.status === "confirmed" && (
-          <div className="flex gap-3 justify-end">
-            <Button onClick={() => handleUpdateStatus(r.id, "cancelled")} variant="outline" className="border-red-600 text-red-600 hover:bg-red-50 font-medium h-10 px-4 rounded-md">
-              Cancel log & revert stock
-            </Button>
-          </div>
-        )}
+              {/* Right side close button */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDetailsOpen(false)}
+                  className="h-9 text-xs"
+                >
+                  Close
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -458,7 +677,7 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[var(--bg-surface-raised)] border border-[var(--border-subtle)] rounded-xl p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[var(--bg-surface-raised)] border border-[var(--border-subtle)] rounded-xl p-4">
               
               {/* Wastage Date */}
               <div className="space-y-1.5">
@@ -481,18 +700,6 @@ export function WastageTab({ inventoryId, userRole }: WastageTabProps) {
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Spoiled, Expired, Spillage..."
-                  className="h-10 border-[var(--border-default)] bg-white"
-                />
-              </div>
-
-              {/* Notes */}
-              <div className="space-y-1.5">
-                <Label htmlFor="wastage-notes" className="text-sm font-medium">Notes (optional)</Label>
-                <Input
-                  id="wastage-notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Specific details..."
                   className="h-10 border-[var(--border-default)] bg-white"
                 />
               </div>

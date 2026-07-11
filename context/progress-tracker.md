@@ -11,6 +11,29 @@ change.
 
 - Testing and Verification
 
+- **Wastage Creation Stock Level Shortage Allowance**
+  - Removed frontend and backend checks restricting confirmed wastage logs when quantity exceeds available stock levels.
+  - Allows logging/confirming wastage of items with zero or negative stock.
+
+- **Inventory Wastage Report Tab & API Serialization Fix**
+  - Created a new `WastageReportTab` component that displays item-wise wastage.
+  - Defaults date selection to "Today", supports custom date ranges up to 3 months (93 days) using a double-calendar Popover, and aggregates confirmed records client-side.
+  - Fixed a `Cannot read properties of undefined (reading 'forEach')` error by updating the `/api/wastage` GET API route mapping to serialize the detailed `lines` array.
+  - Registered the new tab in the reports sidebar list of `InventoryDetailClient` and removed the placeholder "Other Reports" page.
+
+- **Wastage Page Calendar Date Filter**
+  - Added an interactive calendar date picker input inside the wastage logs header (`wastage-tab.tsx`) to filter log records.
+  - Implemented backend date filter support on the `GET /api/wastage` endpoint to query wastage logs by date.
+
+- **Inventory Overview Current Stock Levels**
+  - Replaced the "Recent Stock Movements" section inside the inventory detail overview page (`overview-tab.tsx`) with a "Current Stock Levels" table.
+  - Fetched and listed active raw materials (including `LOW STOCK` alerts), units, and current stock level quantities in parallel using `Promise.all`.
+
+- **Wastage Page Modal Details & Log ID Removal**
+  - Refactored the wastage record details view from a full-page view to a modal Dialog popup. Clicking the eye symbol now opens a modal displaying the log details (date, reason, notes, status, and raw materials list table with quantities).
+  - Included "Cancel" and "Close" dismissive actions inside the modal footer to close the popup, alongside the functional confirm/cancel stock updates.
+  - Removed "Log ID" table column from the wastage records list table and details title.
+
 - **Stock Movement Foreign Key Constraint Bug Fix & CompletedAt Preservation**
   - Resolved `Foreign key constraint violated on the constraint: stock_movements_created_by_fkey` error during bill checkout and bill cancellation by dynamically resolving the actual database `User` ID associated with the authenticated outlet POS instead of using the hardcoded `"system"` string.
   - Prevented updating the `completedAt` timestamp of a bill when it is updated/edited, ensuring only the default Prisma `updatedAt` field gets refreshed and the original completion time is preserved.

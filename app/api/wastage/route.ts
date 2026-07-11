@@ -31,8 +31,22 @@ export async function GET(req: Request) {
       );
     }
 
+    const fromParam = searchParams.get("from");
+    const toParam = searchParams.get("to");
+    const dateParam = searchParams.get("date");
+    const whereClause: Prisma.WastageRecordWhereInput = { inventoryId };
+
+    if (fromParam || toParam) {
+      const dateFilter: any = {};
+      if (fromParam) dateFilter.gte = new Date(fromParam);
+      if (toParam) dateFilter.lte = new Date(toParam);
+      whereClause.wastageDate = dateFilter;
+    } else if (dateParam) {
+      whereClause.wastageDate = new Date(dateParam);
+    }
+ 
     const records = await prisma.wastageRecord.findMany({
-      where: { inventoryId },
+      where: whereClause,
       include: {
         createdBy: { select: { name: true } },
         lines: true
@@ -48,7 +62,14 @@ export async function GET(req: Request) {
       notes: record.notes,
       creatorName: record.createdBy.name,
       itemsCount: record.lines.length,
-      createdAt: record.createdAt.toISOString()
+      createdAt: record.createdAt.toISOString(),
+      lines: record.lines.map(line => ({
+        id: line.id,
+        rawMaterialId: line.rawMaterialId,
+        materialName: line.materialName,
+        unit: line.unit,
+        quantity: line.quantity.toString()
+      }))
     }));
 
     return NextResponse.json({ data: serialized }, { status: 200 });
@@ -123,13 +144,7 @@ export async function POST(req: Request) {
           throw new Error(`Raw material ${material.name} does not belong to this inventory`);
         }
 
-        // Validate stock if confirming immediately
-        if (status === "confirmed") {
-          const currentStock = Number(material.currentStock);
-          if (line.quantity > currentStock) {
-            throw new Error(`Insufficient stock for ${material.name}. Available: ${currentStock.toFixed(3)} ${material.unit}.`);
-          }
-        }
+
 
         computedLines.push({
           rawMaterialId: line.rawMaterialId,

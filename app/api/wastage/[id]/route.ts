@@ -132,11 +132,7 @@ export async function PATCH(
             });
             if (!material) throw new Error(`Material ${line.materialName} not found`);
 
-            const currentStock = Number(material.currentStock);
-            const wastageQty = Number(line.quantity);
-            if (wastageQty > currentStock) {
-              throw new Error(`Insufficient stock for ${material.name}. Available: ${currentStock.toFixed(3)} ${material.unit}.`);
-            }
+
 
             // Deduct stock
             await tx.stockMovement.create({
@@ -251,13 +247,7 @@ export async function PATCH(
           throw new Error(`Material with ID ${line.rawMaterialId} not found`);
         }
 
-        // Validate stock if status is changing to confirmed
-        if (status === "confirmed") {
-          const currentStock = Number(material.currentStock);
-          if (line.quantity > currentStock) {
-            throw new Error(`Insufficient stock for ${material.name}. Available: ${currentStock.toFixed(3)} ${material.unit}.`);
-          }
-        }
+
 
         computedLines.push({
           rawMaterialId: line.rawMaterialId,

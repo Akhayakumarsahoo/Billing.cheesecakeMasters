@@ -26,18 +26,13 @@ interface ActiveOutlet {
   name: string;
 }
 
-interface StockMovement {
+interface RawMaterial {
   id: string;
-  movementType: string;
-  referenceType: string;
-  referenceId: string | null;
-  quantityChange: string;
-  note: string | null;
-  createdAt: string;
-  materialName: string;
+  name: string;
   unit: string;
-  creatorName: string;
-  creatorEmail: string;
+  currentStock: string;
+  lowStockAlert: string | null;
+  isActive: boolean;
 }
 
 interface OverviewTabProps {
@@ -55,7 +50,7 @@ export function OverviewTab({
 }: OverviewTabProps) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ totalMaterials: 0, lowStockCount: 0, totalValuation: "0" });
-  const [recentMovements, setRecentMovements] = useState<StockMovement[]>([]);
+  const [materials, setMaterials] = useState<RawMaterial[]>([]);
 
   useEffect(() => {
     fetchDetails();
@@ -64,11 +59,20 @@ export function OverviewTab({
   const fetchDetails = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/inventory/${inventory.id}`);
-      if (!res.ok) throw new Error("Failed to load details");
-      const body = await res.json();
-      setStats(body.data.stats);
-      setRecentMovements(body.data.recentMovements);
+      const [resDetails, resMaterials] = await Promise.all([
+        fetch(`/api/inventory/${inventory.id}`),
+        fetch(`/api/raw-materials?inventoryId=${inventory.id}`)
+      ]);
+
+      if (!resDetails.ok) throw new Error("Failed to load details");
+      if (!resMaterials.ok) throw new Error("Failed to load stock levels");
+
+      const bodyDetails = await resDetails.json();
+      const bodyMaterials = await resMaterials.json();
+
+      setStats(bodyDetails.data.stats);
+      const activeItems = (bodyMaterials.data as RawMaterial[]).filter(m => m.isActive);
+      setMaterials(activeItems);
     } catch (err: any) {
       toast.error(err.message || "Failed to load overview data.");
     } finally {
@@ -136,11 +140,11 @@ export function OverviewTab({
         </Card>
       </div>
 
-      {/* Recent stock movements log */}
+      {/* Current Stock Levels */}
       <div>
         <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-1.5">
-          <List className="h-4 w-4" />
-          Recent Stock Movements
+          <Package className="h-4 w-4" />
+          Current Stock Levels
         </h2>
         <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl overflow-hidden">
           {loading ? (
@@ -149,45 +153,40 @@ export function OverviewTab({
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
             </div>
-          ) : recentMovements.length === 0 ? (
+          ) : materials.length === 0 ? (
             <div className="py-8 text-center text-xs text-[var(--text-muted)]">
-              No stock movements recorded yet.
+              No active raw materials found.
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow className="border-[var(--border-default)] hover:bg-transparent">
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Material</TableHead>
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Type</TableHead>
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right">Change</TableHead>
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Reference</TableHead>
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">By User</TableHead>
-                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Date & Time</TableHead>
+                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Material Name</TableHead>
+                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium">Unit</TableHead>
+                  <TableHead className="text-xs uppercase text-[var(--text-secondary)] font-medium text-right">Current Stock</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentMovements.map((move) => {
-                  const val = Number(move.quantityChange || 0);
-                  const isPositive = val > 0;
+                {materials.map((m) => {
+                  const stock = Number(m.currentStock || 0);
+                  const alert = m.lowStockAlert ? Number(m.lowStockAlert) : null;
+                  const isLowStock = alert !== null && stock < alert;
+
                   return (
-                    <TableRow key={move.id} className="border-[var(--border-subtle)] hover:bg-[var(--bg-hover)]">
+                    <TableRow key={m.id} className="border-[var(--border-subtle)] hover:bg-[var(--bg-hover)]">
                       <TableCell className="text-sm font-medium text-[var(--text-primary)]">
-                        {move.materialName}
+                        {m.name}
+                        {isLowStock && (
+                          <span className="ml-2 text-[10px] bg-[var(--state-error-bg)] text-[var(--state-error-text)] px-1.5 py-0.5 rounded font-semibold border border-[var(--state-error-border)]">
+                            LOW STOCK
+                          </span>
+                        )}
                       </TableCell>
-                      <TableCell className="text-xs capitalize font-medium text-[var(--text-secondary)]">
-                        {move.movementType.replace("_", " ")}
+                      <TableCell className="text-xs text-[var(--text-secondary)] font-medium font-mono">
+                        {m.unit}
                       </TableCell>
-                      <TableCell className={`font-mono text-sm text-right font-semibold ${isPositive ? "text-[var(--state-success-text)]" : "text-[var(--state-error-text)]"}`}>
-                        {isPositive ? `+${(val || 0).toFixed(3)}` : (val || 0).toFixed(3)} {move.unit}
-                      </TableCell>
-                      <TableCell className="text-xs text-[var(--text-secondary)] font-mono">
-                        {move.referenceType.replace("_", " ")}
-                      </TableCell>
-                      <TableCell className="text-xs text-[var(--text-secondary)]">
-                        {move.creatorName}
-                      </TableCell>
-                      <TableCell className="text-xs text-[var(--text-muted)]">
-                        {new Date(move.createdAt).toLocaleString("en-IN")}
+                      <TableCell className="text-sm text-right font-mono font-semibold text-[var(--text-primary)]">
+                        {(stock || 0).toFixed(3)}
                       </TableCell>
                     </TableRow>
                   );

@@ -38,6 +38,7 @@ import { WastageTab } from "./wastage-tab";
 import { RecipesTab } from "./recipes-tab";
 import { ManagementTab } from "./management-tab";
 import { StockSummaryTab } from "./stock-summary-tab";
+import { WastageReportTab } from "./wastage-report-tab";
 
 interface LinkedOutlet {
   id: string;
@@ -111,7 +112,7 @@ export function InventoryDetailClient({
   const reportsSubTabs = [
     { id: "current-stock", label: "Current Stock", icon: Boxes },
     { id: "stock-summary", label: "Stock Summary", icon: ClipboardList },
-    { id: "other-reports", label: "Other Reports", icon: FileText }
+    { id: "wastage-report", label: "Wastage Report", icon: Trash2 }
   ];
 
   const managementSubTabs = [
@@ -447,16 +448,11 @@ export function InventoryDetailClient({
               userRole={user.role}
             />
           )}
-          {activeTab === "other-reports" && (
-            <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl p-8 shadow-sm">
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <FileText className="h-8 w-8 text-[var(--text-secondary)] mb-3" />
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">Other Reports</h3>
-                <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-sm">
-                  This reports dashboard will be defined and developed in a future update.
-                </p>
-              </div>
-            </div>
+          {activeTab === "wastage-report" && (
+            <WastageReportTab
+              inventoryId={currentInventory.id}
+              userRole={user.role}
+            />
           )}
           {activeTab === "recipes" && hasOutlets && (
             <RecipesTab
