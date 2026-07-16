@@ -204,7 +204,8 @@ export async function POST(req: Request) {
               referenceType: "purchase_invoice",
               referenceId: invoice.id,
               quantityChange: line.quantity,
-              createdById: user.id
+              createdById: user.id,
+              createdAt: invoice.invoiceDate
             }
           });
 

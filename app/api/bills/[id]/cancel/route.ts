@@ -118,7 +118,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             referenceId: id,
             quantityChange: m.quantityChange.negated(),
             createdById: cancelCreatedById,
-            note: "Reversal due to bill cancellation"
+            note: "Reversal due to bill cancellation",
+            createdAt: m.createdAt
           }
         });
 

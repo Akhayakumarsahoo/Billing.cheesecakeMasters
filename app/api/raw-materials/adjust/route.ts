@@ -49,7 +49,7 @@ export async function POST(req: Request) {
 
     const todayStr = getLocalDateString(new Date());
     const isPreviousDate = !!(date && date < todayStr);
-    const endDate = isPreviousDate ? new Date(`${date}T23:59:59.999`) : null;
+    const endDate = isPreviousDate ? new Date(`${date}T23:59:59.999+05:30`) : null;
 
     // Run batch database transaction
     const results = await prisma.$transaction(async (tx) => {

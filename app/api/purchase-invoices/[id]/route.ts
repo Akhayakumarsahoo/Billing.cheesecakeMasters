@@ -157,7 +157,8 @@ export async function PATCH(
                 referenceType: "purchase_invoice",
                 referenceId: id,
                 quantityChange: line.quantity,
-                createdById: user.id
+                createdById: user.id,
+                createdAt: invoice.invoiceDate
               }
             });
 
@@ -199,7 +200,8 @@ export async function PATCH(
                 referenceId: id,
                 quantityChange: line.quantity.negated(),
                 createdById: user.id,
-                note: "Purchase invoice cancelled"
+                note: "Purchase invoice cancelled",
+                createdAt: invoice.invoiceDate
               }
             });
 
@@ -260,7 +262,8 @@ export async function PATCH(
               referenceId: id,
               quantityChange: oldLine.quantity.negated(),
               createdById: user.id,
-              note: "Reversal due to purchase invoice edit"
+              note: "Reversal due to purchase invoice edit",
+              createdAt: invoice.invoiceDate
             }
           });
         }
@@ -360,7 +363,8 @@ export async function PATCH(
               referenceType: "purchase_invoice",
               referenceId: id,
               quantityChange: line.quantity,
-              createdById: user.id
+              createdById: user.id,
+              createdAt: updated.invoiceDate
             }
           });
         }

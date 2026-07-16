@@ -27,7 +27,8 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
-  Folder
+  Folder,
+  History
 } from "lucide-react";
 import { OverviewTab } from "./overview-tab";
 import { RawMaterialsTab } from "./raw-materials-tab";
@@ -39,6 +40,7 @@ import { RecipesTab } from "./recipes-tab";
 import { ManagementTab } from "./management-tab";
 import { StockSummaryTab } from "./stock-summary-tab";
 import { WastageReportTab } from "./wastage-report-tab";
+import { ManualMovementsTab } from "./manual-movements-tab";
 
 interface LinkedOutlet {
   id: string;
@@ -112,7 +114,8 @@ export function InventoryDetailClient({
   const reportsSubTabs = [
     { id: "current-stock", label: "Current Stock", icon: Boxes },
     { id: "stock-summary", label: "Stock Summary", icon: ClipboardList },
-    { id: "wastage-report", label: "Wastage Report", icon: Trash2 }
+    { id: "wastage-report", label: "Wastage Report", icon: Trash2 },
+    { id: "manual-movements", label: "Manual Movements", icon: History }
   ];
 
   const managementSubTabs = [
@@ -450,6 +453,12 @@ export function InventoryDetailClient({
           )}
           {activeTab === "wastage-report" && (
             <WastageReportTab
+              inventoryId={currentInventory.id}
+              userRole={user.role}
+            />
+          )}
+          {activeTab === "manual-movements" && (
+            <ManualMovementsTab
               inventoryId={currentInventory.id}
               userRole={user.role}
             />

@@ -143,7 +143,8 @@ export async function PATCH(
                 referenceType: "wastage_record",
                 referenceId: id,
                 quantityChange: line.quantity.negated(),
-                createdById: user.id
+                createdById: user.id,
+                createdAt: record.wastageDate
               }
             });
 
@@ -183,7 +184,8 @@ export async function PATCH(
                 referenceId: id,
                 quantityChange: line.quantity, // Positive change to reverse the negative wastage
                 createdById: user.id,
-                note: "Wastage log cancelled"
+                note: "Wastage log cancelled",
+                createdAt: record.wastageDate
               }
             });
 
@@ -296,7 +298,8 @@ export async function PATCH(
               referenceType: "wastage_record",
               referenceId: id,
               quantityChange: line.quantity.negated(),
-              createdById: user.id
+              createdById: user.id,
+              createdAt: updated.wastageDate
             }
           });
 

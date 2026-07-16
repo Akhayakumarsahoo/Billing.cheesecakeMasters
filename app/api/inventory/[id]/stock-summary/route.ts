@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { parseDateRange } from "@/lib/utils";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -29,15 +30,7 @@ export async function GET(
     const search = searchParams.get("search") || "";
     const unit = searchParams.get("unit") || "";
 
-    const today = new Date();
-    const fromDate = fromStr ? new Date(fromStr) : new Date(today.setHours(0,0,0,0));
-    const toDate = toStr ? new Date(toStr) : new Date(today.setHours(23,59,59,999));
-
-    // Ensure start date is at 00:00:00.000 and end date is at 23:59:59.999
-    const startDate = new Date(fromDate);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(toDate);
-    endDate.setHours(23, 59, 59, 999);
+    const { start: startDate, end: endDate } = parseDateRange(fromStr || undefined, toStr || undefined);
 
     // Fetch active raw materials in this inventory
     const rawMaterials = await prisma.rawMaterial.findMany({
@@ -82,10 +75,6 @@ export async function GET(
       // Movements within date range (startDate <= createdAt <= endDate)
       const rangeMovements = matMovements.filter(m => m.createdAt <= endDate);
       
-      // Compute changes that happened strictly after endDate to get the closing summary at endDate
-      const changeAfterEnd = matMovements.filter(m => m.createdAt > endDate).reduce((sum, m) => sum + Number(m.quantityChange), 0);
-      const closingSummary = currentStock - changeAfterEnd; // stock level at endDate
-
       // Calculate net changes within range by movementType
       const netByType: Record<string, number> = {};
       for (const m of rangeMovements) {
@@ -93,21 +82,20 @@ export async function GET(
         netByType[m.movementType] = (netByType[m.movementType] || 0) + qty;
       }
 
-      const purchase = (netByType["purchase"] || 0) > 0 ? (netByType["purchase"] || 0) : 0;
-      
-      const rawExcess = netByType["transfer_in"] || 0;
-      const netAdj = netByType["adjustment"] || 0;
-      const excess = (rawExcess > 0 ? rawExcess : 0) + (netAdj > 0 ? netAdj : 0);
+      // Additions (allow signed values for net updates)
+      const purchase = netByType["purchase"] || 0;
+      const excess = (netByType["transfer_in"] || 0) + (netByType["adjustment"] || 0);
 
-      // Deductions (use absolute value of net negative change)
-      const consumed = (netByType["consumption"] || 0) < 0 ? Math.abs(netByType["consumption"]) : 0;
-      const wastage = (netByType["wastage"] || 0) < 0 ? Math.abs(netByType["wastage"]) : 0;
+      // Deductions (negate negative changes to show as positive deductions in the table)
+      const consumed = -(netByType["consumption"] || 0);
+      const wastage = -(netByType["wastage"] || 0);
       const normalLoss = 0;
-      const transfer = (netByType["transfer_out"] || 0) < 0 ? Math.abs(netByType["transfer_out"]) : 0;
+      const transfer = -(netByType["transfer_out"] || 0);
 
       const totalAdditions = openingStock + purchase + excess;
       const totalDeductions = consumed + wastage + normalLoss + transfer;
-      const difference = currentStock - closingSummary; // Closing Stock (current live) - Closing Summary (at end date)
+      const closingSummary = totalAdditions - totalDeductions;
+      const difference = currentStock - closingSummary;
 
       return {
         materialId: material.id,

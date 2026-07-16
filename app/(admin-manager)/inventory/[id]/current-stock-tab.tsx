@@ -69,7 +69,7 @@ export function CurrentStockTab({ inventoryId, userRole }: CurrentStockTabProps)
 
   const hasUnsavedChanges = (m: RawMaterial) => {
     const newVal = editedValues[m.id];
-    if (newVal === undefined) return false;
+    if (newVal === undefined || newVal === "") return false;
     const oldStock = Number(m.currentStock);
     const newStock = Number(newVal);
     return !isNaN(newStock) && newStock !== oldStock;
@@ -235,7 +235,7 @@ export function CurrentStockTab({ inventoryId, userRole }: CurrentStockTabProps)
                 const alert = m.lowStockAlert ? Number(m.lowStockAlert) : null;
                 const isLowStock = alert !== null && stock < alert;
 
-                const inputValue = editedValues[m.id] !== undefined ? editedValues[m.id] : m.currentStock;
+                const inputValue = editedValues[m.id] !== undefined ? editedValues[m.id] : "";
                 const isChanged = hasUnsavedChanges(m);
 
                 return (
@@ -263,6 +263,7 @@ export function CurrentStockTab({ inventoryId, userRole }: CurrentStockTabProps)
                               step="0.001"
                               value={inputValue}
                               onChange={(e) => handleInputChange(m.id, e.target.value)}
+                              placeholder={(Number(m.currentStock) || 0).toFixed(3)}
                               className={`h-9 w-28 text-right font-mono text-sm border-[var(--border-default)] ${
                                 isChanged ? "border-amber-500 ring-1 ring-amber-500 focus-visible:ring-amber-500 bg-amber-50/20" : ""
                               }`}

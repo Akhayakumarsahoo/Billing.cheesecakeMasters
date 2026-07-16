@@ -11,6 +11,25 @@ change.
 
 - Testing and Verification
 
+- **Manual Stock Adjustments IST End-of-Day Timestamp Alignment**
+  - Updated the stock adjustment API route `app/api/raw-materials/adjust/route.ts` to append the IST timezone offset (`+05:30`) when generating the `endDate` timestamp for manual adjustments (`23:59:59.999+05:30`).
+  - This ensures backdated adjustments are saved at the end of the day in IST (representing `18:29:59.999 UTC`), preventing timezone-drift offsets on cloud servers from pushing records into the next day.
+
+- **Manual Stock Movements Report Tab & API**
+  - Created a new `ManualMovementsTab` component that acts as an audit log ledger displaying historical manual stock adjustments.
+  - Implemented filters for Raw Material name (search query), Date Range (using standard `DateRangeFilter`), and Adjustment Type direction ("All", "Increase / Excess", "Decrease / Short").
+  - Built a backend API query route at `/api/inventory/[id]/manual-movements` to return list of manual adjustments with creator email metadata.
+  - Registered the new sub-tab under the Reports folder in the inventory detail view sidebar.
+
+- **Stock Summary Date Alignment & Timezone Alignment**
+  - Integrated `parseDateRange` from `@/lib/utils` inside the Stock Summary endpoint `/api/inventory/[id]/stock-summary/route.ts` to parse date filters. This resolves any local-to-UTC timezone drift that caused manual stock adjustments or transactions to fall on the wrong day.
+  - Updated the backend query logic to handle signed additions and deductions correctly. Set closing stock at end date (`closingSummary`) to exactly `totalAdditions - totalDeductions` for complete visual alignment.
+
+- **Stock Movement Date Alignment Fix**
+  - Aligned the `createdAt` timestamp of all generated `StockMovement` records for wastage and purchase invoices with their actual business dates (`wastageDate` for wastage records, `invoiceDate` for purchase invoices) instead of defaulting to the transaction confirmation time (`now()`).
+  - Aligned cancelled bill consumption reversal movements with their original consumption timestamp.
+  - Fixed the backdated closing stock manual adjustments calculation bug where wastage/purchases logged on the target date were incorrectly subtracted twice.
+
 - **Wastage Creation Stock Level Shortage Allowance**
   - Removed frontend and backend checks restricting confirmed wastage logs when quantity exceeds available stock levels.
   - Allows logging/confirming wastage of items with zero or negative stock.

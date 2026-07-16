@@ -188,7 +188,8 @@ export async function POST(req: Request) {
               referenceType: "wastage_record",
               referenceId: record.id,
               quantityChange: line.quantity.negated(),
-              createdById: user.id
+              createdById: user.id,
+              createdAt: record.wastageDate
             }
           });
 
