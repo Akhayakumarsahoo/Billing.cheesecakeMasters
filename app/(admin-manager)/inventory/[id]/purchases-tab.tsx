@@ -171,16 +171,18 @@ export function PurchasesTab({ inventoryId, userRole, gstSlabs }: PurchasesTabPr
     }
   };
 
-  const handleRespondTransfer = async (status: "accepted" | "rejected") => {
+  const handleRespondTransfer = (status: "accepted" | "rejected") => {
     if (!reviewTransfer) return;
     const verb = status === "accepted" ? "accept" : "reject";
     if (!confirm(`Are you sure you want to ${verb} this stock transfer?`)) {
       return;
     }
 
-    setIsRespondingTransfer(true);
-    try {
-      const res = await fetch(`/api/transfers/${reviewTransfer.id}`, {
+    const transferId = reviewTransfer.id;
+    setReviewTransferOpen(false);
+
+    const respondPromise = (async () => {
+      const res = await fetch(`/api/transfers/${transferId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status })
@@ -189,15 +191,16 @@ export function PurchasesTab({ inventoryId, userRole, gstSlabs }: PurchasesTabPr
       const body = await res.json();
       if (!res.ok) throw new Error(body.error?.message || `Failed to ${verb} transfer`);
 
-      toast.success(status === "accepted" ? "Transfer accepted, purchase invoice generated." : "Transfer rejected.");
-      setReviewTransferOpen(false);
       fetchPendingTransfers();
       fetchInvoices();
-    } catch (err: any) {
-      toast.error(err.message || `Failed to ${verb} transfer.`);
-    } finally {
-      setIsRespondingTransfer(false);
-    }
+      return body;
+    })();
+
+    toast.promise(respondPromise, {
+      loading: status === "accepted" ? "Accepting transfer and adding stock in background..." : "Rejecting transfer in background...",
+      success: status === "accepted" ? "Transfer accepted, purchase invoice generated." : "Transfer rejected.",
+      error: (err) => err.message || `Failed to ${verb} transfer.`
+    });
   };
 
   const fetchInvoices = async () => {
@@ -324,29 +327,31 @@ export function PurchasesTab({ inventoryId, userRole, gstSlabs }: PurchasesTabPr
     }
   };
 
-  const submitForm = async (status: "draft" | "confirmed") => {
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        inventoryId,
-        supplierId,
-        invoiceNumber: invoiceNumber.trim(),
-        invoiceDate,
-        notes: notes.trim() || null,
-        otherCharges: Number(otherCharges || 0),
-        otherChargesGst: Number(otherChargesGst || 0),
-        lines: lines.map(l => ({
-          rawMaterialId: l.rawMaterialId,
-          quantity: l.quantity,
-          unitPrice: l.unitPrice
-        })),
-        status
-      };
+  const submitForm = (status: "draft" | "confirmed") => {
+    const payload = {
+      inventoryId,
+      supplierId,
+      invoiceNumber: invoiceNumber.trim(),
+      invoiceDate,
+      notes: notes.trim() || null,
+      otherCharges: Number(otherCharges || 0),
+      otherChargesGst: Number(otherChargesGst || 0),
+      lines: lines.map(l => ({
+        rawMaterialId: l.rawMaterialId,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice
+      })),
+      status
+    };
 
-      const isEdit = view === "edit" && selectedInvoiceId;
-      const url = isEdit ? `/api/purchase-invoices/${selectedInvoiceId}` : `/api/purchase-invoices`;
-      const method = isEdit ? "PATCH" : "POST";
+    const isEdit = view === "edit" && selectedInvoiceId;
+    const url = isEdit ? `/api/purchase-invoices/${selectedInvoiceId}` : `/api/purchase-invoices`;
+    const method = isEdit ? "PATCH" : "POST";
 
+    setIsConfirmDialogOpen(false);
+    setView("list");
+
+    const savePromise = (async () => {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -355,16 +360,15 @@ export function PurchasesTab({ inventoryId, userRole, gstSlabs }: PurchasesTabPr
 
       const body = await res.json();
       if (!res.ok) throw new Error(body.error?.message || "Failed to save purchase invoice");
-
-      toast.success(status === "confirmed" ? "Purchase invoice confirmed." : "Purchase invoice saved as draft.");
-      setIsConfirmDialogOpen(false);
-      setView("list");
       fetchInvoices();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save purchase invoice.");
-    } finally {
-      setIsSubmitting(false);
-    }
+      return body;
+    })();
+
+    toast.promise(savePromise, {
+      loading: status === "confirmed" ? "Confirming purchase invoice in background..." : "Saving draft purchase invoice in background...",
+      success: status === "confirmed" ? "Purchase invoice confirmed and stock added." : "Purchase invoice saved as draft.",
+      error: (err) => err.message || "Failed to save purchase invoice."
+    });
   };
 
   // View Details
@@ -422,12 +426,12 @@ export function PurchasesTab({ inventoryId, userRole, gstSlabs }: PurchasesTabPr
     }
   };
 
-  const handleCancelInvoice = async (invoiceId: string) => {
+  const handleCancelInvoice = (invoiceId: string) => {
     if (!confirm("Are you sure you want to cancel this confirmed invoice? This will deduct the stock added by this invoice.")) {
       return;
     }
 
-    try {
+    const cancelPromise = (async () => {
       const res = await fetch(`/api/purchase-invoices/${invoiceId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -439,11 +443,15 @@ export function PurchasesTab({ inventoryId, userRole, gstSlabs }: PurchasesTabPr
         throw new Error(body.error?.message || "Failed to cancel invoice");
       }
 
-      toast.success("Purchase invoice cancelled.");
       fetchInvoices();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to cancel invoice.");
-    }
+      return res;
+    })();
+
+    toast.promise(cancelPromise, {
+      loading: "Cancelling purchase invoice in background...",
+      success: "Purchase invoice cancelled.",
+      error: (err) => err.message || "Failed to cancel invoice."
+    });
   };
 
   // Add Inline Supplier

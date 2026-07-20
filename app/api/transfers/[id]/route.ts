@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { recomputeStock, adjustStock } from "@/lib/inventory";
+import { adjustStock } from "@/lib/inventory";
 import { CreateStockTransferSchema } from "@/lib/validators";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -188,7 +188,7 @@ export async function PATCH(
               sentAt: transfer.createdAt
             }
           });
-        }, { timeout: 10000 });
+        }, { timeout: 30000 });
 
         return NextResponse.json({ data: pendingTransfer }, { status: 200 });
       }
@@ -334,7 +334,7 @@ export async function PATCH(
               acceptedById: user.id
             }
           });
-        }, { timeout: 15000 });
+        }, { timeout: 30000 });
 
         return NextResponse.json({ data: acceptedTransfer }, { status: 200 });
       }
@@ -383,7 +383,7 @@ export async function PATCH(
               rejectedById: user.id
             }
           });
-        }, { timeout: 10000 });
+        }, { timeout: 30000 });
 
         return NextResponse.json({ data: rejectedTransfer }, { status: 200 });
       }
@@ -433,7 +433,7 @@ export async function PATCH(
               cancelledAt: new Date()
             }
           });
-        }, { timeout: 10000 });
+        }, { timeout: 30000 });
 
         return NextResponse.json({ data: cancelledTransfer }, { status: 200 });
       }
@@ -589,7 +589,7 @@ export async function PATCH(
       }
 
       return updated;
-    }, { timeout: 10000 });
+    }, { timeout: 30000 });
 
     return NextResponse.json({ data: updatedTransfer }, { status: 200 });
   } catch (error: any) {

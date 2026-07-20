@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { recomputeStock } from "@/lib/inventory";
+import { adjustStock } from "@/lib/inventory";
 import { CreatePurchaseInvoiceSchema } from "@/lib/validators";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -162,11 +162,11 @@ export async function PATCH(
               }
             });
 
-            await recomputeStock(line.rawMaterialId, tx);
+            await adjustStock(line.rawMaterialId, line.quantity, tx);
           }
 
           return updated;
-        }, { timeout: 10000 });
+        }, { timeout: 30000 });
 
         return NextResponse.json({ data: confirmedInvoice }, { status: 200 });
       }
@@ -205,11 +205,11 @@ export async function PATCH(
               }
             });
 
-            await recomputeStock(line.rawMaterialId, tx);
+            await adjustStock(line.rawMaterialId, line.quantity.negated(), tx);
           }
 
           return updated;
-        }, { timeout: 10000 });
+        }, { timeout: 30000 });
 
         return NextResponse.json({ data: cancelledInvoice }, { status: 200 });
       }
@@ -266,6 +266,7 @@ export async function PATCH(
               createdAt: invoice.invoiceDate
             }
           });
+          await adjustStock(oldLine.rawMaterialId, oldLine.quantity.negated(), tx);
         }
       }
 
@@ -275,11 +276,16 @@ export async function PATCH(
 
       const computedLines = [];
 
+      // Batch fetch raw materials
+      const materialIds = lines.map(line => line.rawMaterialId);
+      const materials = await tx.rawMaterial.findMany({
+        where: { id: { in: materialIds } },
+        include: { gstSlab: true }
+      });
+      const materialMap = new Map(materials.map(m => [m.id, m]));
+
       for (const line of lines) {
-        const material = await tx.rawMaterial.findUnique({
-          where: { id: line.rawMaterialId },
-          include: { gstSlab: true }
-        });
+        const material = materialMap.get(line.rawMaterialId);
 
         if (!material) {
           throw new Error(`Material with ID ${line.rawMaterialId} not found`);
@@ -367,23 +373,12 @@ export async function PATCH(
               createdAt: updated.invoiceDate
             }
           });
+          await adjustStock(line.rawMaterialId, line.quantity, tx);
         }
       }
 
-      // Step E: Recompute stock for all affected materials (both old and new unique materials)
-      const affectedMaterialIds = Array.from(
-        new Set([
-          ...invoice.lines.map(l => l.rawMaterialId),
-          ...updated.lines.map(l => l.rawMaterialId)
-        ])
-      );
-
-      for (const matId of affectedMaterialIds) {
-        await recomputeStock(matId, tx);
-      }
-
       return updated;
-    }, { timeout: 10000 });
+    }, { timeout: 30000 });
 
     return NextResponse.json({ data: updatedInvoice }, { status: 200 });
   } catch (error: any) {

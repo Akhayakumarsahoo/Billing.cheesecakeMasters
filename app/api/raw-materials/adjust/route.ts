@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { recomputeStock } from "@/lib/inventory";
+import { adjustStock } from "@/lib/inventory";
 import { z } from "zod";
 import { NextResponse } from "next/server";
 import { getLocalDateString } from "@/lib/utils";
@@ -111,14 +111,14 @@ export async function POST(req: Request) {
           }
         });
 
-        // Recompute stock
-        const updated = await recomputeStock(adj.rawMaterialId, tx);
+        // Adjust stock
+        const updated = await adjustStock(adj.rawMaterialId, diff, tx);
         updatedMaterials.push(updated);
       }
 
       return updatedMaterials;
     }, {
-      timeout: 10000 // 10s timeout to handle batch updates safely
+      timeout: 30000 // 30s timeout to handle batch updates safely
     });
 
     return NextResponse.json({ data: { updatedCount: results.length } }, { status: 200 });

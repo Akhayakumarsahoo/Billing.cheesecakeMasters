@@ -11,6 +11,13 @@ change.
 
 - Testing and Verification
 
+- **Fast Background Saving & Database Optimizations for Stock Transfers and Receipts**
+  - Resolved `Transaction API error: A query cannot be executed on an expired transaction (10000 ms passed)` error during multi-item stock transfers and stock receipts.
+  - Eliminated N+1 queries and table scans by replacing `recomputeStock` calls inside loops with O(1) atomic `adjustStock` updates (`currentStock: { increment: quantityChange }`) and batch-fetching raw material entities.
+  - Configured high-concurrency 30-second interactive transaction timeouts (`{ timeout: 30000 }`) across all stock transfer and purchase invoice backend routes (`app/api/transfers/route.ts`, `app/api/transfers/[id]/route.ts`, `app/api/purchase-invoices/route.ts`, `app/api/purchase-invoices/[id]/route.ts`, and `app/api/raw-materials/adjust/route.ts`).
+  - Refactored frontend UI handlers inside `transfers-tab.tsx` and `purchases-tab.tsx` so that saving/sending transfers, accepting/rejecting inbound transfers, confirming purchase invoices, and cancelling invoices respond immediately without blocking the user.
+  - Integrated `toast.promise` from Sonner to display non-blocking progress toasts in the background while instantly closing modals and transitioning views.
+
 - **Manual Stock Adjustments IST End-of-Day Timestamp Alignment**
   - Updated the stock adjustment API route `app/api/raw-materials/adjust/route.ts` to append the IST timezone offset (`+05:30`) when generating the `endDate` timestamp for manual adjustments (`23:59:59.999+05:30`).
   - This ensures backdated adjustments are saved at the end of the day in IST (representing `18:29:59.999 UTC`), preventing timezone-drift offsets on cloud servers from pushing records into the next day.

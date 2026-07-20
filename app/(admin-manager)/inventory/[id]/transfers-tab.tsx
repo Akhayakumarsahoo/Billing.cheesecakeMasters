@@ -232,24 +232,27 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
     }
   };
 
-  const submitForm = async (status: "draft" | "pending") => {
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        fromInventoryId: inventoryId,
-        toInventoryId,
-        notes: notes.trim() || null,
-        otherCharges: Number(otherCharges || 0),
-        otherChargesGst: Number(otherChargesGst || 0),
-        lines: lines.map(l => ({
-          rawMaterialId: l.rawMaterialId,
-          quantity: l.quantity,
-          unitPrice: l.unitPrice
-        })),
-        status,
-        date: transferDate
-      };
+  const submitForm = (status: "draft" | "pending") => {
+    const payload = {
+      fromInventoryId: inventoryId,
+      toInventoryId,
+      notes: notes.trim() || null,
+      otherCharges: Number(otherCharges || 0),
+      otherChargesGst: Number(otherChargesGst || 0),
+      lines: lines.map(l => ({
+        rawMaterialId: l.rawMaterialId,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice
+      })),
+      status,
+      date: transferDate
+    };
 
+    setIsConfirmDialogOpen(false);
+    setView("list");
+    resetForm();
+
+    const savePromise = (async () => {
       const res = await fetch("/api/transfers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -258,17 +261,15 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
 
       const body = await res.json();
       if (!res.ok) throw new Error(body.error?.message || "Failed to create transfer");
-
-      toast.success(status === "pending" ? "Stock transfer sent." : "Stock transfer draft saved.");
-      setIsConfirmDialogOpen(false);
-      setView("list");
-      resetForm();
       fetchTransfers();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create transfer.");
-    } finally {
-      setIsSubmitting(false);
-    }
+      return body;
+    })();
+
+    toast.promise(savePromise, {
+      loading: status === "pending" ? "Sending stock transfer in background..." : "Saving draft transfer in background...",
+      success: status === "pending" ? "Stock transfer sent successfully." : "Stock transfer draft saved.",
+      error: (err) => err.message || "Failed to create transfer."
+    });
   };
 
   // Details
@@ -293,7 +294,7 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
   };
 
   // State Transition calls (Accept, Reject, Cancel)
-  const handleUpdateStatus = async (transferId: string, newStatus: string) => {
+  const handleUpdateStatus = (transferId: string, newStatus: string) => {
     let confirmMsg = "";
     if (newStatus === "accepted") confirmMsg = "Are you sure you want to accept this transfer? This will add stock to this inventory.";
     if (newStatus === "rejected") confirmMsg = "Are you sure you want to reject this transfer? This will restore stock to the source inventory.";
@@ -301,7 +302,9 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
 
     if (confirmMsg && !confirm(confirmMsg)) return;
 
-    try {
+    if (view === "view") setView("list");
+
+    const updatePromise = (async () => {
       const res = await fetch(`/api/transfers/${transferId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -313,15 +316,15 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
         throw new Error(body.error?.message || `Failed to update transfer status to ${newStatus}`);
       }
 
-      toast.success(`Transfer status updated: ${newStatus}`);
-      // Refresh
       fetchTransfers();
-      if (view === "view") {
-        handleOpenView(transferId);
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update status.");
-    }
+      return res;
+    })();
+
+    toast.promise(updatePromise, {
+      loading: `Updating transfer status in background...`,
+      success: `Transfer status updated: ${newStatus}`,
+      error: (err) => err.message || "Failed to update status."
+    });
   };
 
   const isAllowed = userRole === "admin" || userRole === "storeroom";
