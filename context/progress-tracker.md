@@ -11,8 +11,18 @@ change.
 
 - Testing and Verification
 
+- **All Outlet Sales Dashboard UI & Layout Update**
+  - Updated top metric cards grid to 4 cards (`grid-cols-2 lg:grid-cols-4`): Total Revenue, Total Bills, Total GST, Total Discount. Removed Cash Drawer Balance and Total Walkaways summary cards from top grid.
+  - Added `"i"` (Info) icon button to Total Revenue card using `Popover` (`PopoverPrimitive.Portal`), rendering the payment breakdown dropdown menu into document root to escape Card `overflow-hidden` bounds. Removed standalone Payment Breakdown card.
+  - Removed "Cash Box" column from Sales by Outlet table.
+  - Shifted Customer Walkaways Breakdown section to sit after/below Sales by Outlet table.
+  - Replaced custom date range buttons with standard, reusable `DateRangeFilter` component for Customer Walkaways Breakdown (with 3-month max constraint) and removed section subtitle text as requested.
+  - Formatted `DateRangeFilter` trigger button label to match design spec (`This Month  01,Jul 26 - 25,Jul 26  v`), added "Custom Range" button after Last Month, and hid calendar grid by default until "Custom Range" is clicked.
+  - Converted the "Filter Outlets" button into a Popover dropdown menu containing "Select All" / "Clear All" actions and a scrollable checkbox list for selecting individual outlets. Fixed text wrapping (`whitespace-nowrap`) and squishing on trigger button.
+  - Verified compilation (`npx tsc --noEmit`) and successful Next.js production build (`npm run build`).
+
 - **Login Page JS Execution & Total Blocking Time (TBT) Optimization**
-  - Created `<CustomSignInForm />` (`components/auth/custom-sign-in-form.tsx`) using Clerk's `useSignIn()` hook, replacing the prebuilt `<SignIn />` widget. Reduced client JS bundle size by >400 KB and eliminated main-thread blocking (TBT < 50ms, LCP < 1.5s).
+  - Created `<CustomSignInForm />` (`components/auth/custom-sign-in-form.tsx`) using Clerk's `useClerk()` hook, replacing the prebuilt `<SignIn />` widget. Reduced client JS bundle size by >400 KB and eliminated main-thread blocking (TBT < 50ms, LCP < 1.5s). Added server-side (`auth()`) and client-side (`useEffect`) automatic redirects to `/` for signed-in users visiting `/sign-in`.
   - Added `display: "swap"` to `Geist` and `Geist_Mono` font configurations in `app/layout.tsx` to prevent render blocking.
   - Deferred PWA service worker registration in `components/layout/pwa-register.tsx` using `requestIdleCallback` / `setTimeout` to unblock hydration.
   - Configured `experimental.optimizePackageImports` in `next.config.ts` for tree-shaking core dependencies.

@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Check, X } from "lucide-react";
+import { ChevronDown, Check, X } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -29,21 +29,34 @@ function isSameDayStr(d1?: Date, d2?: Date) {
   return toLocalDateString(d1) === toLocalDateString(d2);
 }
 
+export interface DateRangeFilterProps {
+  from?: string;
+  to?: string;
+  onSelect?: (from: string, to: string) => void;
+  maxDays?: number;
+}
+
 /* ─── component ───────────────────────────────────────── */
 
-export function DateRangeFilter() {
+export function DateRangeFilter({
+  from: customFrom,
+  to: customTo,
+  onSelect,
+  maxDays = 62,
+}: DateRangeFilterProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
   const todayStr = toLocalDateString(new Date());
 
-  // What's currently applied (shown on button label)
-  const appliedFrom = searchParams.get("from") || todayStr;
-  const appliedTo = searchParams.get("to") || todayStr;
+  // What's currently applied
+  const appliedFrom = customFrom || searchParams.get("from") || todayStr;
+  const appliedTo = customTo || searchParams.get("to") || todayStr;
 
   // Draft range the user is picking inside the open calendar
   const [open, setOpen] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [draft, setDraft] = useState<DateRange>({
     from: parseLocalDate(appliedFrom),
     to: parseLocalDate(appliedTo),
@@ -63,58 +76,22 @@ export function DateRangeFilter() {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Reset draft to the applied values each time the picker opens
-  const handleOpen = () => {
-    setDraft({
-      from: parseLocalDate(appliedFrom),
-      to: parseLocalDate(appliedTo),
-    });
-    setOpen(true);
-  };
-
-  // Close on outside click (only for desktop) — but NOT when clicking inside the calendar
-  useEffect(() => {
-    if (!open || isMobileOrTablet) return;
-    const onMouseDown = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onMouseDown, true);
-    return () => document.removeEventListener("mousedown", onMouseDown, true);
-  }, [open, isMobileOrTablet]);
-
-  // Close on Escape (only for desktop)
-  useEffect(() => {
-    if (!open || isMobileOrTablet) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, isMobileOrTablet]);
-
   // Predefined shortcuts calculations
   const getShortcutList = (isMobile: boolean) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Yesterday
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
 
-    // Last 7 Days
     const last7 = new Date(today);
     last7.setDate(today.getDate() - 6);
 
-    // Last 30 Days
     const last30 = new Date(today);
     last30.setDate(today.getDate() - 29);
 
-    // This Month
     const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    // Last Month
     const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
 
@@ -136,8 +113,47 @@ export function DateRangeFilter() {
         return s.key;
       }
     }
-    return null;
+    return "custom";
   })();
+
+  // Reset draft each time the picker opens
+  const handleOpen = () => {
+    const fromDate = parseLocalDate(appliedFrom);
+    const toDate = parseLocalDate(appliedTo);
+    setDraft({ from: fromDate, to: toDate });
+
+    // Check if applied range matches any shortcut
+    const shortcuts = getShortcutList(false);
+    const isShortcutMatched = shortcuts.some(
+      (s) => isSameDayStr(fromDate, s.from) && isSameDayStr(toDate, s.to)
+    );
+
+    // Show calendar only if custom range is active by default
+    setShowCalendar(!isShortcutMatched);
+    setOpen(true);
+  };
+
+  // Close on outside click (only for desktop)
+  useEffect(() => {
+    if (!open || isMobileOrTablet) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onMouseDown, true);
+    return () => document.removeEventListener("mousedown", onMouseDown, true);
+  }, [open, isMobileOrTablet]);
+
+  // Close on Escape (only for desktop)
+  useEffect(() => {
+    if (!open || isMobileOrTablet) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, isMobileOrTablet]);
 
   const handleShortcutClick = (key: string, from: Date, to: Date) => {
     setDraft({ from, to });
@@ -146,52 +162,79 @@ export function DateRangeFilter() {
       (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    if (diffDays > 62) {
-      toast.error("Date range cannot exceed 62 days");
+    if (diffDays > maxDays) {
+      toast.error(`Date range cannot exceed ${maxDays === 93 ? "3 months (93 days)" : `${maxDays} days`}`);
       return;
     }
 
     setOpen(false);
 
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("from", toLocalDateString(from));
-    params.set("to", toLocalDateString(to));
-    router.push(`${pathname}?${params.toString()}`);
-    router.refresh();
+    const fromStr = toLocalDateString(from);
+    const toStr = toLocalDateString(to);
+
+    if (onSelect) {
+      onSelect(fromStr, toStr);
+    } else {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("from", fromStr);
+      params.set("to", toStr);
+      router.push(`${pathname}?${params.toString()}`);
+      router.refresh();
+    }
   };
 
-  /* Apply the draft range and navigate */
+  /* Apply the draft range and navigate or trigger onSelect */
   const handleApply = () => {
     if (!draft?.from) {
       toast.error("Please select a start date");
       return;
     }
 
-    const to = draft.to ?? draft.from; // single day if only from picked
+    const to = draft.to ?? draft.from;
     const diffDays = Math.ceil(
       (to.getTime() - draft.from.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    if (diffDays > 62) {
-      toast.error("Date range cannot exceed 62 days");
+    if (diffDays > maxDays) {
+      toast.error(`Date range cannot exceed ${maxDays === 93 ? "3 months (93 days)" : `${maxDays} days`}`);
       return;
     }
 
     setOpen(false);
 
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("from", toLocalDateString(draft.from));
-    params.set("to", toLocalDateString(to));
-    router.push(`${pathname}?${params.toString()}`);
-    router.refresh();
+    const fromStr = toLocalDateString(draft.from);
+    const toStr = toLocalDateString(to);
+
+    if (onSelect) {
+      onSelect(fromStr, toStr);
+    } else {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("from", fromStr);
+      params.set("to", toStr);
+      router.push(`${pathname}?${params.toString()}`);
+      router.refresh();
+    }
   };
 
-  /* Label always reflects the APPLIED (URL) dates, not the draft */
-  const displayLabel = () => {
-    const from = parseLocalDate(appliedFrom);
-    const to = parseLocalDate(appliedTo);
-    if (appliedFrom === appliedTo) return format(from, "MMM d, yyyy");
-    return `${format(from, "MMM d")} – ${format(to, "MMM d, yyyy")}`;
+  /* Primary title label (e.g. "This Month", "Today", or "Custom Range") */
+  const getPrimaryTitle = () => {
+    const fromDate = parseLocalDate(appliedFrom);
+    const toDate = parseLocalDate(appliedTo);
+
+    const shortcuts = getShortcutList(false);
+    for (const s of shortcuts) {
+      if (isSameDayStr(fromDate, s.from) && isSameDayStr(toDate, s.to)) {
+        return s.label;
+      }
+    }
+    return "Custom Range";
+  };
+
+  /* Secondary date subtext formatted like "01,Jul 26 - 25,Jul 26" */
+  const getDateSubtext = () => {
+    const fromDate = parseLocalDate(appliedFrom);
+    const toDate = parseLocalDate(appliedTo);
+    return `${format(fromDate, "dd,MMM yy")} - ${format(toDate, "dd,MMM yy")}`;
   };
 
   /* Preview label inside the footer for desktop */
@@ -232,19 +275,23 @@ export function DateRangeFilter() {
         id="date-range-filter-trigger"
         onClick={open ? () => setOpen(false) : handleOpen}
         className={cn(
-          "inline-flex items-center gap-2 h-9 px-3 rounded-md text-sm",
+          "inline-flex items-center justify-between gap-3 h-9 px-3.5 rounded-lg text-sm",
           "bg-[var(--bg-surface)] border border-[var(--border-default)]",
-          "text-[var(--text-primary)] transition-colors",
+          "text-[var(--text-primary)] transition-all shadow-xs",
           "hover:bg-[var(--bg-hover)] hover:border-[var(--border-strong)]",
-          "min-w-[200px] whitespace-nowrap",
+          "cursor-pointer select-none whitespace-nowrap min-w-[240px]",
           open && "border-[var(--border-strong)] bg-[var(--bg-hover)]"
         )}
       >
-        <CalendarIcon
-          className="h-4 w-4 text-[var(--text-secondary)] shrink-0"
-          strokeWidth={1.5}
-        />
-        <span className="flex-1 text-left">{displayLabel()}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-[var(--text-primary)]">
+            {getPrimaryTitle()}
+          </span>
+          <span className="text-xs text-[var(--text-muted)] font-mono">
+            {getDateSubtext()}
+          </span>
+        </div>
+        <ChevronDown className="h-4 w-4 text-[var(--text-secondary)] shrink-0 transition-transform" />
       </button>
 
       {/* ── Desktop Calendar dropdown ─────────────────────── */}
@@ -255,13 +302,12 @@ export function DateRangeFilter() {
             "bg-[var(--bg-surface)] border border-[var(--border-default)]",
             "shadow-xl rounded-xl overflow-hidden flex flex-col"
           )}
-          // Stop mousedown from bubbling to the document listener
           onMouseDown={(e) => e.stopPropagation()}
         >
           {/* Main Body */}
           <div className="flex">
-            {/* Sidebar */}
-            <div className="w-44 flex flex-col border-r border-[var(--border-default)] py-2 bg-[var(--bg-surface)]">
+            {/* Sidebar Shortcuts List */}
+            <div className="w-48 flex flex-col border-r border-[var(--border-default)] py-2 bg-[var(--bg-surface)]">
               {getShortcutList(false).map((s) => {
                 const isActive = activeShortcutKey === s.key;
                 return (
@@ -270,9 +316,9 @@ export function DateRangeFilter() {
                     type="button"
                     onClick={() => handleShortcutClick(s.key, s.from, s.to)}
                     className={cn(
-                      "w-full text-left py-2.5 px-4 text-xs font-medium transition-colors select-none",
+                      "w-full text-left py-2.5 px-4 text-xs font-medium transition-colors select-none cursor-pointer",
                       isActive
-                        ? "bg-[var(--bg-active)] text-[var(--text-primary)] border-r-2 border-[var(--accent-primary)]"
+                        ? "bg-[var(--bg-active)] text-[var(--text-primary)] border-r-2 border-[var(--accent-primary)] font-semibold"
                         : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
                     )}
                   >
@@ -280,50 +326,68 @@ export function DateRangeFilter() {
                   </button>
                 );
               })}
-            </div>
 
-            {/* Calendar */}
-            <div className="p-3">
-              <Calendar
-                mode="range"
-                selected={draft}
-                onSelect={(val) => val && setDraft(val)}
-                numberOfMonths={2}
-                disabled={{ after: new Date() }}
-                defaultMonth={draft?.from}
-                className="relative p-0"
-              />
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-between gap-4 px-4 py-3 border-t border-[var(--border-default)] bg-[var(--bg-surface-raised)]">
-            <span className="text-xs text-[var(--text-primary)] font-mono">
-              {previewLabelDesktop()}
-            </span>
-            <div className="flex items-center gap-2">
+              {/* Custom Range Button */}
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => setShowCalendar(true)}
                 className={cn(
-                  "px-4 py-1.5 rounded-md text-xs font-medium border transition-colors",
-                  "border-[var(--border-default)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                  "w-full text-left py-2.5 px-4 text-xs font-medium transition-colors select-none cursor-pointer border-t border-[var(--border-subtle)] mt-1",
+                  showCalendar || activeShortcutKey === "custom"
+                    ? "bg-[var(--bg-active)] text-[var(--text-primary)] border-r-2 border-[var(--accent-primary)] font-semibold"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
                 )}
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleApply}
-                className={cn(
-                  "px-4 py-1.5 rounded-md text-xs font-medium transition-colors",
-                  "bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[var(--text-inverse)]"
-                )}
-              >
-                Apply
+                Custom Range
               </button>
             </div>
+
+            {/* Calendar Grid (Visible only when Custom Range is selected) */}
+            {showCalendar && (
+              <div className="p-3 border-l border-[var(--border-subtle)]">
+                <Calendar
+                  mode="range"
+                  selected={draft}
+                  onSelect={(val) => val && setDraft(val)}
+                  numberOfMonths={2}
+                  disabled={{ after: new Date() }}
+                  defaultMonth={draft?.from}
+                  className="relative p-0"
+                />
+              </div>
+            )}
           </div>
+
+          {/* Footer (Visible when Calendar is shown) */}
+          {showCalendar && (
+            <div className="flex items-center justify-between gap-4 px-4 py-3 border-t border-[var(--border-default)] bg-[var(--bg-surface-raised)]">
+              <span className="text-xs text-[var(--text-primary)] font-mono">
+                {previewLabelDesktop()}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "px-4 py-1.5 rounded-md text-xs font-medium border transition-colors cursor-pointer",
+                    "border-[var(--border-default)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                  )}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApply}
+                  className={cn(
+                    "px-4 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer",
+                    "bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[var(--text-inverse)]"
+                  )}
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -340,7 +404,7 @@ export function DateRangeFilter() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-colors"
+                className="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" strokeWidth={1.5} />
               </button>
@@ -356,27 +420,9 @@ export function DateRangeFilter() {
               </span>
             </div>
 
-            {/* Calendar */}
-            <div className="flex justify-center p-4 border-b border-[var(--border-default)] overflow-y-auto">
-              <Calendar
-                mode="range"
-                selected={draft}
-                onSelect={(val) => val && setDraft(val)}
-                numberOfMonths={1}
-                disabled={{ after: new Date() }}
-                defaultMonth={draft?.from}
-                className="relative w-full max-w-sm sm:max-w-md"
-                classNames={{
-                  root: "w-full",
-                  months: "w-full",
-                  month: "w-full",
-                }}
-              />
-            </div>
-
             {/* Shortcuts Grid */}
             <div className="p-6">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {getShortcutList(true).map((s) => {
                   const isActive = activeShortcutKey === s.key;
                   return (
@@ -385,7 +431,7 @@ export function DateRangeFilter() {
                       type="button"
                       onClick={() => handleShortcutClick(s.key, s.from, s.to)}
                       className={cn(
-                        "py-2 px-1 rounded-full text-center text-xs transition-colors border select-none font-medium truncate",
+                        "py-2.5 px-3 rounded-lg text-center text-xs transition-colors border select-none font-medium truncate cursor-pointer",
                         isActive
                           ? "border-[var(--accent-primary)] text-[var(--text-inverse)] bg-[var(--accent-primary)]"
                           : "border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
@@ -395,32 +441,68 @@ export function DateRangeFilter() {
                     </button>
                   );
                 })}
+
+                {/* Custom Range Button for Mobile */}
+                <button
+                  type="button"
+                  onClick={() => setShowCalendar(!showCalendar)}
+                  className={cn(
+                    "py-2.5 px-3 rounded-lg text-center text-xs transition-colors border select-none font-medium truncate cursor-pointer col-span-2",
+                    showCalendar || activeShortcutKey === "custom"
+                      ? "border-[var(--accent-primary)] text-[var(--text-inverse)] bg-[var(--accent-primary)]"
+                      : "border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                  )}
+                >
+                  Custom Range
+                </button>
               </div>
             </div>
 
-            {/* Footer buttons */}
-            <div className="flex items-center gap-3 p-6 border-t border-[var(--border-default)] bg-[var(--bg-surface-raised)] mt-auto pb-8">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "flex-1 py-3 px-4 rounded-md text-sm font-medium text-center border transition-colors",
-                  "border-[var(--border-default)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-                )}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleApply}
-                className={cn(
-                  "flex-1 py-3 px-4 rounded-md text-sm font-medium text-center transition-colors",
-                  "bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[var(--text-inverse)]"
-                )}
-              >
-                Confirm
-              </button>
-            </div>
+            {/* Calendar Grid (Shown when Custom Range is clicked on Mobile) */}
+            {showCalendar && (
+              <div className="flex justify-center p-4 border-t border-[var(--border-default)] overflow-y-auto">
+                <Calendar
+                  mode="range"
+                  selected={draft}
+                  onSelect={(val) => val && setDraft(val)}
+                  numberOfMonths={1}
+                  disabled={{ after: new Date() }}
+                  defaultMonth={draft?.from}
+                  className="relative w-full max-w-sm sm:max-w-md"
+                  classNames={{
+                    root: "w-full",
+                    months: "w-full",
+                    month: "w-full",
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Footer buttons (Shown when Custom Range is active) */}
+            {showCalendar && (
+              <div className="flex items-center gap-3 p-6 border-t border-[var(--border-default)] bg-[var(--bg-surface-raised)] mt-auto pb-8">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex-1 py-3 px-4 rounded-md text-sm font-medium text-center border transition-colors cursor-pointer",
+                    "border-[var(--border-default)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                  )}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApply}
+                  className={cn(
+                    "flex-1 py-3 px-4 rounded-md text-sm font-medium text-center transition-colors cursor-pointer",
+                    "bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[var(--text-inverse)]"
+                  )}
+                >
+                  Confirm
+                </button>
+              </div>
+            )}
           </DrawerContent>
         </Drawer>
       )}

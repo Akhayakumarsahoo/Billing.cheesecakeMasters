@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { Decimal } from "@/lib/db";
-import { Prisma } from "@prisma/client";
 import { parseDateRange } from "@/lib/utils";
 import { Suspense } from "react";
 import { DashboardSkeleton } from "@/components/ui-skeletons";
@@ -74,26 +73,6 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       GROUP BY b."outletId", p.mode
     `,
   ]);
-
-  const cashboxMap: Record<string, Decimal> = {};
-  for (const o of outlets) {
-    cashboxMap[o.id] = new Decimal(0);
-  }
-
-  if (outlets.length > 0) {
-    const latestSettlements = await prisma.$queryRaw<
-      { outletId: string; closingCash: string }[]
-    >`
-      SELECT DISTINCT ON ("outletId") "outletId", "closingCash"::text
-      FROM daily_settlements
-      WHERE status = 'active' AND "outletId" IN (${Prisma.join(outlets.map((o) => o.id))})
-      ORDER BY "outletId", "settlementDate" DESC
-    `;
-
-    for (const s of latestSettlements) {
-      cashboxMap[s.outletId] = new Decimal(s.closingCash);
-    }
-  }
 
   const outletPaymentsMap: Record<string, { cash: number; upi: number; card: number; online: number }> = {};
   for (const o of outlets) {
@@ -192,7 +171,6 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       revenue: stat?.revenue.toNumber() || 0,
       discount: stat?.discount.toNumber() || 0,
       gstTotal: stat?.gstTotal.toNumber() || 0,
-      cashboxBalance: cashboxMap[o.id]?.toNumber() || 0,
       walkawayCount: stat?.walkawayCount || 0,
       walkawayReasons: walkawayReasonsList,
       payments,
