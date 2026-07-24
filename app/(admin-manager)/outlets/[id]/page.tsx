@@ -24,18 +24,18 @@ export default async function OutletDashboardPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  const { id } = await params;
+  const [{ id }, { from, to }, user] = await Promise.all([
+    params,
+    searchParams,
+    getCurrentUser(),
+  ]);
 
-  // Auth check — admin and manager only
-  const user = await getCurrentUser();
   if (!user || (user.role !== "admin" && user.role !== "manager")) {
     redirect("/");
   }
 
   const outlet = await prisma.outlet.findUnique({ where: { id } });
   if (!outlet) notFound();
-
-  const { from, to } = await searchParams;
 
   return (
     <>
@@ -70,40 +70,64 @@ async function OutletDashboardContent({
 }) {
   const { start, end } = parseDateRange(from, to);
 
-  // 1. Fetch aggregations for this outlet
-  const aggregations = await prisma.bill.aggregate({
-    where: {
-      outletId: id,
-      status: "printed",
-      completedAt: { gte: start, lte: end },
-    },
-    _count: { id: true },
-    _sum: {
-      grandTotal: true,
-      totalGst: true,
-      discount: true,
-    },
-  });
+  // Fetch all 5 metrics concurrently with Promise.all
+  const [
+    aggregations,
+    paymentBreakdown,
+    walkawayCount,
+    walkawayReasons,
+    latestActiveSettlement,
+  ] = await Promise.all([
+    prisma.bill.aggregate({
+      where: {
+        outletId: id,
+        status: "printed",
+        completedAt: { gte: start, lte: end },
+      },
+      _count: { id: true },
+      _sum: {
+        grandTotal: true,
+        totalGst: true,
+        discount: true,
+      },
+    }),
+    prisma.billPayment.groupBy({
+      by: ["mode"],
+      where: {
+        bill: {
+          outletId: id,
+          status: "printed",
+          completedAt: { gte: start, lte: end },
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+    }),
+    prisma.walkaway.count({
+      where: {
+        outletId: id,
+        createdAt: { gte: start, lte: end },
+      },
+    }),
+    prisma.walkaway.groupBy({
+      by: ["reason"],
+      where: {
+        outletId: id,
+        createdAt: { gte: start, lte: end },
+      },
+      _count: { id: true },
+    }),
+    prisma.dailySettlement.findFirst({
+      where: { outletId: id, status: "active" },
+      orderBy: { settlementDate: "desc" },
+    }),
+  ]);
 
   const totalRevenue = aggregations._sum.grandTotal || new Decimal(0);
   const totalGst = aggregations._sum.totalGst || new Decimal(0);
   const totalDiscount = aggregations._sum.discount || new Decimal(0);
   const totalBillsCount = aggregations._count.id;
-
-  // 2. Fetch payment mode aggregates from billPayment
-  const paymentBreakdown = await prisma.billPayment.groupBy({
-    by: ["mode"],
-    where: {
-      bill: {
-        outletId: id,
-        status: "printed",
-        completedAt: { gte: start, lte: end },
-      },
-    },
-    _sum: {
-      amount: true,
-    },
-  });
 
   const paymentBuckets = { cash: 0, upi: 0, card: 0, online: 0, notPaid: 0 };
   for (const item of paymentBreakdown) {
@@ -114,23 +138,6 @@ async function OutletDashboardContent({
     else if (mode === "upi") paymentBuckets.upi = sum;
     else if (mode === "online") paymentBuckets.online = sum;
   }
-
-  // 2.1 Fetch Walkaway metrics for this outlet
-  const walkawayCount = await prisma.walkaway.count({
-    where: {
-      outletId: id,
-      createdAt: { gte: start, lte: end },
-    },
-  });
-
-  const walkawayReasons = await prisma.walkaway.groupBy({
-    by: ["reason"],
-    where: {
-      outletId: id,
-      createdAt: { gte: start, lte: end },
-    },
-    _count: { id: true },
-  });
 
   const reasonStats = {
     "Price too high": 0,
@@ -149,11 +156,6 @@ async function OutletDashboardContent({
     }
   }
 
-  // Fetch latest active settlement closing cash balance
-  const latestActiveSettlement = await prisma.dailySettlement.findFirst({
-    where: { outletId: id, status: "active" },
-    orderBy: { settlementDate: "desc" },
-  });
   const currentCashBoxBalance = latestActiveSettlement ? latestActiveSettlement.closingCash.toNumber() : 0;
 
   return (

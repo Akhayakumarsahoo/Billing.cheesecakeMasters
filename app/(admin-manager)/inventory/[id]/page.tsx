@@ -24,61 +24,60 @@ export default async function InventoryDetailPage({
     redirect("/");
   }
 
-  // Fetch the inventory details
-  const inventory = await prisma.inventory.findUnique({
-    where: { id },
-    include: {
-      outlets: {
-        include: {
-          outlet: true
+  // Fetch inventory, active outlets, inventories list, and GST slabs in parallel
+  const [inventory, activeOutlets, inventoriesList, gstSlabs] = await Promise.all([
+    prisma.inventory.findUnique({
+      where: { id },
+      include: {
+        outlets: {
+          include: {
+            outlet: true
+          }
+        },
+        rawMaterials: {
+          where: { isActive: true },
+          select: { id: true }
         }
-      },
-      rawMaterials: {
-        where: { isActive: true },
-        select: { id: true }
       }
-    }
-  });
+    }),
+    prisma.outlet.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" }
+    }),
+    (user.role === "admin" || user.role === "manager")
+      ? prisma.inventory.findMany({
+          select: { id: true, name: true, isActive: true },
+          orderBy: { name: "asc" }
+        })
+      : Promise.resolve([]),
+    prisma.gstSlab.findMany({
+      orderBy: { id: "asc" }
+    })
+  ]);
 
   if (!inventory) {
     redirect("/inventory");
   }
 
-  // Fetch active outlets (for link/unlink outlet dialog)
-  const activeOutlets = await prisma.outlet.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" }
-  });
-
-  // Fetch all inventories for selector if role is admin/manager
-  let inventoriesList: { id: string; name: string; isActive: boolean }[] = [];
-  if (user.role === "admin" || user.role === "manager") {
-    inventoriesList = await prisma.inventory.findMany({
-      select: { id: true, name: true, isActive: true },
-      orderBy: { name: "asc" }
-    });
-  } else {
-    inventoriesList = [{ id: inventory.id, name: inventory.name, isActive: inventory.isActive }];
-  }
-
-  // Fetch GST slabs (for raw material dropdowns)
-  const gstSlabs = await prisma.gstSlab.findMany({
-    orderBy: { id: "asc" }
-  });
+  const finalInventoriesList = (user.role === "admin" || user.role === "manager")
+    ? inventoriesList
+    : [{ id: inventory.id, name: inventory.name, isActive: inventory.isActive }];
 
   // Fetch menu items from linked outlets
   const linkedOutletIds = inventory.outlets.map((o) => o.outletId);
-  const menuItems = await prisma.menuItem.findMany({
-    where: {
-      outletId: { in: linkedOutletIds },
-      isActive: true
-    },
-    include: {
-      outlet: { select: { name: true } },
-      category: { select: { name: true } }
-    },
-    orderBy: { name: "asc" }
-  });
+  const menuItems = linkedOutletIds.length > 0
+    ? await prisma.menuItem.findMany({
+        where: {
+          outletId: { in: linkedOutletIds },
+          isActive: true
+        },
+        include: {
+          outlet: { select: { name: true } },
+          category: { select: { name: true } }
+        },
+        orderBy: { name: "asc" }
+      })
+    : [];
 
   // Serialize before passing to client
   const serializedInventory = {
@@ -98,7 +97,7 @@ export default async function InventoryDetailPage({
     name: o.name
   }));
 
-  const serializedAllInventories = inventoriesList.map((inv) => ({
+  const serializedAllInventories = finalInventoriesList.map((inv) => ({
     id: inv.id,
     name: inv.name,
     isActive: inv.isActive

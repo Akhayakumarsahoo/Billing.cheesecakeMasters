@@ -23,11 +23,57 @@ export default async function SalesDashboard({
 async function DashboardContent({ from, to }: { from?: string; to?: string }) {
   const { start, end } = parseDateRange(from, to);
 
-  // Fetch active outlets (for building the per-outlet breakdown)
-  const outlets = await prisma.outlet.findMany({
-    where: { isActive: true },
-    select: { id: true, name: true },
-  });
+  // Fetch active outlets, walkaways, walkaway reasons, bill totals, and payment breakdown concurrently
+  const [
+    outlets,
+    outletWalkaways,
+    walkawayReasons,
+    outletGroups,
+    paymentBreakdown,
+  ] = await Promise.all([
+    prisma.outlet.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+    }),
+    prisma.walkaway.groupBy({
+      by: ["outletId"],
+      where: {
+        createdAt: { gte: start, lte: end },
+      },
+      _count: { id: true },
+    }),
+    prisma.walkaway.groupBy({
+      by: ["outletId", "reason"],
+      where: {
+        createdAt: { gte: start, lte: end },
+      },
+      _count: { id: true },
+    }),
+    prisma.bill.groupBy({
+      by: ["outletId"],
+      where: {
+        status: "printed",
+        completedAt: { gte: start, lte: end },
+      },
+      _count: {
+        id: true,
+      },
+      _sum: {
+        grandTotal: true,
+        discount: true,
+        totalGst: true,
+      },
+    }),
+    prisma.$queryRaw<
+      { outletId: string; mode: string; totalAmount: string }[]
+    >`
+      SELECT b."outletId", p.mode::text, SUM(p.amount)::text as "totalAmount"
+      FROM bill_payments p
+      JOIN bills b ON p."billId" = b.id
+      WHERE b.status = 'printed' AND b."completedAt" >= ${start} AND b."completedAt" <= ${end}
+      GROUP BY b."outletId", p.mode
+    `,
+  ]);
 
   const cashboxMap: Record<string, Decimal> = {};
   for (const o of outlets) {
@@ -48,52 +94,6 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       cashboxMap[s.outletId] = new Decimal(s.closingCash);
     }
   }
-
-  // 1. Fetch walkaways count grouped by outletId
-  const outletWalkaways = await prisma.walkaway.groupBy({
-    by: ["outletId"],
-    where: {
-      createdAt: { gte: start, lte: end },
-    },
-    _count: { id: true },
-  });
-
-  // 2. Fetch walkaway reasons grouped by outletId and reason
-  const walkawayReasons = await prisma.walkaway.groupBy({
-    by: ["outletId", "reason"],
-    where: {
-      createdAt: { gte: start, lte: end },
-    },
-    _count: { id: true },
-  });
-
-  // 3. Fetch printed bills aggregations grouped by outletId
-  const outletGroups = await prisma.bill.groupBy({
-    by: ["outletId"],
-    where: {
-      status: "printed",
-      completedAt: { gte: start, lte: end },
-    },
-    _count: {
-      id: true,
-    },
-    _sum: {
-      grandTotal: true,
-      discount: true,
-      totalGst: true,
-    },
-  });
-
-  // 4. Fetch printed bill payment details using SQL group by to avoid loading all rows
-  const paymentBreakdown = await prisma.$queryRaw<
-    { outletId: string; mode: string; totalAmount: string }[]
-  >`
-    SELECT b."outletId", p.mode::text, SUM(p.amount)::text as "totalAmount"
-    FROM bill_payments p
-    JOIN bills b ON p."billId" = b.id
-    WHERE b.status = 'printed' AND b."completedAt" >= ${start} AND b."completedAt" <= ${end}
-    GROUP BY b."outletId", p.mode
-  `;
 
   const outletPaymentsMap: Record<string, { cash: number; upi: number; card: number; online: number }> = {};
   for (const o of outlets) {

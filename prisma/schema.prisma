@@ -236,6 +236,8 @@ model Bill {
 
   @@unique([outletId, billNumber]) // bill number unique per outlet
   @@index([outletId, completedAt, status])
+  @@index([outletId, createdAt])
+  @@index([outletId, status, createdAt])
   @@map("bills")
 }
 
@@ -340,6 +342,7 @@ model DailySettlement {
   modifiedBy      User?    @relation("SettlementModifiedBy", fields: [modifiedById], references: [id])
 
   @@unique([outletId, settlementDate])
+  @@index([outletId, status, settlementDate])
   @@map("daily_settlements")
 }
 
@@ -358,6 +361,7 @@ model Walkaway {
   updatedAt      DateTime @updatedAt
   createdByEmail String?
 
+  @@index([outletId, createdAt])
   @@map("walkaways")
 }
 
@@ -646,6 +650,7 @@ model StockMovement {
 
   @@map("stock_movements")
   @@index([rawMaterialId, createdAt])
+  @@index([inventoryId, createdAt])
 }
 
 

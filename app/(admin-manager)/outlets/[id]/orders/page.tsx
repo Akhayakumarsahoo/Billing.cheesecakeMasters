@@ -12,19 +12,19 @@ export default async function OutletOrdersPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { id } = await params;
+  const [{ from, to }, user, outlet] = await Promise.all([
+    searchParams,
+    getCurrentUser(),
+    prisma.outlet.findUnique({ where: { id } })
+  ]);
 
-  // Auth check — admin and manager only
-  const user = await getCurrentUser();
   if (!user || (user.role !== "admin" && user.role !== "manager")) {
     redirect("/");
   }
 
-  const outlet = await prisma.outlet.findUnique({ where: { id } });
   if (!outlet) notFound();
 
-  const { from, to } = await searchParams;
   const { start, end } = parseDateRange(from, to);
-
 
   const bills = await prisma.bill.findMany({
     where: { 
@@ -37,13 +37,7 @@ export default async function OutletOrdersPage({
     include: {
       payments: true,
       modifiedBy: { select: { name: true } },
-      lineItems: {
-        include: {
-          menuItem: {
-            include: { gstSlab: true }
-          }
-        }
-      },
+      lineItems: true,
     },
     orderBy: { createdAt: "desc" },
     take: 100,
@@ -75,16 +69,7 @@ export default async function OutletOrdersPage({
       basePrice: li.basePrice.toString(),
       unit: li.unit,
       gstRate: li.gstRate.toString(),
-      quantity: li.quantity.toString(),
-      menuItem: li.menuItem ? {
-        id: li.menuItem.id,
-        name: li.menuItem.name,
-        sku: li.menuItem.sku,
-        basePrice: li.menuItem.basePrice.toString(),
-        unit: li.menuItem.unit,
-        categoryId: li.menuItem.categoryId,
-        gstSlab: { rate: li.menuItem.gstSlab.rate.toString() }
-      } : undefined
+      quantity: li.quantity.toString()
     }))
   }));
 

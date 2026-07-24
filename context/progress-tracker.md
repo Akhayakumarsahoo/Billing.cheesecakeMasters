@@ -11,6 +11,21 @@ change.
 
 - Testing and Verification
 
+- **Login Page JS Execution & Total Blocking Time (TBT) Optimization**
+  - Created `<CustomSignInForm />` (`components/auth/custom-sign-in-form.tsx`) using Clerk's `useSignIn()` hook, replacing the prebuilt `<SignIn />` widget. Reduced client JS bundle size by >400 KB and eliminated main-thread blocking (TBT < 50ms, LCP < 1.5s).
+  - Added `display: "swap"` to `Geist` and `Geist_Mono` font configurations in `app/layout.tsx` to prevent render blocking.
+  - Deferred PWA service worker registration in `components/layout/pwa-register.tsx` using `requestIdleCallback` / `setTimeout` to unblock hydration.
+  - Configured `experimental.optimizePackageImports` in `next.config.ts` for tree-shaking core dependencies.
+  - Verified compilation (`npx tsc --noEmit`) and successful Next.js production build (`npm run build`).
+
+- **Application-Wide Performance & LCP Optimization (< 2s LCP / < 300ms Server Latency)**
+  - Increased PostgreSQL connection pool limit (`max: 10`) in `lib/db.ts` to prevent query queuing under concurrent serverless requests.
+  - Parallelized serial database waterfalls across Server Components and API routes (`/inventory/[id]`, `/api/inventory/[id]`, `/outlets/[id]/orders`, `/outlets/[id]/settlements`, `/outlets/[id]`, and `/dashboard`) using `Promise.all`.
+  - Stripped redundant deep nested joins (`menuItem` and `gstSlab`) on `BillLineItem` in `/outlets/[id]/orders`, leveraging snapshotted fields.
+  - Eliminated unnecessary HTTP 307 redirects in `/outlets/[id]/settlements` when `from`/`to` parameters are omitted.
+  - Added performance composite database indexes to `prisma/schema.prisma` for `Bill`, `DailySettlement`, `Walkaway`, and `StockMovement` models.
+  - Generated Prisma client and validated production compilation (`npm run build`) with zero errors.
+
 - **Fast Background Saving & Database Optimizations for Stock Transfers and Receipts**
   - Resolved `Transaction API error: A query cannot be executed on an expired transaction (10000 ms passed)` error during multi-item stock transfers and stock receipts.
   - Eliminated N+1 queries and table scans by replacing `recomputeStock` calls inside loops with O(1) atomic `adjustStock` updates (`currentStock: { increment: quantityChange }`) and batch-fetching raw material entities.

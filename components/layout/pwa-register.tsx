@@ -43,11 +43,20 @@ export default function PWARegister() {
           });
       };
 
+      const registerDeferred = () => {
+        if ('requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(handleLoad, { timeout: 3000 });
+        } else {
+          setTimeout(handleLoad, 2000);
+        }
+      };
+
       if (document.readyState === 'complete') {
-        handleLoad();
+        registerDeferred();
       } else {
-        window.addEventListener('load', handleLoad);
-        return () => window.removeEventListener('load', handleLoad);
+        const onLoad = () => registerDeferred();
+        window.addEventListener('load', onLoad);
+        return () => window.removeEventListener('load', onLoad);
       }
     }
   }, []);

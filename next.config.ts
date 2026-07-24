@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    optimizePackageImports: ["@clerk/nextjs", "lucide-react", "sonner", "date-fns"],
+  },
 };
 
 export default nextConfig;

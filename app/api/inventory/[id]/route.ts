@@ -24,27 +24,42 @@ export async function GET(
       );
     }
 
-    const inventory = await prisma.inventory.findUnique({
-      where: { id },
-      include: {
-        outlets: {
-          include: {
-            outlet: {
-              select: { id: true, name: true, isActive: true }
+    const [inventory, recentMovements] = await Promise.all([
+      prisma.inventory.findUnique({
+        where: { id },
+        include: {
+          outlets: {
+            include: {
+              outlet: {
+                select: { id: true, name: true, isActive: true }
+              }
+            }
+          },
+          rawMaterials: {
+            select: {
+              id: true,
+              currentStock: true,
+              lowStockAlert: true,
+              isActive: true,
+              purchasePrice: true
             }
           }
-        },
-        rawMaterials: {
-          select: {
-            id: true,
-            currentStock: true,
-            lowStockAlert: true,
-            isActive: true,
-            purchasePrice: true
+        }
+      }),
+      prisma.stockMovement.findMany({
+        where: { inventoryId: id },
+        take: 10,
+        orderBy: { createdAt: "desc" },
+        include: {
+          rawMaterial: {
+            select: { name: true, unit: true }
+          },
+          createdBy: {
+            select: { name: true, email: true }
           }
         }
-      }
-    });
+      })
+    ]);
 
     if (!inventory) {
       return NextResponse.json(
@@ -52,21 +67,6 @@ export async function GET(
         { status: 404 }
       );
     }
-
-    // Recent stock movements (last 10 rows)
-    const recentMovements = await prisma.stockMovement.findMany({
-      where: { inventoryId: id },
-      take: 10,
-      orderBy: { createdAt: "desc" },
-      include: {
-        rawMaterial: {
-          select: { name: true, unit: true }
-        },
-        createdBy: {
-          select: { name: true, email: true }
-        }
-      }
-    });
 
     // Compute stats
     const totalMaterials = inventory.rawMaterials.filter(m => m.isActive).length;
