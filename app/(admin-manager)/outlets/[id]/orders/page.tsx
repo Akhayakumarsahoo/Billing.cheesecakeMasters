@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, Decimal } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import { AdminOrdersClient } from "./admin-orders-client";
 import { parseDateRange } from "@/lib/utils";
@@ -29,10 +29,10 @@ export default async function OutletOrdersPage({
   const bills = await prisma.bill.findMany({
     where: { 
       outletId: id,
-      createdAt: {
-        gte: start,
-        lte: end,
-      }
+      OR: [
+        { completedAt: { gte: start, lte: end } },
+        { status: "draft", createdAt: { gte: start, lte: end } }
+      ]
     },
     include: {
       payments: true,
@@ -40,8 +40,31 @@ export default async function OutletOrdersPage({
       lineItems: true,
     },
     orderBy: { createdAt: "desc" },
-    take: 100,
+    take: 150,
   });
+
+  // Calculate summary metrics for the selected range
+  let netSales = new Decimal(0);
+  let printedCount = 0;
+  let cancelledCount = 0;
+  let cancelledTotal = new Decimal(0);
+
+  for (const b of bills) {
+    if (b.status === "printed") {
+      netSales = netSales.add(b.grandTotal);
+      printedCount++;
+    } else if (b.status === "cancelled") {
+      cancelledTotal = cancelledTotal.add(b.grandTotal);
+      cancelledCount++;
+    }
+  }
+
+  const summaryStats = {
+    netSales: netSales.toFixed(2),
+    printedCount,
+    cancelledCount,
+    cancelledTotal: cancelledTotal.toFixed(2),
+  };
 
   const serializedBills = bills.map(b => ({
     id: b.id,
@@ -73,9 +96,6 @@ export default async function OutletOrdersPage({
     }))
   }));
 
-  const fromKey = from || "today";
-  const toKey = to || "today";
-
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-6">
       <AdminOrdersClient
@@ -84,6 +104,7 @@ export default async function OutletOrdersPage({
         role={user.role}
         fromDate={from || "today"}
         toDate={to || "today"}
+        summaryStats={summaryStats}
       />
     </div>
   );

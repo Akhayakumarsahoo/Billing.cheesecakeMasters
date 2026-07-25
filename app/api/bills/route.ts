@@ -2,6 +2,7 @@ import { getCurrentUser, getCurrentOutlet } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { BillHistoryQuerySchema, CreateBillSchema } from "@/lib/validators";
 import { generateBillNumber } from "@/lib/bill-number";
+import { parseDateRange } from "@/lib/utils";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
@@ -56,9 +57,11 @@ export async function GET(req: Request) {
     if (customerPhone) where.customerPhone = { contains: customerPhone, mode: "insensitive" };
 
     if (dateFrom || dateTo) {
-      where.completedAt = {};
-      if (dateFrom) where.completedAt.gte = new Date(dateFrom);
-      if (dateTo) where.completedAt.lte = new Date(`${dateTo}T23:59:59.999Z`);
+      const { start, end } = parseDateRange(dateFrom, dateTo);
+      where.OR = [
+        { completedAt: { gte: start, lte: end } },
+        { status: "draft", createdAt: { gte: start, lte: end } }
+      ];
     }
 
     if (paymentMode) {

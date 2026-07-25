@@ -67,18 +67,26 @@ export function AdminOrdersClient({
   role,
   fromDate,
   toDate,
+  summaryStats,
 }: {
   initialBills: SerializedBill[];
   outletName: string;
   role: string;
   fromDate: string;
   toDate: string;
+  summaryStats?: {
+    netSales: string;
+    printedCount: number;
+    cancelledCount: number;
+    cancelledTotal: string;
+  };
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { id: outletId } = useParams() as { id: string };
   const [bills, setBills] = useState(initialBills);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "printed" | "cancelled">("all");
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [selectedBill, setSelectedBill] = useState<SerializedBill | null>(null);
 
@@ -154,9 +162,11 @@ export function AdminOrdersClient({
     };
   };
 
-  const filteredBills = bills.filter(bill => 
-    bill.billNumber.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredBills = bills.filter(bill => {
+    const matchesSearch = bill.billNumber.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "all" || bill.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const handleCancel = async (billId: string) => {
     if (!confirm("Are you sure you want to cancel this bill? This action cannot be undone.")) return;
@@ -349,6 +359,7 @@ export function AdminOrdersClient({
     }
   };
 
+
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -356,8 +367,23 @@ export function AdminOrdersClient({
           <h1 className="text-xl font-medium text-[var(--text-primary)]">All Orders</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">Order history for {outletName}</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <div className="relative w-full sm:w-64">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-1 bg-[var(--bg-surface-raised)] border border-[var(--border-default)] p-1 rounded-lg self-start sm:self-auto">
+            {(["all", "printed", "cancelled"] as const).map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  statusFilter === st
+                    ? "bg-[var(--text-primary)] text-[var(--bg-surface)] shadow-sm"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                {st === "all" ? "All" : st === "printed" ? "Printed" : "Cancelled"}
+              </button>
+            ))}
+          </div>
+          <div className="relative w-full sm:w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
             <Input 
               placeholder="Search bills..." 
@@ -377,6 +403,32 @@ export function AdminOrdersClient({
           </Button>
         </div>
       </div>
+
+      {summaryStats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl p-4 shadow-sm flex justify-between items-center">
+            <div>
+              <div className="text-xs text-[var(--text-secondary)] font-medium uppercase tracking-wide">Net Billed Sales</div>
+              <div className="text-2xl font-bold font-mono text-[var(--text-primary)] mt-1">₹{summaryStats.netSales}</div>
+              <div className="text-xs text-[var(--state-success-text)] mt-1 font-medium">{summaryStats.printedCount} printed bills</div>
+            </div>
+            <div className="bg-[var(--state-success-bg)] p-3 rounded-xl border border-[var(--state-success-border)]">
+              <Receipt className="h-6 w-6 text-[var(--state-success-text)]" strokeWidth={1.5} />
+            </div>
+          </div>
+
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl p-4 shadow-sm flex justify-between items-center">
+            <div>
+              <div className="text-xs text-[var(--text-secondary)] font-medium uppercase tracking-wide">Cancelled Bills (Excluded)</div>
+              <div className="text-2xl font-bold font-mono text-[var(--state-error-text)] mt-1">₹{summaryStats.cancelledTotal}</div>
+              <div className="text-xs text-[var(--state-error-text)] mt-1 font-medium">{summaryStats.cancelledCount} cancelled bills</div>
+            </div>
+            <div className="bg-[var(--state-error-bg)] p-3 rounded-xl border border-[var(--state-error-border)]">
+              <XCircle className="h-6 w-6 text-[var(--state-error-text)]" strokeWidth={1.5} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {isTransitioning ? (
         <OrderCardsSkeleton />

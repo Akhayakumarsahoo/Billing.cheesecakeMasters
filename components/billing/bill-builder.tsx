@@ -290,8 +290,12 @@ export function BillBuilder({
   };
 
   const handleOpenItemClose = () => {
+    const wasEditingFromCart = !!editingCartItem;
     setIsOpenItemOpen(false);
     setEditingCartItem(null);
+    if (wasEditingFromCart && typeof window !== "undefined" && window.innerWidth < 1024) {
+      setIsCartDrawerOpen(true);
+    }
   };
 
   const handleOpenItemAddOrEdit = (name: string, price: number, gstRate: number) => {
@@ -339,6 +343,7 @@ export function BillBuilder({
     setCustomerPhone("");
     setEditingBillId(null);
     setIsPaymentOpen(false);
+    setIsCartDrawerOpen(false);
     setSelectedPaymentMode("cash");
     setSplitAmounts({ cash: "", upi: "", card: "", online: "" });
     setDiscountType(null);
@@ -584,8 +589,11 @@ export function BillBuilder({
                       onClick={() => {
                         setEditingCartItem(item);
                         setIsOpenItemOpen(true);
+                        if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                          setIsCartDrawerOpen(false);
+                        }
                       }}
-                      className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 rounded hover:bg-[var(--bg-hover)] flex-shrink-0"
+                      className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 rounded hover:bg-[var(--bg-hover)] flex-shrink-0 cursor-pointer"
                       title="Edit open item name and price"
                     >
                       <Edit2 className="w-3.5 h-3.5" strokeWidth={1.5} />

@@ -1,5 +1,6 @@
 import { getCurrentOutlet } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, Decimal } from "@/lib/db";
+import { parseDateRange } from "@/lib/utils";
 import { OrdersClient } from "./orders-client";
 
 export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ from?: string, to?: string }> }) {
@@ -7,34 +8,18 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   if (!outlet) return null;
 
   const resolvedParams = await searchParams;
+  const { start, end, todayStr } = parseDateRange(resolvedParams.from, resolvedParams.to);
 
-  const getLocalDateString = (d: Date) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const todayStr = getLocalDateString(new Date());
-  
   const fromStr = resolvedParams.from || todayStr;
   const toStr = resolvedParams.to || todayStr;
-
-  let start = new Date(`${fromStr}T00:00:00.000`);
-  let end = new Date(`${toStr}T23:59:59.999`);
-
-  if (!isFinite(start.getTime()) || !isFinite(end.getTime())) {
-    start = new Date(`${todayStr}T00:00:00.000`);
-    end = new Date(`${todayStr}T23:59:59.999`);
-  }
 
   const bills = await prisma.bill.findMany({
     where: { 
       outletId: outlet.id,
-      createdAt: {
-        gte: start,
-        lte: end,
-      }
+      OR: [
+        { completedAt: { gte: start, lte: end } },
+        { status: "draft", createdAt: { gte: start, lte: end } }
+      ]
     },
     include: {
       payments: true,
@@ -48,8 +33,31 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
       },
     },
     orderBy: { createdAt: "desc" },
-    take: 100, // Slightly increase limit for range
+    take: 150,
   });
+
+  // Calculate summary metrics for the selected range
+  let netSales = new Decimal(0);
+  let printedCount = 0;
+  let cancelledCount = 0;
+  let cancelledTotal = new Decimal(0);
+
+  for (const b of bills) {
+    if (b.status === "printed") {
+      netSales = netSales.add(b.grandTotal);
+      printedCount++;
+    } else if (b.status === "cancelled") {
+      cancelledTotal = cancelledTotal.add(b.grandTotal);
+      cancelledCount++;
+    }
+  }
+
+  const summaryStats = {
+    netSales: netSales.toFixed(2),
+    printedCount,
+    cancelledCount,
+    cancelledTotal: cancelledTotal.toFixed(2),
+  };
 
   const serializedBills = bills.map(b => ({
     id: b.id,
@@ -96,6 +104,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
       outletName={outlet.name}
       fromDate={fromStr}
       toDate={toStr}
+      summaryStats={summaryStats}
     />
   );
 }

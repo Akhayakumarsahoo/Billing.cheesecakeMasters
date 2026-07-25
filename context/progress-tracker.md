@@ -11,6 +11,22 @@ change.
 
 - Testing and Verification
 
+- **Sales Data Consistency & Order History Summary Fix (Option A)**
+  - Standardized date filtering across Order History ([`app/pos/orders/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/pos/orders/page.tsx) and [`app/(admin-manager)/outlets/[id]/orders/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/outlets/%5Bid%5D/orders/page.tsx)) using `completedAt` (falling back to `createdAt` for drafts) in local IST time (`parseDateRange`).
+  - Added Net Billed Sales summary banner displaying printed revenue matching Sales Summary and Dashboard, plus cancelled bills total explicitly marked as excluded.
+  - Added status filter buttons (`All`, `Printed`, `Cancelled`) on Order History pages in both POS and Admin views.
+  - Resolved UTC `Z` timezone drift in API query endpoints ([`app/api/bills/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/bills/route.ts) and [`app/api/dashboard/summary/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/dashboard/summary/route.ts)).
+
+- **Mobile POS Cart Drawer Auto-Close on Bill Completion**
+  - Updated `handleComplete` in [`components/billing/bill-builder.tsx`](file:///c:/Users/User/Desktop/billCCM/components/billing/bill-builder.tsx) to automatically set `setIsCartDrawerOpen(false)` whenever a bill is completed/saved.
+  - Ensures the mobile cart drawer closes automatically so the cashier can immediately begin selecting menu items for the next bill without manual drawer dismissal.
+  - Verified clean TypeScript compilation (`npx tsc --noEmit`).
+
+- **POS Mobile Edit Open Item Amount Input Fix**
+  - Updated [`components/billing/open-item-dialog.tsx`](file:///c:/Users/User/Desktop/billCCM/components/billing/open-item-dialog.tsx) with `inputMode="decimal"`, `step="any"`, `text-base` (16px font to avoid iOS Safari auto-zoom focus freezing), and `z-[70]` overlay depth.
+  - Refactored [`components/billing/bill-builder.tsx`](file:///c:/Users/User/Desktop/billCCM/components/billing/bill-builder.tsx) to smoothly dismiss the mobile Cart Drawer when opening the Open Item edit modal, preventing dual-modal touch focus locking.
+  - Verified clean TypeScript compilation (`npx tsc --noEmit`).
+
 - **Standalone Review Inbound Stock Transfer Page Creation**
   - Replaced the pop-up modal with a dedicated standalone page route at [`app/(admin-manager)/transfers/[id]/review/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/transfers/%5Bid%5D/review/page.tsx).
   - Designed full-screen responsive layout with source/destination overview cards, itemized transfer line items table, financial summary box, and prominent Accept & Add to Stock / Reject Transfer action buttons.

@@ -50,7 +50,7 @@ export function OpenItemDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[425px] bg-[var(--bg-surface)]">
+      <DialogContent className="sm:max-w-[425px] w-[calc(100%-2rem)] max-w-md bg-[var(--bg-surface)] z-[70]">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Open Item" : "Add Open Item"}</DialogTitle>
           <DialogDescription className="hidden">
@@ -65,6 +65,7 @@ export function OpenItemDialog({
               placeholder="e.g. Special Cake" 
               value={name}
               onChange={(e) => setName(e.target.value)}
+              className="text-base sm:text-sm"
             />
           </div>
           
@@ -72,11 +73,13 @@ export function OpenItemDialog({
             <Label>Price (₹)</Label>
             <Input 
               type="number"
+              inputMode="decimal"
               placeholder="0.00" 
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               min="0"
-              step="0.01"
+              step="any"
+              className="text-base sm:text-sm font-mono"
             />
           </div>
 
