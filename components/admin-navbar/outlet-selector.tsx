@@ -31,10 +31,13 @@ export function OutletSelector({ outlets }: OutletSelectorProps) {
         localStorage.setItem("selectedOutletId", parts[2]);
       }
     } else {
-      // Any global page (like /dashboard, /reports, /users) should show "All Outlets" and clear local storage selection
-      setCurrentOutletId("all");
-      localStorage.removeItem("selectedOutletId");
-      window.dispatchEvent(new Event("local-storage"));
+      // Preserve persisted outlet selection on global pages (like /more, /inventory, /users)
+      const savedOutletId = localStorage.getItem("selectedOutletId");
+      if (savedOutletId && savedOutletId !== "all" && outlets.some((o) => o.id === savedOutletId)) {
+        setCurrentOutletId(savedOutletId);
+      } else {
+        setCurrentOutletId("all");
+      }
     }
   }, [pathname, outlets]);
 

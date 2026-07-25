@@ -11,6 +11,16 @@ change.
 
 - Testing and Verification
 
+- **Admin & Manager Navigation Restructuring, Mobile Bottom Bar, & Help Support Banner**
+  - Renamed "Menu" to "Menu Management" and repositioned it after "Inventory" in `components/admin-sidebar.tsx`.
+  - Implemented mobile bottom navigation bar (`components/admin-bottom-nav.tsx`) hidden on desktop (`md:hidden`). Automatically hides "All orders" and "Settlements" when "All Outlets" is selected, displaying Dashboard, Reports, Inventory, and More. Displays outlet-scoped orders and settlements when a specific outlet is selected.
+  - Built dedicated mobile "More" page (`app/(admin-manager)/more/more-client.tsx` & `page.tsx`) rendering non-duplicated options. Scoped Menu Management strictly to specific outlet selections in both left sidebar and mobile More page, hiding it when "All Outlets" is active.
+  - Updated `OutletSelector` (`components/admin-navbar/outlet-selector.tsx`) to preserve persisted `selectedOutletId` when clicking "More" or navigating to global pages, preventing unwanted resets to "All Outlets".
+  - Added support contact section (`Need help? Give us a call` | `+91-7609083736` as a clickable `tel:` link) to the bottom of the left sidebar (`SidebarFooter`) and to the bottom of the mobile "More" page.
+  - Configured top bar brand logo (`components/admin-navbar.tsx`) to show 40px (`w-10 h-10`) on mobile (`md:hidden`) and hide on desktop to prevent duplicate logo display.
+  - Aligned desktop left sidebar header (`components/admin-sidebar.tsx`) height to 56px (`h-[56px]`) with matching bottom border (`border-b border-border-default`) and increased logo size to 36px (`w-9 h-9`) alongside `text-sm font-semibold` brand title, aligning seamlessly with the top navbar.
+  - Verified clean TypeScript compilation (`npx tsc --noEmit`).
+
 - **Prisma Accelerate Connection Pooling & Query Performance Integration**
   - Installed `@prisma/extension-accelerate` dependency and integrated Accelerate client extension into `lib/db.ts`.
   - Configured `DATABASE_URL` in `.env` and `.env.local` to use the high-performance Prisma Accelerate edge connection string (`prisma+postgres://accelerate.prisma-data.net/...`) to eliminate TCP connection handshakes and query latency on Vercel Serverless cold starts.

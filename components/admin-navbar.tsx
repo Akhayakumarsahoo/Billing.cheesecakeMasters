@@ -11,14 +11,14 @@ export async function AdminNavbar() {
 
   return (
     <header className="h-[56px] bg-bg-surface border-b border-border-default flex items-center justify-between px-4 shrink-0">
-      <div className="flex items-center gap-4">
-        <SidebarTrigger className="-ml-2 mr-2" />
+      <div className="flex items-center gap-3">
+        <SidebarTrigger className="-ml-2 mr-1 hidden md:inline-flex" />
         <img
           src="/favicon.svg"
-          className="lg:hidden md:block"
+          className="md:hidden shrink-0 w-10 h-10 object-contain"
           alt="Cheesecake Masters"
-          width={20}
-          height={20}
+          width={40}
+          height={40}
         />
         <OutletSelector outlets={outlets} />
       </div>

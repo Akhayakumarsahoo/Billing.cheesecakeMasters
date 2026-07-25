@@ -6,10 +6,8 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   UtensilsCrossed,
-  Receipt,
   Store,
   Users,
-  Settings,
   ListOrdered,
   Coins,
   BarChart3,
@@ -71,6 +69,8 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
     currentOutletId = persistedOutletId;
   }
 
+  const hasSpecificOutlet = Boolean(currentOutletId && currentOutletId !== "all");
+
   const isOutletsActive = pathname === "/outlets";
   const isMenuActive = isSpecificOutlet && pathname?.endsWith("/menu");
   const isOrdersActive = isSpecificOutlet && pathname?.endsWith("/orders");
@@ -79,20 +79,26 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
   const isInventoryActive = pathname?.startsWith("/inventory");
   const isDashboardActive = (pathname === "/" || (isSpecificOutlet && !isMenuActive && !isOrdersActive && !isSettlementsActive)) && !isReportsActive && !isInventoryActive;
 
-  const dashboardHref = currentOutletId && currentOutletId !== "all" 
+  const dashboardHref = hasSpecificOutlet 
     ? `/outlets/${currentOutletId}` 
     : "/dashboard";
 
-  const reportsHref = currentOutletId && currentOutletId !== "all"
+  const reportsHref = hasSpecificOutlet
     ? `/outlets/${currentOutletId}/reports`
     : "/reports";
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-2 mt-2">
-          <img src="/favicon.svg" alt="Cheesecake Masters" width={24} height={24} className="shrink-0" />
-          <span className="font-semibold text-sm text-text-primary group-data-[collapsible=icon]:hidden truncate leading-tight">
+      <SidebarHeader className="h-[56px] justify-center border-b border-border-default p-0">
+        <div className="flex items-center gap-2.5 px-3 h-full">
+          <img
+            src="/favicon.svg"
+            alt="Cheesecake Masters"
+            width={36}
+            height={36}
+            className="shrink-0 w-9 h-9 object-contain"
+          />
+          <span className="font-semibold text-sm text-text-primary group-data-[collapsible=icon]:hidden truncate">
             Cheesecake Masters
           </span>
         </div>
@@ -110,7 +116,7 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
                 </SidebarMenuItem>
               )}
 
-              {role !== "storeroom" && currentOutletId && currentOutletId !== "all" && (
+              {role !== "storeroom" && hasSpecificOutlet && (
                 <SidebarMenuItem>
                   <SidebarMenuButton render={<Link href={`/outlets/${currentOutletId}/orders`} />} isActive={isOrdersActive} tooltip="All orders">
                     <ListOrdered />
@@ -119,26 +125,13 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
                 </SidebarMenuItem>
               )}
 
-              {role !== "storeroom" && currentOutletId && currentOutletId !== "all" && (
+              {role !== "storeroom" && hasSpecificOutlet && (
                 <SidebarMenuItem>
                   <SidebarMenuButton render={<Link href={`/outlets/${currentOutletId}/settlements`} />} isActive={isSettlementsActive} tooltip="Daily Settlement">
                     <Coins />
                     <span>Daily Settlement</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              )}
-              
-              {role !== "storeroom" && currentOutletId && currentOutletId !== "all" && (
-                <>
-                  {role === "admin" && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton render={<Link href={`/outlets/${currentOutletId}/menu`} />} isActive={isMenuActive} tooltip="Menu">
-                        <UtensilsCrossed />
-                        <span>Menu</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )}
-                </>
               )}
 
               {role !== "storeroom" && (
@@ -156,6 +149,15 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
                   <span>Inventory</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              {role !== "storeroom" && hasSpecificOutlet && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton render={<Link href={`/outlets/${currentOutletId}/menu`} />} isActive={isMenuActive} tooltip="Menu Management">
+                    <UtensilsCrossed />
+                    <span>Menu Management</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               {role === "admin" && (
                 <>
@@ -178,14 +180,15 @@ export function AdminSidebar({ role }: AdminSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Settings">
-              <Settings />
-              <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <div className="p-3 m-2 rounded-lg bg-bg-surface-raised border border-border-default text-xs group-data-[collapsible=icon]:hidden">
+          <p className="text-text-secondary font-medium">Need help? Give us a call</p>
+          <a
+            href="tel:+917609083736"
+            className="text-text-primary font-bold font-mono hover:underline mt-1 block"
+          >
+            +91-7609083736
+          </a>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
