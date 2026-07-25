@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
-import { ChevronDown, Check, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, Check, X } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -397,14 +397,25 @@ export function DateRangeFilter({
           <DrawerContent className="bg-[var(--bg-surface)] p-0 max-h-[95vh] flex flex-col">
             {/* Header */}
             <div className="relative flex items-center justify-between px-6 pt-4 pb-2 border-b border-[var(--border-default)]">
-              <div className="w-6" />
+              {showCalendar ? (
+                <button
+                  type="button"
+                  onClick={() => setShowCalendar(false)}
+                  className="p-1 -ml-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-colors cursor-pointer"
+                  title="Back to shortcuts"
+                >
+                  <ChevronLeft className="h-5 w-5" strokeWidth={1.5} />
+                </button>
+              ) : (
+                <div className="w-6" />
+              )}
               <h3 className="text-base font-medium text-[var(--text-primary)] text-center flex-1">
-                Select Date
+                {showCalendar ? "Custom Date Range" : "Select Date"}
               </h3>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-colors cursor-pointer"
+                className="p-1 -mr-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" strokeWidth={1.5} />
               </button>
@@ -420,45 +431,47 @@ export function DateRangeFilter({
               </span>
             </div>
 
-            {/* Shortcuts Grid */}
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-2">
-                {getShortcutList(true).map((s) => {
-                  const isActive = activeShortcutKey === s.key;
-                  return (
-                    <button
-                      key={s.key}
-                      type="button"
-                      onClick={() => handleShortcutClick(s.key, s.from, s.to)}
-                      className={cn(
-                        "py-2.5 px-3 rounded-lg text-center text-xs transition-colors border select-none font-medium truncate cursor-pointer",
-                        isActive
-                          ? "border-[var(--accent-primary)] text-[var(--text-inverse)] bg-[var(--accent-primary)]"
-                          : "border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-                      )}
-                    >
-                      {s.label}
-                    </button>
-                  );
-                })}
+            {/* Shortcuts Grid (Shown ONLY when Custom Range is NOT active) */}
+            {!showCalendar && (
+              <div className="p-6">
+                <div className="grid grid-cols-2 gap-2">
+                  {getShortcutList(true).map((s) => {
+                    const isActive = activeShortcutKey === s.key;
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => handleShortcutClick(s.key, s.from, s.to)}
+                        className={cn(
+                          "py-2.5 px-3 rounded-lg text-center text-xs transition-colors border select-none font-medium truncate cursor-pointer",
+                          isActive
+                            ? "border-[var(--accent-primary)] text-[var(--text-inverse)] bg-[var(--accent-primary)]"
+                            : "border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                        )}
+                      >
+                        {s.label}
+                      </button>
+                    );
+                  })}
 
-                {/* Custom Range Button for Mobile */}
-                <button
-                  type="button"
-                  onClick={() => setShowCalendar(!showCalendar)}
-                  className={cn(
-                    "py-2.5 px-3 rounded-lg text-center text-xs transition-colors border select-none font-medium truncate cursor-pointer col-span-2",
-                    showCalendar || activeShortcutKey === "custom"
-                      ? "border-[var(--accent-primary)] text-[var(--text-inverse)] bg-[var(--accent-primary)]"
-                      : "border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-                  )}
-                >
-                  Custom Range
-                </button>
+                  {/* Custom Range Button for Mobile */}
+                  <button
+                    type="button"
+                    onClick={() => setShowCalendar(true)}
+                    className={cn(
+                      "py-2.5 px-3 rounded-lg text-center text-xs transition-colors border select-none font-medium truncate cursor-pointer col-span-2",
+                      activeShortcutKey === "custom"
+                        ? "border-[var(--accent-primary)] text-[var(--text-inverse)] bg-[var(--accent-primary)]"
+                        : "border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                    )}
+                  >
+                    Custom Range
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Calendar Grid (Shown when Custom Range is clicked on Mobile) */}
+            {/* Calendar Grid (Shown ONLY when Custom Range is active, hiding shortcuts) */}
             {showCalendar && (
               <div className="flex justify-center p-4 border-t border-[var(--border-default)] overflow-y-auto">
                 <Calendar

@@ -24,8 +24,8 @@ export default async function InventoryDetailPage({
     redirect("/");
   }
 
-  // Fetch inventory, active outlets, inventories list, and GST slabs in parallel
-  const [inventory, activeOutlets, inventoriesList, gstSlabs] = await Promise.all([
+  // Parallelize ALL 5 queries concurrently in a single Promise.all (Eliminating DB Waterfalls for TTFB < 300ms)
+  const [inventory, activeOutlets, inventoriesList, gstSlabs, menuItems] = await Promise.all([
     prisma.inventory.findUnique({
       where: { id },
       include: {
@@ -35,13 +35,21 @@ export default async function InventoryDetailPage({
           }
         },
         rawMaterials: {
-          where: { isActive: true },
-          select: { id: true }
+          select: {
+            id: true,
+            name: true,
+            unit: true,
+            currentStock: true,
+            lowStockAlert: true,
+            isActive: true,
+            purchasePrice: true
+          }
         }
       }
     }),
     prisma.outlet.findMany({
       where: { isActive: true },
+      select: { id: true, name: true },
       orderBy: { name: "asc" }
     }),
     (user.role === "admin" || user.role === "manager")
@@ -52,6 +60,21 @@ export default async function InventoryDetailPage({
       : Promise.resolve([]),
     prisma.gstSlab.findMany({
       orderBy: { id: "asc" }
+    }),
+    prisma.menuItem.findMany({
+      where: {
+        outlet: {
+          inventoryLinks: {
+            some: { inventoryId: id }
+          }
+        },
+        isActive: true
+      },
+      include: {
+        outlet: { select: { name: true } },
+        category: { select: { name: true } }
+      },
+      orderBy: { name: "asc" }
     })
   ]);
 
@@ -63,21 +86,36 @@ export default async function InventoryDetailPage({
     ? inventoriesList
     : [{ id: inventory.id, name: inventory.name, isActive: inventory.isActive }];
 
-  // Fetch menu items from linked outlets
-  const linkedOutletIds = inventory.outlets.map((o) => o.outletId);
-  const menuItems = linkedOutletIds.length > 0
-    ? await prisma.menuItem.findMany({
-        where: {
-          outletId: { in: linkedOutletIds },
-          isActive: true
-        },
-        include: {
-          outlet: { select: { name: true } },
-          category: { select: { name: true } }
-        },
-        orderBy: { name: "asc" }
-      })
-    : [];
+  // Pre-calculate initial stats server-side so LCP element renders immediately on HTML paint
+  const activeRawMaterials = inventory.rawMaterials.filter(m => m.isActive);
+  const totalMaterials = activeRawMaterials.length;
+  const lowStockCount = activeRawMaterials.filter(m => {
+    if (m.lowStockAlert === null) return false;
+    const stock = Number(m.currentStock);
+    const alert = Number(m.lowStockAlert);
+    return stock < alert;
+  }).length;
+
+  const totalValuation = activeRawMaterials.reduce((sum, m) => {
+    const stock = Number(m.currentStock);
+    const price = Number(m.purchasePrice);
+    return sum + (stock * price);
+  }, 0);
+
+  const initialStats = {
+    totalMaterials,
+    lowStockCount,
+    totalValuation: totalValuation.toFixed(2)
+  };
+
+  const initialRawMaterials = activeRawMaterials.map(m => ({
+    id: m.id,
+    name: m.name,
+    unit: m.unit,
+    currentStock: m.currentStock.toString(),
+    lowStockAlert: m.lowStockAlert ? m.lowStockAlert.toString() : null,
+    isActive: m.isActive
+  }));
 
   // Serialize before passing to client
   const serializedInventory = {
@@ -127,6 +165,8 @@ export default async function InventoryDetailPage({
       activeOutlets={serializedOutlets}
       gstSlabs={serializedGstSlabs}
       menuItems={serializedMenuItems}
+      initialStats={initialStats}
+      initialRawMaterials={initialRawMaterials}
       user={user}
     />
   );

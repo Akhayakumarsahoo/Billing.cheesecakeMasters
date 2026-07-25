@@ -40,25 +40,37 @@ interface OverviewTabProps {
   activeOutlets: ActiveOutlet[];
   userRole: string;
   onUpdateInventory: (inv: Inventory) => void;
+  initialStats?: {
+    totalMaterials: number;
+    lowStockCount: number;
+    totalValuation: string;
+  };
+  initialRawMaterials?: RawMaterial[];
 }
 
 export function OverviewTab({
   inventory,
   activeOutlets,
   userRole,
-  onUpdateInventory
+  onUpdateInventory,
+  initialStats,
+  initialRawMaterials
 }: OverviewTabProps) {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ totalMaterials: 0, lowStockCount: 0, totalValuation: "0" });
-  const [materials, setMaterials] = useState<RawMaterial[]>([]);
+  const [loading, setLoading] = useState(!initialStats);
+  const [stats, setStats] = useState(
+    initialStats || { totalMaterials: 0, lowStockCount: 0, totalValuation: "0" }
+  );
+  const [materials, setMaterials] = useState<RawMaterial[]>(initialRawMaterials || []);
 
   useEffect(() => {
-    fetchDetails();
+    if (!initialStats || !initialRawMaterials) {
+      fetchDetails();
+    }
   }, [inventory.id]);
 
   const fetchDetails = async () => {
     try {
-      setLoading(true);
+      if (!initialStats) setLoading(true);
       const [resDetails, resMaterials] = await Promise.all([
         fetch(`/api/inventory/${inventory.id}`),
         fetch(`/api/raw-materials?inventoryId=${inventory.id}`)

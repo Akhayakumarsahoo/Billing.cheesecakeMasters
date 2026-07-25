@@ -102,3 +102,17 @@ export function formatPaymentMode(mode: string): string {
   if (m === "cash") return "Cash";
   return mode;
 }
+
+// ── Main Thread Yielding (FID / INP Optimization) ─────────
+
+/**
+ * Yields execution back to the browser main thread.
+ * Uses native `scheduler.yield()` if available, falling back to `setTimeout(resolve, 0)`.
+ */
+export function yieldToMain(): Promise<void> {
+  if (typeof window !== "undefined" && "scheduler" in window && typeof (window as unknown as { scheduler?: { yield?: () => Promise<void> } }).scheduler?.yield === "function") {
+    return (window as unknown as { scheduler: { yield: () => Promise<void> } }).scheduler.yield();
+  }
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+

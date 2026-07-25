@@ -1,6 +1,8 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { 
   Select,
   SelectContent,
@@ -26,21 +28,43 @@ import {
   ClipboardList,
   ChevronDown,
   ChevronRight,
-  FileText,
   Folder,
   History
 } from "lucide-react";
 import { OverviewTab } from "./overview-tab";
-import { RawMaterialsTab } from "./raw-materials-tab";
-import { CurrentStockTab } from "./current-stock-tab";
-import { PurchasesTab } from "./purchases-tab";
-import { TransfersTab } from "./transfers-tab";
-import { WastageTab } from "./wastage-tab";
-import { RecipesTab } from "./recipes-tab";
-import { ManagementTab } from "./management-tab";
-import { StockSummaryTab } from "./stock-summary-tab";
-import { WastageReportTab } from "./wastage-report-tab";
-import { ManualMovementsTab } from "./manual-movements-tab";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Dynamic imports for secondary tabs to shrink initial JS bundle size and drastically reduce FCP/LCP
+const RawMaterialsTab = dynamic(() => import("./raw-materials-tab").then(m => m.RawMaterialsTab), {
+  loading: () => <Skeleton className="h-96 w-full rounded-xl" />
+});
+const CurrentStockTab = dynamic(() => import("./current-stock-tab").then(m => m.CurrentStockTab), {
+  loading: () => <Skeleton className="h-96 w-full rounded-xl" />
+});
+const PurchasesTab = dynamic(() => import("./purchases-tab").then(m => m.PurchasesTab), {
+  loading: () => <Skeleton className="h-96 w-full rounded-xl" />
+});
+const TransfersTab = dynamic(() => import("./transfers-tab").then(m => m.TransfersTab), {
+  loading: () => <Skeleton className="h-96 w-full rounded-xl" />
+});
+const WastageTab = dynamic(() => import("./wastage-tab").then(m => m.WastageTab), {
+  loading: () => <Skeleton className="h-96 w-full rounded-xl" />
+});
+const RecipesTab = dynamic(() => import("./recipes-tab").then(m => m.RecipesTab), {
+  loading: () => <Skeleton className="h-96 w-full rounded-xl" />
+});
+const ManagementTab = dynamic(() => import("./management-tab").then(m => m.ManagementTab), {
+  loading: () => <Skeleton className="h-96 w-full rounded-xl" />
+});
+const StockSummaryTab = dynamic(() => import("./stock-summary-tab").then(m => m.StockSummaryTab), {
+  loading: () => <Skeleton className="h-96 w-full rounded-xl" />
+});
+const WastageReportTab = dynamic(() => import("./wastage-report-tab").then(m => m.WastageReportTab), {
+  loading: () => <Skeleton className="h-96 w-full rounded-xl" />
+});
+const ManualMovementsTab = dynamic(() => import("./manual-movements-tab").then(m => m.ManualMovementsTab), {
+  loading: () => <Skeleton className="h-96 w-full rounded-xl" />
+});
 
 interface LinkedOutlet {
   id: string;
@@ -84,12 +108,27 @@ interface SelectorInventory {
   isActive: boolean;
 }
 
+interface RawMaterialItem {
+  id: string;
+  name: string;
+  unit: string;
+  currentStock: string;
+  lowStockAlert: string | null;
+  isActive: boolean;
+}
+
 interface InventoryDetailClientProps {
   inventory: Inventory;
   allInventories: SelectorInventory[];
   activeOutlets: ActiveOutlet[];
   gstSlabs: GstSlab[];
   menuItems: MenuItem[];
+  initialStats?: {
+    totalMaterials: number;
+    lowStockCount: number;
+    totalValuation: string;
+  };
+  initialRawMaterials?: RawMaterialItem[];
   user: {
     id: string;
     role: string;
@@ -103,6 +142,8 @@ export function InventoryDetailClient({
   activeOutlets,
   gstSlabs,
   menuItems,
+  initialStats,
+  initialRawMaterials,
   user
 }: InventoryDetailClientProps) {
   const router = useRouter();
@@ -198,7 +239,7 @@ export function InventoryDetailClient({
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2.5 h-10 px-3 rounded-lg text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
+                    ? "bg-[var(--bg-active)] text-[var(--text-primary)] font-semibold"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
                 }`}
               >
@@ -209,45 +250,49 @@ export function InventoryDetailClient({
           })}
 
           {/* Reports collapsible folder */}
-          <div>
-            <button
-              onClick={() => setIsReportsOpen(prev => !prev)}
-              className="flex items-center justify-between w-full h-10 px-3 rounded-lg text-sm font-medium transition-colors text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-            >
-              <div className="flex items-center gap-2.5">
-                <ClipboardList className="h-4 w-4" />
-                <span>Reports</span>
+          {(() => {
+            return (
+              <div>
+                <button
+                  onClick={() => setIsReportsOpen(prev => !prev)}
+                  className="flex items-center justify-between w-full h-10 px-3 rounded-lg text-sm font-medium transition-colors text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] animate-none"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Folder className="h-4 w-4" />
+                    <span>Reports</span>
+                  </div>
+                  {isReportsOpen ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  )}
+                </button>
+                
+                {isReportsOpen && (
+                  <div className="flex flex-col gap-1 pl-4 mt-1 border-l border-[var(--border-default)] ml-5 animate-none">
+                    {reportsSubTabs.map((subTab) => {
+                      const Icon = subTab.icon;
+                      const isActive = activeTab === subTab.id;
+                      return (
+                        <button
+                          key={subTab.id}
+                          onClick={() => setActiveTab(subTab.id)}
+                          className={`flex items-center gap-2.5 h-9 px-3 rounded-md text-xs font-medium transition-colors ${
+                            isActive
+                              ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
+                              : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                          }`}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          <span>{subTab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              {isReportsOpen ? (
-                <ChevronDown className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5" />
-              )}
-            </button>
-            
-            {isReportsOpen && (
-              <div className="flex flex-col gap-1 pl-4 mt-1 border-l border-[var(--border-default)] ml-5">
-                {reportsSubTabs.map((subTab) => {
-                  const Icon = subTab.icon;
-                  const isActive = activeTab === subTab.id;
-                  return (
-                    <button
-                      key={subTab.id}
-                      onClick={() => setActiveTab(subTab.id)}
-                      className={`flex items-center gap-2.5 h-9 px-3 rounded-md text-xs font-medium transition-colors ${
-                        isActive
-                          ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
-                          : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-                      }`}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      <span>{subTab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Management collapsible folder */}
           {(() => {
@@ -322,81 +367,62 @@ export function InventoryDetailClient({
             );
           })}
 
-          {/* Reports Dropdown Menu for Mobile */}
+          {/* Reports Trigger Pill (Mobile) */}
           {(() => {
-            const activeReport = reportsSubTabs.find(t => t.id === activeTab);
-            const isReportActive = !!activeReport;
+            const isReportsActive = reportsSubTabs.some(t => t.id === activeTab);
             return (
               <DropdownMenu>
-                <DropdownMenuTrigger
-                  className={`flex items-center gap-2.5 h-10 px-3 rounded-lg text-sm font-medium transition-colors border border-[var(--border-default)] ${
-                    isReportActive
-                      ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-                  }`}
-                >
-                  <ClipboardList className="h-4 w-4" />
-                  <span>{isReportActive ? activeReport.label : "Reports"}</span>
-                  <ChevronDown className="h-3.5 w-3.5" />
+                <DropdownMenuTrigger className={`flex items-center gap-2 h-10 px-3 rounded-lg text-sm font-medium transition-colors border-none outline-none ${
+                  isReportsActive ? "bg-[var(--bg-active)] text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                }`}>
+                  <Folder className="h-4 w-4" />
+                  <span>Reports</span>
+                  <ChevronDown className="h-3 w-3 opacity-60" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-white border-[var(--border-default)]">
-                  {reportsSubTabs.map((subTab) => (
-                    <DropdownMenuItem
-                      key={subTab.id}
-                      onClick={() => setActiveTab(subTab.id)}
-                      className={`text-xs font-medium cursor-pointer ${
-                        activeTab === subTab.id ? "bg-[var(--bg-active)]" : ""
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <subTab.icon className="h-3.5 w-3.5" />
+                <DropdownMenuContent align="start">
+                  {reportsSubTabs.map((subTab) => {
+                    const Icon = subTab.icon;
+                    return (
+                      <DropdownMenuItem key={subTab.id} onClick={() => setActiveTab(subTab.id)}>
+                        <Icon className="h-4 w-4 mr-2" />
                         <span>{subTab.label}</span>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
+                      </DropdownMenuItem>
+                    );
+                  })}
                 </DropdownMenuContent>
               </DropdownMenu>
             );
           })()}
 
-          {/* Management Dropdown Menu for Mobile */}
+          {/* Management Trigger Pill (Mobile) */}
           {(() => {
             const visibleMgtSub = managementSubTabs.filter(tab => {
               if (tab.id === "recipes") return hasOutlets;
               if (tab.id === "management") return user.role === "admin";
               return true;
             });
-            const activeMgt = visibleMgtSub.find(t => t.id === activeTab);
-            const isMgtActive = !!activeMgt;
             if (visibleMgtSub.length === 0) return null;
+            const isMgtActive = visibleMgtSub.some(t => t.id === activeTab);
+
             return (
               <DropdownMenu>
-                <DropdownMenuTrigger
-                  className={`flex items-center gap-2.5 h-10 px-3 rounded-lg text-sm font-medium transition-colors border border-[var(--border-default)] ${
-                    isMgtActive
-                      ? "bg-[var(--bg-active)] text-[var(--text-primary)]"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-                  }`}
-                >
+                <DropdownMenuTrigger className={`flex items-center gap-2 h-10 px-3 rounded-lg text-sm font-medium transition-colors border-none outline-none ${
+                  isMgtActive ? "bg-[var(--bg-active)] text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                }`}>
                   <Folder className="h-4 w-4" />
-                  <span>{isMgtActive ? activeMgt.label : "Management"}</span>
-                  <ChevronDown className="h-3.5 w-3.5" />
+                  <span>Management</span>
+                  <ChevronDown className="h-3 w-3 opacity-60" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-white border-[var(--border-default)]">
-                  {visibleMgtSub.map((subTab) => (
-                    <DropdownMenuItem
-                      key={subTab.id}
-                      onClick={() => setActiveTab(subTab.id)}
-                      className={`text-xs font-medium cursor-pointer ${
-                        activeTab === subTab.id ? "bg-[var(--bg-active)]" : ""
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <subTab.icon className="h-3.5 w-3.5" />
+                <DropdownMenuContent align="start">
+                  {visibleMgtSub.map((subTab) => {
+                    const Icon = subTab.icon;
+                    return (
+                      <DropdownMenuItem key={subTab.id} onClick={() => setActiveTab(subTab.id)}>
+                        <Icon className="h-4 w-4 mr-2" />
                         <span>{subTab.label}</span>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
+                      </DropdownMenuItem>
+                    );
+                  })}
                 </DropdownMenuContent>
               </DropdownMenu>
             );
@@ -411,6 +437,8 @@ export function InventoryDetailClient({
               activeOutlets={activeOutlets}
               userRole={user.role}
               onUpdateInventory={setCurrentInventory}
+              initialStats={initialStats}
+              initialRawMaterials={initialRawMaterials}
             />
           )}
           {activeTab === "raw-materials" && (
