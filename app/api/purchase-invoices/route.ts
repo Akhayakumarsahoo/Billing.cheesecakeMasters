@@ -220,7 +220,7 @@ export async function POST(req: Request) {
 
       return invoice;
     }, {
-      timeout: 30000
+      timeout: 15000
     });
 
     return NextResponse.json({ data: savedInvoice }, { status: 201 });

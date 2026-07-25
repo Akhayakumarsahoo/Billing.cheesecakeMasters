@@ -22,34 +22,9 @@ export function CustomSignInForm() {
     }
   }, [clerk.loaded, clerk.user, router]);
 
-  // If user is already authenticated, show signed in state with navigation & sign out actions
+  // If user is already authenticated, redirect directly without intermediate screen
   if (clerk.loaded && clerk.user) {
-    const userEmail = clerk.user.primaryEmailAddress?.emailAddress || clerk.user.fullName || "your account";
-    return (
-      <div className="w-full max-w-md p-8 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-sm text-center">
-        <h1 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-          You&apos;re already signed in.
-        </h1>
-        <p className="text-xs text-[var(--text-secondary)] mb-6">
-          Signed in as <span className="font-medium text-[var(--text-primary)]">{userEmail}</span>
-        </p>
-        <div className="flex flex-col gap-2.5">
-          <Button
-            onClick={() => router.push("/")}
-            className="w-full h-10 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white text-sm font-medium rounded-md transition-colors cursor-pointer select-none"
-          >
-            Go to Dashboard
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => clerk.signOut(() => router.push("/sign-in"))}
-            className="w-full h-10 border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-raised)] text-sm font-medium rounded-md transition-colors cursor-pointer select-none"
-          >
-            Sign Out
-          </Button>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

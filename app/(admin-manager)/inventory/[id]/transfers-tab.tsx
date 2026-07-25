@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Search, ArrowLeftRight, X, AlertTriangle, Eye, Edit2, Ban, Check, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,7 @@ interface TransfersTabProps {
 }
 
 export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
+  const router = useRouter();
   const [transfers, setTransfers] = useState<StockTransfer[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -522,14 +524,9 @@ export function TransfersTab({ inventoryId, userRole }: TransfersTabProps) {
         {isAllowed && t.status === "pending" && (
           <div className="flex gap-3 justify-end">
             {!isOutbound ? (
-              <>
-                <Button onClick={() => handleUpdateStatus(t.id, "accepted")} className="bg-green-600 hover:bg-green-700 text-white font-medium h-10 px-4 rounded-md">
-                  Accept Transfer
-                </Button>
-                <Button onClick={() => handleUpdateStatus(t.id, "rejected")} variant="outline" className="border-red-600 text-red-600 hover:bg-red-50 font-medium h-10 px-4 rounded-md">
-                  Reject Transfer
-                </Button>
-              </>
+              <Button onClick={() => router.push(`/transfers/${t.id}/review`)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-10 px-4 rounded-md cursor-pointer">
+                Review & Respond
+              </Button>
             ) : (
               <Button onClick={() => handleUpdateStatus(t.id, "cancelled")} variant="outline" className="border-red-600 text-red-600 hover:bg-red-50 font-medium h-10 px-4 rounded-md">
                 Cancel Transfer

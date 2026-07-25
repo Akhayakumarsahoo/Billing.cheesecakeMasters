@@ -41,11 +41,14 @@ self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
 
   // 1. Bypass logic
-  // Bypass hot-module reloading and Webpack socket connections
+  // Bypass development environment, hot-module reloading, and Webpack socket connections
   if (
+    requestUrl.hostname === 'localhost' ||
+    requestUrl.hostname === '127.0.0.1' ||
     requestUrl.pathname.includes('webpack-hmr') ||
     requestUrl.pathname.includes('_next/webpack-hmr') ||
-    requestUrl.pathname.includes('hot-update')
+    requestUrl.pathname.includes('hot-update') ||
+    requestUrl.pathname.startsWith('/_next/static/chunks/app/')
   ) {
     return;
   }

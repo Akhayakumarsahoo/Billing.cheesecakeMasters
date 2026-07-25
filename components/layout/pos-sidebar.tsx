@@ -50,10 +50,20 @@ export function PosSidebar() {
         })}
       </nav>
 
-      <div className="p-3 border-t border-[var(--border-default)]">
+      <div className="p-3 border-t border-[var(--border-default)] space-y-2">
+        <div className="p-3 rounded-lg bg-[var(--bg-surface-raised)] border border-[var(--border-default)] text-xs">
+          <p className="text-[var(--text-secondary)] font-medium">Need help? Give us a call</p>
+          <a
+            href="tel:+917609083736"
+            className="text-[var(--text-primary)] font-bold font-mono hover:underline mt-1 block"
+          >
+            +91-7609083736
+          </a>
+        </div>
+
         <button
           onClick={() => signOut({ redirectUrl: '/sign-in' })}
-          className="flex w-full items-center gap-3 px-3 h-10 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors"
+          className="flex w-full items-center gap-3 px-3 h-10 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
         >
           <LogOut className="h-5 w-5" strokeWidth={1.5} />
           Sign Out

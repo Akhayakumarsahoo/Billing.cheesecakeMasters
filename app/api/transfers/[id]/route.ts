@@ -55,6 +55,7 @@ export async function GET(
       toInventoryId: transfer.toInventoryId,
       toInventoryName: transfer.toInventory.name,
       status: transfer.status,
+      createdAt: transfer.createdAt.toISOString(),
       subtotal: transfer.subtotal.toString(),
       totalGst: transfer.totalGst.toString(),
       otherCharges: transfer.otherCharges.toString(),
@@ -188,7 +189,7 @@ export async function PATCH(
               sentAt: transfer.createdAt
             }
           });
-        }, { timeout: 30000 });
+        }, { timeout: 15000 });
 
         return NextResponse.json({ data: pendingTransfer }, { status: 200 });
       }
@@ -334,7 +335,7 @@ export async function PATCH(
               acceptedById: user.id
             }
           });
-        }, { timeout: 30000 });
+        }, { timeout: 15000 });
 
         return NextResponse.json({ data: acceptedTransfer }, { status: 200 });
       }
@@ -383,7 +384,7 @@ export async function PATCH(
               rejectedById: user.id
             }
           });
-        }, { timeout: 30000 });
+        }, { timeout: 15000 });
 
         return NextResponse.json({ data: rejectedTransfer }, { status: 200 });
       }
@@ -433,7 +434,7 @@ export async function PATCH(
               cancelledAt: new Date()
             }
           });
-        }, { timeout: 30000 });
+        }, { timeout: 15000 });
 
         return NextResponse.json({ data: cancelledTransfer }, { status: 200 });
       }
@@ -589,7 +590,7 @@ export async function PATCH(
       }
 
       return updated;
-    }, { timeout: 30000 });
+    }, { timeout: 15000 });
 
     return NextResponse.json({ data: updatedTransfer }, { status: 200 });
   } catch (error: any) {

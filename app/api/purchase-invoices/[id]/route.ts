@@ -166,7 +166,7 @@ export async function PATCH(
           }
 
           return updated;
-        }, { timeout: 30000 });
+        }, { timeout: 15000 });
 
         return NextResponse.json({ data: confirmedInvoice }, { status: 200 });
       }
@@ -209,7 +209,7 @@ export async function PATCH(
           }
 
           return updated;
-        }, { timeout: 30000 });
+        }, { timeout: 15000 });
 
         return NextResponse.json({ data: cancelledInvoice }, { status: 200 });
       }
@@ -378,7 +378,7 @@ export async function PATCH(
       }
 
       return updated;
-    }, { timeout: 30000 });
+    }, { timeout: 15000 });
 
     return NextResponse.json({ data: updatedInvoice }, { status: 200 });
   } catch (error: any) {

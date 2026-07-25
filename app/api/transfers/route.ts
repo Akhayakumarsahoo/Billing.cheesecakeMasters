@@ -275,7 +275,7 @@ export async function POST(req: Request) {
 
         return transfer;
       },
-      { timeout: 30000 },
+      { timeout: 15000 },
     );
 
     return NextResponse.json({ data: savedTransfer }, { status: 201 });

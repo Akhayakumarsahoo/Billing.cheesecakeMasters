@@ -841,14 +841,24 @@ export function BillBuilder({
       <div className="lg:hidden fixed bottom-20 right-4 z-40">
         <Drawer open={isCartDrawerOpen} onOpenChange={setIsCartDrawerOpen}>
           <DrawerTrigger asChild>
-            <Button className="h-16 w-16 rounded-full bg-[var(--accent-primary)] text-white shadow-lg flex flex-col items-center justify-center relative hover:bg-[var(--accent-primary-hover)] border border-[var(--border-subtle)]">
-              <ShoppingBag className="h-6 w-6" />
-              {totalQuantity > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white border-2 border-white">
-                  {totalQuantity}
+            {totalQuantity > 0 ? (
+              <Button className="h-14 px-4 rounded-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white shadow-xl flex items-center gap-3 border border-[var(--border-subtle)] cursor-pointer select-none transition-all animate-in fade-in zoom-in-95">
+                <div className="relative flex items-center justify-center">
+                  <ShoppingBag className="h-5 w-5" />
+                  <span className="absolute -top-2 -right-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-[var(--accent-primary)]">
+                    {totalQuantity}
+                  </span>
+                </div>
+                <span className="text-xs font-medium pl-1">View Cart</span>
+                <span className="text-xs font-bold font-mono bg-white/20 px-2 py-1 rounded-md">
+                  ₹{totals.grandTotal.toLocaleString("en-IN")}
                 </span>
-              )}
-            </Button>
+              </Button>
+            ) : (
+              <Button className="h-14 w-14 rounded-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white shadow-lg flex items-center justify-center relative border border-[var(--border-subtle)] cursor-pointer select-none transition-all">
+                <ShoppingBag className="h-6 w-6" />
+              </Button>
+            )}
           </DrawerTrigger>
           <DrawerContent className="h-[85vh] p-0 flex flex-col focus-visible:outline-none">
             <DrawerHeader className="hidden">

@@ -7,9 +7,24 @@ export default function PWARegister() {
   useEffect(() => {
     if (
       typeof window !== 'undefined' &&
-      'serviceWorker' in navigator &&
-      (window as any).workbox === undefined // Avoid duplicate registrations in dev tools if multiple run
+      'serviceWorker' in navigator
     ) {
+      // Do not activate service worker caching in development / localhost mode
+      if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister();
+          }
+        });
+        if ('caches' in window) {
+          caches.keys().then((keys) => {
+            keys.forEach((key) => caches.delete(key));
+          });
+        }
+        return;
+      }
+
+      if ((window as any).workbox !== undefined) return;
       // Register service worker on window load
       const handleLoad = () => {
         navigator.serviceWorker

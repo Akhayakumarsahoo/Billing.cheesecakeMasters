@@ -30,6 +30,10 @@ export function OutletSelector({ outlets }: OutletSelectorProps) {
         setCurrentOutletId(parts[2]);
         localStorage.setItem("selectedOutletId", parts[2]);
       }
+    } else if (pathname === "/dashboard" || pathname === "/") {
+      // Always default to All Outlets dashboard on login / home navigation
+      setCurrentOutletId("all");
+      localStorage.removeItem("selectedOutletId");
     } else {
       // Preserve persisted outlet selection on global pages (like /more, /inventory, /users)
       const savedOutletId = localStorage.getItem("selectedOutletId");

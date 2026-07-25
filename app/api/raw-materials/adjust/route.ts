@@ -118,7 +118,7 @@ export async function POST(req: Request) {
 
       return updatedMaterials;
     }, {
-      timeout: 30000 // 30s timeout to handle batch updates safely
+      timeout: 15000 // 15s max timeout for Prisma Accelerate interactive transactions
     });
 
     return NextResponse.json({ data: { updatedCount: results.length } }, { status: 200 });

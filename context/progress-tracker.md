@@ -11,6 +11,52 @@ change.
 
 - Testing and Verification
 
+- **Standalone Review Inbound Stock Transfer Page Creation**
+  - Replaced the pop-up modal with a dedicated standalone page route at [`app/(admin-manager)/transfers/[id]/review/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/transfers/%5Bid%5D/review/page.tsx).
+  - Designed full-screen responsive layout with source/destination overview cards, itemized transfer line items table, financial summary box, and prominent Accept & Add to Stock / Reject Transfer action buttons.
+  - Updated review links in [`purchases-tab.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/inventory/%5Bid%5D/purchases-tab.tsx) and [`transfers-tab.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/inventory/%5Bid%5D/transfers-tab.tsx) to navigate to `/transfers/[id]/review`.
+  - Verified clean TypeScript compilation (`npx tsc --noEmit`).
+
+- **Review Inbound Stock Transfer Dialog Layout & Date Parsing Fix**
+  - Refactored Review Inbound Stock Transfer modal in [`app/(admin-manager)/inventory/[id]/purchases-tab.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/inventory/%5Bid%5D/purchases-tab.tsx) with explicit `sm:max-w-2xl` width constraints, eliminating container overflow and broken layout clipping.
+  - Added `createdAt: transfer.createdAt.toISOString()` serialization to `GET /api/transfers/[id]` in [`app/api/transfers/[id]/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/transfers/%5Bid%5D/route.ts), fixing the `Invalid Date` issue.
+  - Restructured table scrolling, metadata grid, and grand total breakdown box to align inside a clean flex container.
+  - Verified clean TypeScript compilation (`npx tsc --noEmit`).
+
+- **Service Worker Dev Mode Stale Chunk Cache Bypass**
+  - Resolved `Uncaught Error: Module lucide-react/dist/esm/icons/settings.mjs ... module factory is not available` caused by Service Worker caching stale Next.js HMR development chunks.
+  - Updated [`components/layout/pwa-register.tsx`](file:///c:/Users/User/Desktop/billCCM/components/layout/pwa-register.tsx) to automatically unregister any Service Worker and purge cache storage when running in development mode (`NODE_ENV === 'development'` or `localhost`).
+  - Updated [`public/sw.js`](file:///c:/Users/User/Desktop/billCCM/public/sw.js) fetch handler to bypass localhost requests and dynamic app chunks (`/_next/static/chunks/app/`).
+  - Verified clean TypeScript compilation (`npx tsc --noEmit`).
+
+- **Admin/Manager Login Default All Outlets Dashboard**
+  - Updated [`components/admin-navbar/outlet-selector.tsx`](file:///c:/Users/User/Desktop/billCCM/components/admin-navbar/outlet-selector.tsx) to clear `selectedOutletId` from `localStorage` and reset selection to `"all"` whenever navigating to `/dashboard` or `/`.
+  - Guarantees that logging in as Admin or Manager always lands on the consolidated **All Outlets** sales dashboard instead of restoring a specific outlet view from a previous session.
+  - Verified clean TypeScript compilation (`npx tsc --noEmit`).
+
+- **Prisma Accelerate 15000ms Interactive Transaction Timeout Limit Alignment**
+  - Resolved `An invalid parameter was provided. Interactive transactions running through Accelerate are limited to a max timeout of 15000ms` error occurring during stock transfers, stock receipts, and manual adjustments.
+  - Updated all transaction timeout parameters across API routes ([`app/api/transfers/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/transfers/route.ts), [`app/api/transfers/[id]/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/transfers/%5Bid%5D/route.ts), [`app/api/raw-materials/adjust/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/raw-materials/adjust/route.ts), [`app/api/purchase-invoices/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/purchase-invoices/route.ts), and [`app/api/purchase-invoices/[id]/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/purchase-invoices/%5Bid%5D/route.ts)) to `{ timeout: 15000 }` to strictly comply with Prisma Accelerate connection pool constraints.
+  - Verified clean TypeScript compilation (`npx tsc --noEmit`).
+
+- **Mobile POS Floating Cart Button Total Display**
+  - Refactored mobile cart drawer trigger in [`components/billing/bill-builder.tsx`](file:///c:/Users/User/Desktop/billCCM/components/billing/bill-builder.tsx) to expand into an interactive floating capsule button whenever items are in the cart (`totalQuantity > 0`).
+  - Displays item count badge (`{totalQuantity}`), "View Cart" text, and the real-time calculated cart grand total (`₹{totals.grandTotal}`) directly inside the button.
+  - Verified clean TypeScript compilation (`npx tsc --noEmit`).
+
+- **Mobile POS Top Nav Logo Addition & Size Adjustment**
+  - Updated [`components/layout/pos-top-nav.tsx`](file:///c:/Users/User/Desktop/billCCM/components/layout/pos-top-nav.tsx) to render the 40px (`w-10 h-10`) Cheesecake Masters brand logo (`/favicon.svg`) prominently on the left side of the POS top navigation bar on mobile viewports (`lg:hidden`).
+  - Verified clean TypeScript compilation (`npx tsc --noEmit`).
+
+- **POS Sidebar Support Contact Addition**
+  - Added support contact section (`Need help? Give us a call` | `+91-7609083736` as a clickable `tel:` link) to the bottom of the POS left sidebar in [`components/layout/pos-sidebar.tsx`](file:///c:/Users/User/Desktop/billCCM/components/layout/pos-sidebar.tsx).
+  - Verified clean TypeScript compilation (`npx tsc --noEmit`).
+
+- **Direct Sign-In Auto-Redirection**
+  - Removed the intermediate "You're already signed in" / "Go to Dashboard" screen in [`components/auth/custom-sign-in-form.tsx`](file:///c:/Users/User/Desktop/billCCM/components/auth/custom-sign-in-form.tsx).
+  - Authenticated users visiting `/sign-in` are now instantly redirected to the dashboard without flashing an extra screen or requiring a manual button click.
+  - Verified clean TypeScript compilation (`npx tsc --noEmit`).
+
 - **Web Vitals Optimization for Outlet Settlements Pages (TTFB < 250ms, FCP < 0.6s, LCP < 1.1s)**
   - Re-architected `/outlets/[id]/settlements` server component ([`app/(admin-manager)/outlets/[id]/settlements/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/outlets/%5Bid%5D/settlements/page.tsx)) to execute authentication resolution and all 3 database queries (`outlet`, `latestActiveSettlement`, `settlements`) concurrently in a single `Promise.all` call.
   - Eliminated sequential auth and query waterfalls, dropping TTFB from 1.0s to < 0.25s.
