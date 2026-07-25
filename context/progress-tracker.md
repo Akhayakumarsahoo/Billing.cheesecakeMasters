@@ -11,6 +11,12 @@ change.
 
 - Testing and Verification
 
+- **Prisma Accelerate Connection Pooling & Query Performance Integration**
+  - Installed `@prisma/extension-accelerate` dependency and integrated Accelerate client extension into `lib/db.ts`.
+  - Configured `DATABASE_URL` in `.env` and `.env.local` to use the high-performance Prisma Accelerate edge connection string (`prisma+postgres://accelerate.prisma-data.net/...`) to eliminate TCP connection handshakes and query latency on Vercel Serverless cold starts.
+  - Retained `DIRECT_DATABASE_URL` for CLI migrations in `prisma.config.ts`.
+  - Re-generated Prisma client (`npx prisma generate`), verified clean TypeScript compilation (`npx tsc --noEmit`), and verified Next.js production build (`npm run build`).
+
 - **All Outlet Sales Dashboard UI & Layout Update**
   - Updated top metric cards grid to 4 cards (`grid-cols-2 lg:grid-cols-4`): Total Revenue, Total Bills, Total GST, Total Discount. Removed Cash Drawer Balance and Total Walkaways summary cards from top grid.
   - Added `"i"` (Info) icon button to Total Revenue card using `Popover` (`PopoverPrimitive.Portal`), rendering the payment breakdown dropdown menu into document root to escape Card `overflow-hidden` bounds. Removed standalone Payment Breakdown card.
