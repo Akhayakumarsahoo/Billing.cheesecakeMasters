@@ -355,6 +355,10 @@ export async function POST(req: Request) {
             throw new Error("No active user found in the database to associate with stock movement");
           }
 
+          // Batch collect all stock movements and aggregate quantity adjustments per raw material
+          const movementsToCreate: any[] = [];
+          const stockAdjustmentsMap = new Map<string, Decimal>();
+
           for (const li of finalBillRecord.lineItems) {
             if (!li.menuItemId) continue;
             for (const invOutlet of linkedInventories) {
@@ -363,21 +367,42 @@ export async function POST(req: Request) {
               
               for (const rLine of recipe.lines) {
                 const change = rLine.quantityPerUnit.mul(li.quantity);
-                await tx.stockMovement.create({
-                  data: {
-                    inventoryId: invOutlet.inventoryId,
-                    rawMaterialId: rLine.rawMaterialId,
-                    movementType: "consumption",
-                    referenceType: "bill",
-                    referenceId: finalBillRecord.id,
-                    quantityChange: change.negated(),
-                    createdById,
-                    note: `Auto-consumption for bill ${finalBillRecord.billNumber}`
-                  }
+                const quantityChange = change.negated();
+
+                movementsToCreate.push({
+                  inventoryId: invOutlet.inventoryId,
+                  rawMaterialId: rLine.rawMaterialId,
+                  movementType: "consumption",
+                  referenceType: "bill",
+                  referenceId: finalBillRecord.id,
+                  quantityChange,
+                  createdById,
+                  note: `Auto-consumption for bill ${finalBillRecord.billNumber}`,
                 });
-                await adjustStock(rLine.rawMaterialId, change.negated(), tx);
+
+                const existing = stockAdjustmentsMap.get(rLine.rawMaterialId) || new Decimal(0);
+                stockAdjustmentsMap.set(rLine.rawMaterialId, existing.plus(quantityChange));
               }
             }
+          }
+
+          if (movementsToCreate.length > 0) {
+            await tx.stockMovement.createMany({
+              data: movementsToCreate,
+            });
+
+            await Promise.all(
+              Array.from(stockAdjustmentsMap.entries()).map(([rawMaterialId, quantityChange]) =>
+                tx.rawMaterial.update({
+                  where: { id: rawMaterialId },
+                  data: {
+                    currentStock: {
+                      increment: quantityChange,
+                    },
+                  },
+                })
+              )
+            );
           }
         }
       }
@@ -388,7 +413,10 @@ export async function POST(req: Request) {
     });
 
     if (finalBill && finalBill.completedAt) {
-      await syncSettlementForDate(finalBill.outletId, finalBill.completedAt);
+      // Execute settlement sync asynchronously without blocking checkout response
+      syncSettlementForDate(finalBill.outletId, finalBill.completedAt).catch((err) =>
+        console.error("Async settlement sync failed:", err)
+      );
     }
 
     if (!finalBill) {

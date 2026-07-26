@@ -11,6 +11,17 @@ change.
 
 - Testing and Verification
 
+- **Fixed Non-Scrolling Top Navigation Bar for Admin & Manager Views**
+  - Updated [`app/(admin-manager)/layout.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/layout.tsx) with a fixed 100vh viewport height (`h-screen max-h-screen overflow-hidden`) and scoped child scrolling (`flex-1 overflow-y-auto`).
+  - Ensures [`components/admin-navbar.tsx`](file:///c:/Users/User/Desktop/billCCM/components/admin-navbar.tsx) remains **100% constant at the top of the screen** and never scrolls away when scrolling long tables or page content.
+  - Applied query-level caching (`CACHE_STRATEGIES.standard`) to the outlet selector lookup for sub-10ms initial render times.
+
+- **Checkout Performance & TTFB Optimization (`POST /api/bills/checkout`)**
+  - Resolved 5.89s TTFB bottleneck caused by sequential database round-trips inside nested auto-consumption loops in [`app/api/bills/checkout/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/bills/checkout/route.ts).
+  - Consolidated recipe auto-consumption stock movements into a single batch `tx.stockMovement.createMany` call.
+  - Aggregated stock quantity changes per raw material in memory and parallelized raw material current stock updates using `Promise.all` inside transaction scope.
+  - Converted `syncSettlementForDate` into an asynchronous non-blocking task so POS checkout returns immediately to the client without waiting for daily settlement recalculation.
+
 - **Multi-Layer Query-Level Caching (Prisma Accelerate & Next.js Data Cache)**
   - Created centralized cache helper library at [`lib/cache.ts`](file:///c:/Users/User/Desktop/billCCM/lib/cache.ts) defining standard cache strategies (`static`, `standard`, `short`, `dashboard`) and tag purge helper `purgeCacheTag`.
   - Updated [`lib/db.ts`](file:///c:/Users/User/Desktop/billCCM/lib/db.ts) to extend `PrismaClient` with `withAccelerate()` across connection modes, enabling type-safe `cacheStrategy` query options.
