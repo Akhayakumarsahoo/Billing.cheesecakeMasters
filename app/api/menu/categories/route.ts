@@ -1,6 +1,8 @@
 import { getCurrentUser, getCurrentOutlet } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { CreateCategorySchema } from "@/lib/validators";
+import { CACHE_STRATEGIES, purgeCacheTag } from "@/lib/cache";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
@@ -27,12 +29,13 @@ export async function GET(req: Request) {
       );
     }
 
-    const categories = await prisma.menuCategory.findMany({
+    const categories = await (prisma.menuCategory.findMany as any)({
       where: { outletId, isActive: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      cacheStrategy: CACHE_STRATEGIES.standard,
     });
 
-    const serialized = categories.map((c) => ({
+    const serialized = categories.map((c: any) => ({
       ...c,
       createdAt: c.createdAt.toISOString(),
     }));
@@ -96,6 +99,8 @@ export async function POST(req: Request) {
         isActive: true,
       },
     });
+
+    purgeCacheTag("categories");
 
     return NextResponse.json({ data: category }, { status: 201 });
   } catch (error: any) {

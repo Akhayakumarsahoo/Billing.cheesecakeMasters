@@ -1,7 +1,9 @@
 import { getCurrentUser, getCurrentOutlet, requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { DashboardQuerySchema } from "@/lib/validators";
 import { parseDateRange } from "@/lib/utils";
+import { CACHE_STRATEGIES } from "@/lib/cache";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
@@ -37,7 +39,7 @@ export async function GET(req: Request) {
       where.completedAt = { gte: start, lte: end };
     }
 
-    const aggregations = await prisma.bill.aggregate({
+    const aggregations = (await (prisma.bill.aggregate as any)({
       where,
       _count: { id: true },
       _sum: {
@@ -46,7 +48,8 @@ export async function GET(req: Request) {
         totalSgst: true,
         totalGst: true,
       },
-    });
+      cacheStrategy: CACHE_STRATEGIES.dashboard,
+    })) as any;
 
     return NextResponse.json({
       data: {

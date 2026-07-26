@@ -1,5 +1,7 @@
 import { getCurrentOutlet } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
+import { CACHE_STRATEGIES } from "@/lib/cache";
 import {
   BillBuilder,
   SerializedMenuItem,
@@ -10,13 +12,14 @@ export default async function PosPage() {
   const outlet = await getCurrentOutlet();
   if (!outlet) return null;
 
-  const categories = await prisma.menuCategory.findMany({
+  const categories = await (prisma.menuCategory.findMany as any)({
     where: { outletId: outlet.id, isActive: true },
     orderBy: { sortOrder: "asc" },
     select: { id: true, name: true, sortOrder: true },
+    cacheStrategy: CACHE_STRATEGIES.standard,
   });
 
-  const menuItems = await prisma.menuItem.findMany({
+  const menuItems = (await (prisma.menuItem.findMany as any)({
     where: { outletId: outlet.id, isActive: true },
     select: {
       id: true,
@@ -30,11 +33,20 @@ export default async function PosPage() {
           rate: true
         }
       }
-    }
-  });
+    },
+    cacheStrategy: CACHE_STRATEGIES.standard,
+  })) as Array<{
+    id: string;
+    name: string;
+    sku: string | null;
+    basePrice: any;
+    unit: string;
+    categoryId: string;
+    gstSlab: { rate: any };
+  }>;
 
   // Serialize Decimal values to strings before passing to the client component
-  const serializedCategories: SerializedCategory[] = categories.map((c) => ({
+  const serializedCategories: SerializedCategory[] = categories.map((c: any) => ({
     id: c.id,
     name: c.name,
     sortOrder: c.sortOrder,

@@ -1,6 +1,7 @@
 import { requireAuth, invalidateAuthCache } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { UpdateOutletSchema } from "@/lib/validators";
+import { purgeCacheTag } from "@/lib/cache";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -77,6 +78,7 @@ export async function PATCH(
     });
 
     invalidateAuthCache(outlet.clerkUserId);
+    purgeCacheTag("outlets");
 
     return NextResponse.json({ data: updated }, { status: 200 });
   } catch (error: any) {

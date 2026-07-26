@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { CreateUserSchema } from "@/lib/validators";
+import { CACHE_STRATEGIES, purgeCacheTag } from "@/lib/cache";
 import { clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
@@ -20,12 +22,13 @@ export async function GET(req: Request) {
     const where: any = {};
     if (role) where.role = role;
 
-    const users = await prisma.user.findMany({
+    const users = await (prisma.user.findMany as any)({
       where,
       orderBy: { createdAt: "desc" },
+      cacheStrategy: CACHE_STRATEGIES.short,
     });
 
-    const serialized = users.map((u) => {
+    const serialized = users.map((u: any) => {
       const { clerkUserId, ...rest } = u;
       return {
         ...rest,
@@ -111,6 +114,7 @@ export async function POST(req: Request) {
       });
 
       const { clerkUserId, ...rest } = dbUser;
+      purgeCacheTag("users");
       return NextResponse.json({ data: rest }, { status: 201 });
     } catch (dbError) {
       // Rollback Clerk user

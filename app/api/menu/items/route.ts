@@ -1,6 +1,8 @@
 import { getCurrentUser, getCurrentOutlet } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { CreateMenuItemSchema } from "@/lib/validators";
+import { CACHE_STRATEGIES, purgeCacheTag } from "@/lib/cache";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
@@ -38,7 +40,7 @@ export async function GET(req: Request) {
       ];
     }
 
-    const items = await prisma.menuItem.findMany({
+    const items = (await (prisma.menuItem.findMany as any)({
       where,
       include: {
         category: { select: { id: true, name: true, sortOrder: true } },
@@ -48,7 +50,8 @@ export async function GET(req: Request) {
         { category: { sortOrder: "asc" } },
         { name: "asc" },
       ],
-    });
+      cacheStrategy: CACHE_STRATEGIES.standard,
+    })) as Array<any>;
 
     const serialized = items.map((item) => ({
       ...item,
@@ -127,6 +130,8 @@ export async function POST(req: Request) {
         gstSlab: { select: { id: true, rate: true, label: true } },
       }
     });
+
+    purgeCacheTag("items");
 
     return NextResponse.json({
       data: {

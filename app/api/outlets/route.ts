@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { CreateOutletSchema } from "@/lib/validators";
+import { CACHE_STRATEGIES, purgeCacheTag } from "@/lib/cache";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -13,12 +15,13 @@ export async function GET() {
       );
     }
 
-    const outlets = await prisma.outlet.findMany({
+    const outlets = await (prisma.outlet.findMany as any)({
       orderBy: { createdAt: "asc" },
+      cacheStrategy: CACHE_STRATEGIES.standard,
     });
 
     // Serialize dates to string
-    const serialized = outlets.map((o) => ({
+    const serialized = outlets.map((o: any) => ({
       ...o,
       createdAt: o.createdAt.toISOString(),
     }));
@@ -127,6 +130,8 @@ export async function POST(req: Request) {
       }
       throw dbError;
     }
+
+    purgeCacheTag("outlets");
 
     return NextResponse.json({ data: outlet }, { status: 201 });
   } catch (error: any) {

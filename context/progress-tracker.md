@@ -11,6 +11,14 @@ change.
 
 - Testing and Verification
 
+- **Multi-Layer Query-Level Caching (Prisma Accelerate & Next.js Data Cache)**
+  - Created centralized cache helper library at [`lib/cache.ts`](file:///c:/Users/User/Desktop/billCCM/lib/cache.ts) defining standard cache strategies (`static`, `standard`, `short`, `dashboard`) and tag purge helper `purgeCacheTag`.
+  - Updated [`lib/db.ts`](file:///c:/Users/User/Desktop/billCCM/lib/db.ts) to extend `PrismaClient` with `withAccelerate()` across connection modes, enabling type-safe `cacheStrategy` query options.
+  - Implemented query-level caching on POS catalog lookups ([`app/pos/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/pos/page.tsx), [`app/api/menu/categories/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/menu/categories/route.ts), [`app/api/menu/items/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/menu/items/route.ts)) with 5-minute TTL and instant cache invalidation on admin CRUD operations.
+  - Implemented query caching for reference listings ([`app/api/outlets/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/outlets/route.ts), [`app/api/users/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/users/route.ts)) with tag purging on mutations.
+  - Implemented 60-second SWR query caching on sales dashboard summary aggregates ([`app/api/dashboard/summary/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/dashboard/summary/route.ts)).
+  - Preserved transactional invariants: real-time stock balances, bill completion, stock transfers, and daily settlements remain strictly un-cached.
+
 - **Sales Data Consistency & Order History Summary Fix (Option A)**
   - Standardized date filtering across Order History ([`app/pos/orders/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/pos/orders/page.tsx) and [`app/(admin-manager)/outlets/[id]/orders/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/outlets/%5Bid%5D/orders/page.tsx)) using `completedAt` (falling back to `createdAt` for drafts) in local IST time (`parseDateRange`).
   - Added Net Billed Sales summary banner displaying printed revenue matching Sales Summary and Dashboard, plus cancelled bills total explicitly marked as excluded.

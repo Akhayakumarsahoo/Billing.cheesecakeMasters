@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { UpdateMenuItemSchema } from "@/lib/validators";
+import { purgeCacheTag } from "@/lib/cache";
 import { NextResponse } from "next/server";
 
 export async function PATCH(
@@ -55,6 +56,8 @@ export async function PATCH(
       }
     });
 
+    purgeCacheTag("items");
+
     return NextResponse.json({
       data: {
         ...updated,
@@ -102,6 +105,8 @@ export async function DELETE(
       where: { id },
       data: { isActive: false },
     });
+
+    purgeCacheTag("items");
 
     return NextResponse.json({
       data: {

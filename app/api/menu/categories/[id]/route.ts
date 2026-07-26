@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { UpdateCategorySchema } from "@/lib/validators";
+import { purgeCacheTag } from "@/lib/cache";
 import { NextResponse } from "next/server";
 
 export async function PATCH(
@@ -39,6 +40,8 @@ export async function PATCH(
       where: { id },
       data: result.data,
     });
+
+    purgeCacheTag("categories");
 
     return NextResponse.json({ data: updated }, { status: 200 });
   } catch (error: any) {
@@ -94,6 +97,8 @@ export async function DELETE(
       where: { id },
       data: { isActive: false },
     });
+
+    purgeCacheTag("categories");
 
     return NextResponse.json({ data: deleted }, { status: 200 });
   } catch (error: any) {
