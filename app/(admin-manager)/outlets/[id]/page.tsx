@@ -139,7 +139,7 @@ export default async function OutletDashboardPage({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <StatCard
           icon={IndianRupee}
-          label="Total Revenue"
+          label="Total Sales"
           value={`₹${formatINR(totalRevenue.toNumber())}`}
           subtext="Selected date range"
         />

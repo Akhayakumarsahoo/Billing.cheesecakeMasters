@@ -367,7 +367,9 @@ export function BillBuilder({
               quantity: item.quantity,
             };
       }),
-      payments: payments.filter((p) => p.amount > 0),
+      payments: payments.filter((p) => p.amount > 0).length > 0
+        ? payments.filter((p) => p.amount > 0)
+        : [{ mode: payments[0]?.mode || selectedPaymentMode || "cash", amount: 0 }],
       discountType: backupDiscountType || undefined,
       discountValue: backupDiscountValue > 0 ? backupDiscountValue : undefined,
       discountReason: backupDiscountReason || undefined,

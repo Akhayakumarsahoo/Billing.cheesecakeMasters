@@ -11,6 +11,31 @@ change.
 
 - Testing and Verification
 
+- **Password Visibility Eye Toggle on Sign-In Page**
+  - Added an eye toggle button (`Eye` / `EyeOff` from `lucide-react`) inside the password field of the custom sign-in form ([`components/auth/custom-sign-in-form.tsx`](file:///c:/Users/User/Desktop/billCCM/components/auth/custom-sign-in-form.tsx)).
+  - Allows users to seamlessly switch between hidden (`••••••••`) and visible text mode on demand.
+
+- **100% Discount & Zero-Total Checkout Bug Fix**
+  - Resolved "Fail to save bill invalid input" error when completing bills with a 100% discount or ₹0 grand total.
+  - Updated `CheckoutBillSchema` and `UpdateLineItemSchema` in [`lib/validators/index.ts`](file:///c:/Users/User/Desktop/billCCM/lib/validators/index.ts) from `z.number().positive()` to `z.number().nonnegative()` to allow ₹0 payment amounts.
+  - Fixed frontend checkout payload generation in [`components/billing/bill-builder.tsx`](file:///c:/Users/User/Desktop/billCCM/components/billing/bill-builder.tsx) to preserve a ₹0 payment entry (`[{ mode: "cash", amount: 0 }]`) when grand total is 0 instead of stripping all payments to an empty array (`[]`).
+  - Updated `PaymentDialog` in [`components/billing/payment-dialog.tsx`](file:///c:/Users/User/Desktop/billCCM/components/billing/payment-dialog.tsx) and backend API validation in [`app/api/bills/checkout/route.ts`](file:///c:/Users/User/Desktop/billCCM/app/api/bills/checkout/route.ts) to accept 0% to 100% discount values seamlessly.
+
+- **Total Sales Wording & Responsive Sales Table Metric Selector**
+  - Renamed "Total Revenue" to "Total Sales" across all dashboards and popovers ([`app/(admin-manager)/dashboard/dashboard-client.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/dashboard/dashboard-client.tsx), [`app/(admin-manager)/outlets/[id]/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/outlets/%5Bid%5D/page.tsx)).
+  - Added a report metric dropdown selector button right next to the "Sales by Outlet" header allowing users to select which column report to display (`Total Sales`, `Total Bills`, `Discounts`, `GST Total`, `Walkaways`, `All Columns`).
+  - By default on mobile / small screens, only `Outlet` and `Total Sales` columns are displayed, eliminating horizontal table scroll clutter. All columns remain accessible via the metric dropdown or on desktop screens.
+
+- **Dashboard Simplification & Sidebar Width Adjustment**
+  - Removed Customer Walkaways Breakdown report section and state from the All Outlets Sales Dashboard ([`app/(admin-manager)/dashboard/dashboard-client.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/dashboard/dashboard-client.tsx)).
+  - Optimized dashboard server load by removing redundant walkaway DB queries in [`app/(admin-manager)/dashboard/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/dashboard/page.tsx).
+  - Reduced left navigation sidebar width from `16rem` to `13.5rem` (`216px`) in [`components/ui/sidebar.tsx`](file:///c:/Users/User/Desktop/billCCM/components/ui/sidebar.tsx) to provide more horizontal layout space for main page content.
+
+- **Dashboard & Sales Summary Metric Card Overflow Fix**
+  - Updated [`components/ui/stat-card.tsx`](file:///c:/Users/User/Desktop/billCCM/components/ui/stat-card.tsx) with dynamic font size scaling (`text-base sm:text-lg md:text-xl` for long numbers >12 chars), letter spacing tightening (`tracking-tight`), and strict truncation bounds (`min-w-0 overflow-hidden truncate`).
+  - Removed `overflow-visible` override from Total Revenue metric card in [`app/(admin-manager)/dashboard/dashboard-client.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/dashboard/dashboard-client.tsx).
+  - Ensures large values (e.g. `₹1,21,797.00` or `₹1,425.85`) remain perfectly formatted inside card boundaries across all screen sizes.
+
 - **Fixed Non-Scrolling Top Navigation Bar for Admin & Manager Views**
   - Updated [`app/(admin-manager)/layout.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/layout.tsx) with a fixed 100vh viewport height (`h-screen max-h-screen overflow-hidden`) and scoped child scrolling (`flex-1 overflow-y-auto`).
   - Ensures [`components/admin-navbar.tsx`](file:///c:/Users/User/Desktop/billCCM/components/admin-navbar.tsx) remains **100% constant at the top of the screen** and never scrolls away when scrolling long tables or page content.

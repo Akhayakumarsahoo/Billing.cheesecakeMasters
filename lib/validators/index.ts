@@ -80,7 +80,7 @@ export const CheckoutBillSchema = z.object({
   payments: z.array(
     z.object({
       mode: z.enum(["cash", "upi", "card", "online"]),
-      amount: z.number().positive(),
+      amount: z.number().nonnegative(),
     })
   ).min(1),
   discountType: z.enum(["percentage", "fixed"]).optional().nullable(),
@@ -106,7 +106,7 @@ export const UpdateLineItemSchema = z.object({
   payments: z.array(
     z.object({
       mode: z.enum(["cash", "upi", "card", "online"]),
-      amount: z.number().positive(),
+      amount: z.number().nonnegative(),
     })
   ).optional(),
 });

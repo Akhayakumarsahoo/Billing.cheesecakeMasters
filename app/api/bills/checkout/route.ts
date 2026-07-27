@@ -135,9 +135,9 @@ export async function POST(req: Request) {
     if (discountType && discountValue !== undefined && discountValue !== null) {
       const valDec = new Decimal(discountValue);
       if (discountType === "percentage") {
-        if (discountValue < 1 || discountValue > 100) {
+        if (discountValue < 0 || discountValue > 100) {
           return NextResponse.json(
-            { error: { code: "VALIDATION_ERROR", message: "Percentage discount must be between 1 and 100" } },
+            { error: { code: "VALIDATION_ERROR", message: "Percentage discount must be between 0 and 100" } },
             { status: 400 }
           );
         }

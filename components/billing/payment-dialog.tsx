@@ -72,6 +72,10 @@ export function PaymentDialog({
       }
     }
 
+    if (payments.length === 0) {
+      payments.push({ mode: "cash", amount: 0 });
+    }
+
     onConfirm(payments);
   };
 

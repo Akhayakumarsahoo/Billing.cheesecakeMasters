@@ -22,31 +22,11 @@ export default async function SalesDashboard({
 async function DashboardContent({ from, to }: { from?: string; to?: string }) {
   const { start, end } = parseDateRange(from, to);
 
-  // Fetch active outlets, walkaways, walkaway reasons, bill totals, and payment breakdown concurrently
-  const [
-    outlets,
-    outletWalkaways,
-    walkawayReasons,
-    outletGroups,
-    paymentBreakdown,
-  ] = await Promise.all([
+  // Fetch active outlets, bill totals, and payment breakdown concurrently
+  const [outlets, outletGroups, paymentBreakdown] = await Promise.all([
     prisma.outlet.findMany({
       where: { isActive: true },
       select: { id: true, name: true },
-    }),
-    prisma.walkaway.groupBy({
-      by: ["outletId"],
-      where: {
-        createdAt: { gte: start, lte: end },
-      },
-      _count: { id: true },
-    }),
-    prisma.walkaway.groupBy({
-      by: ["outletId", "reason"],
-      where: {
-        createdAt: { gte: start, lte: end },
-      },
-      _count: { id: true },
     }),
     prisma.bill.groupBy({
       by: ["outletId"],
@@ -89,36 +69,6 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     else if (mode === "online") outletPaymentsMap[outletId].online += amount;
   }
 
-  const outletWalkawaysMap: Record<string, Record<string, number>> = {};
-  const walkawayMap: Record<string, number> = {};
-  for (const o of outlets) {
-    walkawayMap[o.id] = 0;
-    outletWalkawaysMap[o.id] = {
-      "Price too high": 0,
-      "Desired item/flavor out of stock": 0,
-      "Long waiting time": 0,
-      "Will return later": 0,
-      "Just exploring/browsing": 0,
-      "Other": 0,
-    };
-  }
-
-  for (const ow of outletWalkaways) {
-    walkawayMap[ow.outletId] = ow._count.id;
-  }
-
-  for (const wr of walkawayReasons) {
-    const outletId = wr.outletId;
-    if (!outletWalkawaysMap[outletId]) continue;
-    const reason = wr.reason;
-    const count = wr._count.id;
-    if (reason in outletWalkawaysMap[outletId]) {
-      outletWalkawaysMap[outletId][reason] = count;
-    } else {
-      outletWalkawaysMap[outletId]["Other"] += count;
-    }
-  }
-
   const outletStatsMap: Record<
     string,
     {
@@ -128,7 +78,6 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       revenue: Decimal;
       discount: Decimal;
       gstTotal: Decimal;
-      walkawayCount: number;
     }
   > = {};
 
@@ -140,7 +89,6 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       revenue: new Decimal(0),
       discount: new Decimal(0),
       gstTotal: new Decimal(0),
-      walkawayCount: walkawayMap[o.id] || 0,
     };
   }
 
@@ -156,14 +104,6 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
   const outletStatsList = outlets.map((o) => {
     const stat = outletStatsMap[o.id];
     const payments = outletPaymentsMap[o.id] || { cash: 0, upi: 0, card: 0, online: 0 };
-    const walkawayReasonsList = outletWalkawaysMap[o.id] || {
-      "Price too high": 0,
-      "Desired item/flavor out of stock": 0,
-      "Long waiting time": 0,
-      "Will return later": 0,
-      "Just exploring/browsing": 0,
-      "Other": 0,
-    };
     return {
       id: o.id,
       name: o.name,
@@ -171,8 +111,8 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       revenue: stat?.revenue.toNumber() || 0,
       discount: stat?.discount.toNumber() || 0,
       gstTotal: stat?.gstTotal.toNumber() || 0,
-      walkawayCount: stat?.walkawayCount || 0,
-      walkawayReasons: walkawayReasonsList,
+      walkawayCount: 0,
+      walkawayReasons: {},
       payments,
     };
   });

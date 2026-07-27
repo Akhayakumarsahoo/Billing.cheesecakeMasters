@@ -92,8 +92,8 @@ export function DiscountDialog({
     let calculatedDiscountValue = valueNum;
 
     if (discountType === "percentage") {
-      if (valueNum < 1 || valueNum > 100) {
-        setError("Percentage discount must be between 1% and 100%.");
+      if (valueNum < 0 || valueNum > 100) {
+        setError("Percentage discount must be between 0% and 100%.");
         return;
       }
     } else if (discountType === "fixed") {
