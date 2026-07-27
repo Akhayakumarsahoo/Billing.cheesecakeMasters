@@ -36,16 +36,25 @@ export function CustomSignInForm() {
     setError(null);
 
     try {
-      const result = await clerk.client.signIn.create({
+      let result = await clerk.client.signIn.create({
         identifier: email,
         password,
       });
 
+      if (result.status === "needs_first_factor") {
+        result = await result.attemptFirstFactor({
+          strategy: "password",
+          password,
+        });
+      }
+
       if (result.status === "complete") {
         await clerk.setActive({ session: result.createdSessionId });
         router.push("/");
+      } else if (result.status === "needs_second_factor") {
+        setError("Two-factor authentication is required. Please check your device.");
       } else {
-        setError("Sign in incomplete. Please verify your credentials.");
+        setError("Sign in incomplete. Please check your credentials.");
       }
     } catch (err: any) {
       const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || "Invalid email or password.";
@@ -57,7 +66,17 @@ export function CustomSignInForm() {
 
   return (
     <div className="w-full max-w-md p-8 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-sm">
-      <div className="mb-6 text-center">
+      {/* Company Logo & Header */}
+      <div className="mb-6 flex flex-col items-center text-center">
+        <div className="mb-3 flex items-center justify-center p-2 rounded-2xl bg-[var(--bg-surface-raised)] border border-[var(--border-default)] shadow-xs">
+          <img
+            src="/favicon.svg"
+            alt="Cheesecake Masters Logo"
+            width={48}
+            height={48}
+            className="w-12 h-12 object-contain shrink-0"
+          />
+        </div>
         <h1 className="text-xl font-semibold text-[var(--text-primary)]">Sign in</h1>
         <p className="text-xs text-[var(--text-secondary)] mt-1">Enter your credentials to access your account</p>
       </div>

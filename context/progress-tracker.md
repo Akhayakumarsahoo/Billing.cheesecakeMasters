@@ -11,9 +11,10 @@ change.
 
 - Testing and Verification
 
-- **Password Visibility Eye Toggle on Sign-In Page**
-  - Added an eye toggle button (`Eye` / `EyeOff` from `lucide-react`) inside the password field of the custom sign-in form ([`components/auth/custom-sign-in-form.tsx`](file:///c:/Users/User/Desktop/billCCM/components/auth/custom-sign-in-form.tsx)).
-  - Allows users to seamlessly switch between hidden (`••••••••`) and visible text mode on demand.
+- **Company Logo & Sign-In Completion Enhancements on Sign-In Page**
+  - Added company logo branding (`/favicon.svg` with high resolution icon badge) to the sign-in header in [`components/auth/custom-sign-in-form.tsx`](file:///c:/Users/User/Desktop/billCCM/components/auth/custom-sign-in-form.tsx).
+  - Fixed sign-in completion bug: Added `attemptFirstFactor({ strategy: "password", password })` execution when Clerk returns `needs_first_factor` status upon initial sign-in creation, allowing users to sign in without hitting false incomplete errors.
+  - Added an eye toggle button (`Eye` / `EyeOff` from `lucide-react`) inside the password field to toggle password visibility.
 
 - **100% Discount & Zero-Total Checkout Bug Fix**
   - Resolved "Fail to save bill invalid input" error when completing bills with a 100% discount or ₹0 grand total.
