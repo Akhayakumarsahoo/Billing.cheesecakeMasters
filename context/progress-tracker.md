@@ -11,10 +11,9 @@ change.
 
 - Testing and Verification
 
-- **Company Logo & Sign-In Completion Enhancements on Sign-In Page**
-  - Added company logo branding (`/favicon.svg` with high resolution icon badge) to the sign-in header in [`components/auth/custom-sign-in-form.tsx`](file:///c:/Users/User/Desktop/billCCM/components/auth/custom-sign-in-form.tsx).
-  - Fixed sign-in completion bug: Added `attemptFirstFactor({ strategy: "password", password })` execution when Clerk returns `needs_first_factor` status upon initial sign-in creation, allowing users to sign in without hitting false incomplete errors.
-  - Added an eye toggle button (`Eye` / `EyeOff` from `lucide-react`) inside the password field to toggle password visibility.
+- **Migration to Official Clerk `<SignIn />` Component with Custom Branding & Strictly Hidden Sign-up**
+  - Removed custom sign in component (`custom-sign-in-form.tsx`).
+  - Updated [`app/(auth)/sign-in/[[...sign-in]]/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28auth%29/sign-in/%5B%5B...sign-in%5D%5D/page.tsx) to render the official Clerk `<SignIn />` component with custom logo header (`/favicon.svg`) and strictly hidden sign-up footer actions (`elements: { footer: "!hidden [display:none!important]", footerAction: "!hidden [display:none!important]", footerActionLink: "!hidden [display:none!important]", footerActionText: "!hidden [display:none!important]" }`).
 
 - **100% Discount & Zero-Total Checkout Bug Fix**
   - Resolved "Fail to save bill invalid input" error when completing bills with a 100% discount or ₹0 grand total.
