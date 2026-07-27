@@ -11,9 +11,9 @@ change.
 
 - Testing and Verification
 
-- **Migration to Official Clerk `<SignIn />` Component with Custom Branding & Strictly Hidden Sign-up**
-  - Removed custom sign in component (`custom-sign-in-form.tsx`).
-  - Updated [`app/(auth)/sign-in/[[...sign-in]]/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28auth%29/sign-in/%5B%5B...sign-in%5D%5D/page.tsx) to render the official Clerk `<SignIn />` component with custom logo header (`/favicon.svg`) and strictly hidden sign-up footer actions (`elements: { footer: "!hidden [display:none!important]", footerAction: "!hidden [display:none!important]", footerActionLink: "!hidden [display:none!important]", footerActionText: "!hidden [display:none!important]" }`).
+- **Global Hiding of "Secured by Clerk" and Footers Across All Clerk Components**
+  - Updated global `<ClerkProvider>` appearance configuration in [`app/layout.tsx`](file:///c:/Users/User/Desktop/billCCM/app/layout.tsx) with strict `!hidden [display:none!important]` element rules targeting `userButtonPopoverFooter`, `userButtonPopoverFooterPages`, `footer`, `footerAction`, `footerActionLink`, and `devModeBadge`.
+  - Hides the "Secured by Clerk" footer from the top navigation profile button (`<UserButton />`) dropdown popover as well as all other Clerk views.
 
 - **100% Discount & Zero-Total Checkout Bug Fix**
   - Resolved "Fail to save bill invalid input" error when completing bills with a 100% discount or ₹0 grand total.

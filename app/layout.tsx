@@ -53,6 +53,17 @@ export default function RootLayout({
           colorBackground: "var(--bg-surface)",
           fontFamily: "var(--font-sans)",
         },
+        elements: {
+          userButtonPopoverFooter: "!hidden [display:none!important]",
+          userButtonPopoverFooterPages: "!hidden [display:none!important]",
+          footer: "!hidden [display:none!important]",
+          footerAction: "!hidden [display:none!important]",
+          footerActionLink: "!hidden [display:none!important]",
+          footerActionText: "!hidden [display:none!important]",
+          footerPages: "!hidden [display:none!important]",
+          footerPagesLink: "!hidden [display:none!important]",
+          devModeBadge: "!hidden [display:none!important]",
+        },
       }}
     >
       <html
