@@ -11,6 +11,11 @@ change.
 
 - Testing and Verification
 
+- **Walkaway Report Popover Link & Outlet Walkaway Reasons Summary Report Update**
+  - Updated the "i" button popover link in the "Sales by Outlet" table on the All Outlets Sales Dashboard ([`app/(admin-manager)/dashboard/dashboard-client.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/dashboard/dashboard-client.tsx)) to display **"View Full Report →"** instead of **"View Full Logs →"**, linking directly to that outlet's walkaway report section (`/outlets/[id]/reports?tab=walkaway&from=...&to=...`).
+  - Updated the Walk Away Report tab (`tab=walkaway`) on the Outlet Performance Reports page ([`components/reports/reports-client.tsx`](file:///c:/Users/User/Desktop/billCCM/components/reports/reports-client.tsx)) to replace the detailed "Walk Away Customers Log" table with a clean "Walk Away Reasons Summary" report.
+  - Displays customer walkaway count and percentage share breakdown for every reason ("Price too high", "Desired item/flavor out of stock", "Long waiting time", "Will return later", "Just exploring/browsing", "Other") with a total footer row.
+
 - **All Outlets Dashboard Walkaway Details within Date Range**
   - Updated server component [`app/(admin-manager)/dashboard/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/dashboard/page.tsx) to execute concurrent `prisma.walkaway.groupBy` queries for total walkaways and reason breakdowns by outlet within the selected date range (`createdAt: { gte: start, lte: end }`).
   - Updated client component [`app/(admin-manager)/dashboard/dashboard-client.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/dashboard/dashboard-client.tsx) to display interactive Walkaway popover detail triggers in the "Sales by Outlet" table.

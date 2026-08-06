@@ -458,13 +458,13 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                               </div>
                               <div className="pt-2 mt-2 border-t border-[var(--border-default)] text-right">
                                 <a
-                                  href={`/outlets/${stat.id}/walkaways${fromParam && toParam ? `?from=${fromParam}&to=${toParam}` : ""}`}
+                                  href={`/outlets/${stat.id}/reports?tab=walkaway${fromParam && toParam ? `&from=${fromParam}&to=${toParam}` : ""}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                   }}
                                   className="text-[11px] font-medium text-[var(--accent-primary)] hover:underline inline-flex items-center gap-1"
                                 >
-                                  View Full Logs &rarr;
+                                  View Full Report &rarr;
                                 </a>
                               </div>
                             </PopoverContent>

@@ -595,64 +595,100 @@ export function ReportsClient({
 
         {/* ─── TAB 3: Walk Away Report ────────────────────────────────── */}
         <TabsContent value="walkaway" className="space-y-6 focus-visible:outline-none">
-          {walkawayReport && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard
-                  icon={UserMinus}
-                  label="Total Walk Away Customers"
-                  value={walkawayReport.totalWalkaways}
-                />
-              </div>
+          {walkawayReport && (() => {
+            const PREDEFINED_REASONS = [
+              "Price too high",
+              "Desired item/flavor out of stock",
+              "Long waiting time",
+              "Will return later",
+              "Just exploring/browsing",
+              "Other",
+            ];
 
-              <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl">
-                <CardHeader className="p-6 pb-4">
-                  <CardTitle className="text-lg font-medium text-[var(--text-primary)]">Walk Away Customers Log</CardTitle>
-                  <CardDescription className="text-sm text-[var(--text-secondary)]">
-                    Audit log of customers who left the outlet without completing a billing purchase.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0 overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-b border-[var(--border-default)] hover:bg-transparent">
-                        <TableHead className="font-medium text-[var(--text-secondary)] w-[200px]">Date & Time</TableHead>
-                        <TableHead className="font-medium text-[var(--text-secondary)]">Selected Reason</TableHead>
-                        <TableHead className="font-medium text-[var(--text-secondary)]">Custom Specify Details</TableHead>
-                        <TableHead className="font-medium text-[var(--text-secondary)]">Cashier Email</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {walkawayReport.walkaways.map((w, index) => (
-                        <TableRow key={w.id} className={index % 2 === 1 ? "bg-[var(--bg-surface-raised)]" : "bg-[var(--bg-surface)]"}>
-                          <TableCell className="font-medium text-[var(--text-primary)]">
-                            {formatDateTime(w.createdAt)}
-                          </TableCell>
-                          <TableCell className="text-[var(--text-primary)] font-medium">
-                            {w.reason}
-                          </TableCell>
-                          <TableCell className="text-sm text-[var(--text-secondary)]">
-                            {w.customReason || "—"}
-                          </TableCell>
-                          <TableCell className="text-sm text-[var(--text-secondary)]">
-                            {w.createdByEmail}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+            const reasonCounts: Record<string, number> = {};
+            PREDEFINED_REASONS.forEach((r) => {
+              reasonCounts[r] = 0;
+            });
 
-                      {walkawayReport.walkaways.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={4} className="h-32 text-center text-[var(--text-muted)]">
-                            No customer walkaways logged in this date range.
-                          </TableCell>
+            walkawayReport.walkaways.forEach((w) => {
+              reasonCounts[w.reason] = (reasonCounts[w.reason] || 0) + 1;
+            });
+
+            const reasonSummary = Object.entries(reasonCounts).map(([reason, count]) => {
+              const pct = walkawayReport.totalWalkaways > 0
+                ? ((count / walkawayReport.totalWalkaways) * 100).toFixed(1)
+                : "0.0";
+              return { reason, count, pct };
+            });
+
+            return (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <StatCard
+                    icon={UserMinus}
+                    label="Total Walk Away Customers"
+                    value={walkawayReport.totalWalkaways}
+                  />
+                </div>
+
+                <Card className="bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm rounded-xl">
+                  <CardHeader className="p-6 pb-4">
+                    <CardTitle className="text-lg font-medium text-[var(--text-primary)]">Walk Away Reasons Summary</CardTitle>
+                    <CardDescription className="text-sm text-[var(--text-secondary)]">
+                      Summary report showing customer walkaway count and percentage by reason for the selected date range.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0 overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-b border-[var(--border-default)] hover:bg-transparent">
+                          <TableHead className="font-medium text-[var(--text-secondary)]">Reason</TableHead>
+                          <TableHead className="text-right font-medium text-[var(--text-secondary)]">Walkaway Customers</TableHead>
+                          <TableHead className="text-right font-medium text-[var(--text-secondary)]">Share (%)</TableHead>
                         </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {reasonSummary.map((row, index) => (
+                          <TableRow key={row.reason} className={index % 2 === 1 ? "bg-[var(--bg-surface-raised)]" : "bg-[var(--bg-surface)]"}>
+                            <TableCell className="text-[var(--text-primary)] font-medium">
+                              {row.reason}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-medium text-[var(--text-primary)]">
+                              {row.count}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-[var(--text-secondary)]">
+                              {row.pct}%
+                            </TableCell>
+                          </TableRow>
+                        ))}
+
+                        {walkawayReport.totalWalkaways === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={3} className="h-32 text-center text-[var(--text-muted)]">
+                              No customer walkaways logged in this date range.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                      {walkawayReport.totalWalkaways > 0 && (
+                        <tfoot>
+                          <TableRow className="border-t border-[var(--border-default)] bg-[var(--bg-surface-raised)] font-medium">
+                            <TableCell className="text-[var(--text-primary)] font-bold">Total</TableCell>
+                            <TableCell className="text-right font-mono font-bold text-[var(--text-primary)]">
+                              {walkawayReport.totalWalkaways}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-bold text-[var(--text-primary)]">
+                              100.0%
+                            </TableCell>
+                          </TableRow>
+                        </tfoot>
                       )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            );
+          })()}
         </TabsContent>
 
         {/* ─── TAB 4: Customer Directory ──────────────────────────────── */}
