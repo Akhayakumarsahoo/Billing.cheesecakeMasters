@@ -11,6 +11,12 @@ change.
 
 - Testing and Verification
 
+- **All Outlets Dashboard Walkaway Details within Date Range**
+  - Updated server component [`app/(admin-manager)/dashboard/page.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/dashboard/page.tsx) to execute concurrent `prisma.walkaway.groupBy` queries for total walkaways and reason breakdowns by outlet within the selected date range (`createdAt: { gte: start, lte: end }`).
+  - Updated client component [`app/(admin-manager)/dashboard/dashboard-client.tsx`](file:///c:/Users/User/Desktop/billCCM/app/%28admin-manager%29/dashboard/dashboard-client.tsx) to display interactive Walkaway popover detail triggers in the "Sales by Outlet" table.
+  - Clicking/inspecting the Walkaways column cell displays a popover with the reason-wise breakdown (e.g. "Price too high", "Will return later") for that outlet in the selected date range, total count, and a direct link to full walkaway logs (`/outlets/[id]/walkaways?from=...&to=...`).
+  - Added a combined walkaway breakdown popover to the table Totals row.
+
 - **Global Hiding of "Secured by Clerk" and Footers Across All Clerk Components**
   - Updated global `<ClerkProvider>` appearance configuration in [`app/layout.tsx`](file:///c:/Users/User/Desktop/billCCM/app/layout.tsx) with strict `!hidden [display:none!important]` element rules targeting `userButtonPopoverFooter`, `userButtonPopoverFooterPages`, `footer`, `footerAction`, `footerActionLink`, and `devModeBadge`.
   - Hides the "Secured by Clerk" footer from the top navigation profile button (`<UserButton />`) dropdown popover as well as all other Clerk views.

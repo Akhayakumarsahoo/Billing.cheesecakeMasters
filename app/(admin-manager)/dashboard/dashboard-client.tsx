@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   IndianRupee,
   Percent,
@@ -83,6 +84,10 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     setSelectedOutletIds([]);
   };
 
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get("from") || "";
+  const toParam = searchParams.get("to") || "";
+
   // Compute selected data aggregates
   const selectedData = initialData.filter((item) =>
     selectedOutletIds.includes(item.id)
@@ -92,6 +97,14 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   const totalBillsCount = selectedData.reduce((sum, item) => sum + item.billsCount, 0);
   const totalGst = selectedData.reduce((sum, item) => sum + item.gstTotal, 0);
   const totalDiscount = selectedData.reduce((sum, item) => sum + item.discount, 0);
+  const totalWalkawaysCount = selectedData.reduce((sum, item) => sum + item.walkawayCount, 0);
+
+  const combinedWalkawayReasons: Record<string, number> = {};
+  for (const item of selectedData) {
+    for (const [reason, count] of Object.entries(item.walkawayReasons)) {
+      combinedWalkawayReasons[reason] = (combinedWalkawayReasons[reason] || 0) + count;
+    }
+  }
 
   const paymentBuckets = { cash: 0, upi: 0, card: 0, online: 0 };
   for (const item of selectedData) {
@@ -408,7 +421,55 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                         ₹{formatINR(stat.gstTotal)}
                       </TableCell>
                       <TableCell className={cn("font-mono text-sm text-[var(--text-primary)] text-right", isColVisible("walkaways"))}>
-                        {stat.walkawayCount}
+                        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <span>{stat.walkawayCount}</span>
+                          <Popover>
+                            <PopoverTrigger
+                              className="h-5 w-5 rounded-full inline-flex items-center justify-center bg-[var(--bg-surface-raised)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-all cursor-pointer select-none"
+                              title="View Walkaway Details"
+                            >
+                              <Info className="h-3 w-3" strokeWidth={2} />
+                            </PopoverTrigger>
+                            <PopoverContent
+                              align="end"
+                              side="bottom"
+                              sideOffset={8}
+                              className="w-64 p-3.5 bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-2xl rounded-xl text-xs z-[9999]"
+                            >
+                              <div className="font-semibold text-[var(--text-primary)] border-b border-[var(--border-default)] pb-2 mb-2.5 flex justify-between items-center">
+                                <span>Walkaway Details</span>
+                                <span className="text-[10px] text-[var(--text-muted)] font-normal">{stat.name}</span>
+                              </div>
+                              <div className="space-y-2">
+                                {Object.entries(stat.walkawayReasons).length > 0 ? (
+                                  Object.entries(stat.walkawayReasons).map(([reason, count]) => (
+                                    <div key={reason} className="flex justify-between items-center py-0.5">
+                                      <span className="text-[var(--text-secondary)] font-medium">{reason}</span>
+                                      <span className="font-mono font-semibold text-[var(--text-primary)]">{count}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-[var(--text-muted)] text-center py-1">No walkaways recorded</div>
+                                )}
+                              </div>
+                              <div className="flex justify-between items-center pt-2 mt-2.5 border-t border-[var(--border-default)] font-semibold text-[var(--text-primary)]">
+                                <span>Total Walkaways</span>
+                                <span className="font-mono text-sm">{stat.walkawayCount}</span>
+                              </div>
+                              <div className="pt-2 mt-2 border-t border-[var(--border-default)] text-right">
+                                <a
+                                  href={`/outlets/${stat.id}/walkaways${fromParam && toParam ? `?from=${fromParam}&to=${toParam}` : ""}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                  }}
+                                  className="text-[11px] font-medium text-[var(--accent-primary)] hover:underline inline-flex items-center gap-1"
+                                >
+                                  View Full Logs &rarr;
+                                </a>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                       </TableCell>
                     </ClickableRow>
                   ))}
@@ -431,7 +492,44 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                       ₹{formatINR(totalGst)}
                     </TableCell>
                     <TableCell className={cn("font-mono text-sm font-medium text-[var(--text-primary)] text-right font-bold", isColVisible("walkaways"))}>
-                      {selectedData.reduce((s, o) => s + o.walkawayCount, 0)}
+                      <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <span>{totalWalkawaysCount}</span>
+                        <Popover>
+                          <PopoverTrigger
+                            className="h-5 w-5 rounded-full inline-flex items-center justify-center bg-[var(--bg-surface-raised)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-all cursor-pointer select-none"
+                            title="View Combined Walkaway Details"
+                          >
+                            <Info className="h-3 w-3" strokeWidth={2} />
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="end"
+                            side="bottom"
+                            sideOffset={8}
+                            className="w-64 p-3.5 bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-2xl rounded-xl text-xs z-[9999]"
+                          >
+                            <div className="font-semibold text-[var(--text-primary)] border-b border-[var(--border-default)] pb-2 mb-2.5 flex justify-between items-center">
+                              <span>All Outlets Walkaway Details</span>
+                              <span className="text-[10px] text-[var(--text-muted)] font-normal">Combined</span>
+                            </div>
+                            <div className="space-y-2">
+                              {Object.entries(combinedWalkawayReasons).length > 0 ? (
+                                Object.entries(combinedWalkawayReasons).map(([reason, count]) => (
+                                  <div key={reason} className="flex justify-between items-center py-0.5">
+                                    <span className="text-[var(--text-secondary)] font-medium">{reason}</span>
+                                    <span className="font-mono font-semibold text-[var(--text-primary)]">{count}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-[var(--text-muted)] text-center py-1">No walkaways recorded</div>
+                              )}
+                            </div>
+                            <div className="flex justify-between items-center pt-2 mt-2.5 border-t border-[var(--border-default)] font-semibold text-[var(--text-primary)]">
+                              <span>Total Walkaways</span>
+                              <span className="font-mono text-sm">{totalWalkawaysCount}</span>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                     </TableCell>
                   </TableRow>
                 </>

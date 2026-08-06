@@ -22,8 +22,14 @@ export default async function SalesDashboard({
 async function DashboardContent({ from, to }: { from?: string; to?: string }) {
   const { start, end } = parseDateRange(from, to);
 
-  // Fetch active outlets, bill totals, and payment breakdown concurrently
-  const [outlets, outletGroups, paymentBreakdown] = await Promise.all([
+  // Fetch active outlets, bill totals, payment breakdown, and walkaways concurrently
+  const [
+    outlets,
+    outletGroups,
+    paymentBreakdown,
+    walkawayGroups,
+    walkawayReasonsGroup,
+  ] = await Promise.all([
     prisma.outlet.findMany({
       where: { isActive: true },
       select: { id: true, name: true },
@@ -52,6 +58,24 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       WHERE b.status = 'printed' AND b."completedAt" >= ${start} AND b."completedAt" <= ${end}
       GROUP BY b."outletId", p.mode
     `,
+    prisma.walkaway.groupBy({
+      by: ["outletId"],
+      where: {
+        createdAt: { gte: start, lte: end },
+      },
+      _count: {
+        id: true,
+      },
+    }),
+    prisma.walkaway.groupBy({
+      by: ["outletId", "reason"],
+      where: {
+        createdAt: { gte: start, lte: end },
+      },
+      _count: {
+        id: true,
+      },
+    }),
   ]);
 
   const outletPaymentsMap: Record<string, { cash: number; upi: number; card: number; online: number }> = {};
@@ -78,6 +102,8 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       revenue: Decimal;
       discount: Decimal;
       gstTotal: Decimal;
+      walkawayCount: number;
+      walkawayReasons: Record<string, number>;
     }
   > = {};
 
@@ -89,6 +115,8 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       revenue: new Decimal(0),
       discount: new Decimal(0),
       gstTotal: new Decimal(0),
+      walkawayCount: 0,
+      walkawayReasons: {},
     };
   }
 
@@ -101,6 +129,18 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
     stat.gstTotal = g._sum.totalGst || new Decimal(0);
   }
 
+  for (const w of walkawayGroups) {
+    const stat = outletStatsMap[w.outletId];
+    if (!stat) continue;
+    stat.walkawayCount = w._count.id;
+  }
+
+  for (const wr of walkawayReasonsGroup) {
+    const stat = outletStatsMap[wr.outletId];
+    if (!stat) continue;
+    stat.walkawayReasons[wr.reason] = wr._count.id;
+  }
+
   const outletStatsList = outlets.map((o) => {
     const stat = outletStatsMap[o.id];
     const payments = outletPaymentsMap[o.id] || { cash: 0, upi: 0, card: 0, online: 0 };
@@ -111,8 +151,8 @@ async function DashboardContent({ from, to }: { from?: string; to?: string }) {
       revenue: stat?.revenue.toNumber() || 0,
       discount: stat?.discount.toNumber() || 0,
       gstTotal: stat?.gstTotal.toNumber() || 0,
-      walkawayCount: 0,
-      walkawayReasons: {},
+      walkawayCount: stat?.walkawayCount || 0,
+      walkawayReasons: stat?.walkawayReasons || {},
       payments,
     };
   });

@@ -2,14 +2,14 @@
 
 ## Overview
 
-This application is a centralized, web-based billing system for a single retail company operating across 2–5 physical outlets. There is no public signup — the system has one pre-seeded admin account, and all users/outlets are created by that admin. Outlets act as authenticated entities that log into the POS to create GST-compliant invoices for walk-in customers, optionally capture customer name and phone number, collect payments across multiple modes (cash, UPI, card) including split payments on a single bill, and close transactions at the counter. Admins and managers view consolidated and per-outlet sales data, GST summaries, and payment breakdowns from a shared dashboard. Each outlet has its own independent menu managed by admins or managers from within that outlet's context.
+This application is a centralized, web-based billing system for a single retail company operating across 2–7 physical outlets. There is no public signup — the system has one pre-seeded admin account, and all users/outlets are created by that admin. Outlets act as authenticated entities that log into the POS to create GST-compliant invoices for walk-in customers, optionally capture customer name and phone number, collect payments across multiple modes (cash, UPI, card) including split payments on a single bill, and close transactions at the counter. Admins and managers view consolidated and per-outlet sales data, GST summaries, and payment breakdowns from a shared dashboard. Each outlet has its own independent menu managed by admins or managers from within that outlet's context.
 
 ---
 
 ## Goals
 
 1. Replace manual or disconnected billing processes at each outlet with a single, centralized web application.
-2. Enable outlets to generate accurate, GST-compliant bills in under 2 minutes per transaction.
+2. Enable outlets to generate accurate, GST-compliant bills in under 2 minutes and saves the bills instantly after each transaction.
 3. Support multi-mode and split payments (cash + UPI + card) on a single bill without manual reconciliation errors.
 4. Optionally capture customer name and phone number on each bill and store it permanently in the database.
 5. Give the admin and managers a consolidated and per-outlet view of sales, revenue, and GST collected across all outlets.
